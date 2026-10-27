@@ -1,0 +1,2071 @@
+{
+ "version": 1,
+ "levels": [
+  "read",
+  "draft",
+  "live",
+  "admin"
+ ],
+ "ops": [
+  {
+   "id": "site.overview",
+   "tool": "site",
+   "action": "overview",
+   "level": "read",
+   "summary": "Name, URL, theme, active plugins, content types, taxonomies, menus, SEO plugin, WooCommerce, locale, bridge ceiling and ops.",
+   "params": {},
+   "required": [],
+   "write": false,
+   "confirm": false,
+   "untrusted": true,
+   "escalates": null
+  },
+  {
+   "id": "site.ping",
+   "tool": "site",
+   "action": "ping",
+   "level": "read",
+   "summary": "Bridge version, PHP/WP versions, clock skew and round-trip check.",
+   "params": {},
+   "required": [],
+   "write": false,
+   "confirm": false,
+   "untrusted": false,
+   "escalates": null
+  },
+  {
+   "id": "content.list",
+   "tool": "content",
+   "action": "list",
+   "level": "read",
+   "summary": "List posts/pages/custom types (non-published statuses need draft level).",
+   "params": {
+    "post_type": "string|Default post",
+    "status": "string|publish (default), draft, pending, future, private, trash, any",
+    "search": "string|Search text",
+    "term": "string|taxonomy:slug filter, e.g. category:news",
+    "author": "int|Author ID",
+    "orderby": "enum:date,modified,title,menu_order,id|Default date",
+    "order": "enum:asc,desc|Default desc",
+    "page": "int|Page number (default 1)",
+    "per_page": "int|Items per page (default 20, max 100)"
+   },
+   "required": [],
+   "write": false,
+   "confirm": false,
+   "untrusted": true,
+   "escalates": "draft"
+  },
+  {
+   "id": "content.get",
+   "tool": "content",
+   "action": "get",
+   "level": "read",
+   "summary": "Read one item with raw content, meta, terms, SEO, template. Drafts need draft level.",
+   "params": {
+    "id": "any|Post ID, or slug/path as a string",
+    "post_type": "string|Needed when id is a slug",
+    "include": "array|Extras: revisions, seo, blocks"
+   },
+   "required": [
+    "id"
+   ],
+   "write": false,
+   "confirm": false,
+   "untrusted": true,
+   "escalates": "draft"
+  },
+  {
+   "id": "content.save",
+   "tool": "content",
+   "action": "save",
+   "level": "draft",
+   "summary": "Create or update a post/page/custom item. Keep status draft/pending at draft level; publish or edit published items needs live.",
+   "params": {
+    "id": "int|Omit to create",
+    "post_type": "string|Default post",
+    "title": "string|Title",
+    "content": "string|Block markup or HTML",
+    "excerpt": "string|Excerpt",
+    "status": "string|draft, pending, publish, future, private",
+    "slug": "string|URL slug",
+    "parent": "int|Parent ID",
+    "template": "string|Page template file or block template slug",
+    "featured_media": "int|Attachment ID",
+    "date": "string|Y-m-d H:i:s (site time), schedules when future",
+    "terms": "object|{taxonomy: [names or ids]}",
+    "meta": "object|{key: value}; protected keys are refused",
+    "menu_order": "int|Order",
+    "comment_status": "enum:open,closed|Comments"
+   },
+   "required": [],
+   "write": true,
+   "confirm": false,
+   "untrusted": false,
+   "escalates": "live"
+  },
+  {
+   "id": "content.duplicate",
+   "tool": "content",
+   "action": "duplicate",
+   "level": "draft",
+   "summary": "Copy an item as a new draft.",
+   "params": {
+    "id": "int|Source ID"
+   },
+   "required": [
+    "id"
+   ],
+   "write": true,
+   "confirm": false,
+   "untrusted": false,
+   "escalates": null
+  },
+  {
+   "id": "content.trash",
+   "tool": "content",
+   "action": "trash",
+   "level": "live",
+   "summary": "Move to trash (recoverable).",
+   "params": {
+    "id": "int|ID"
+   },
+   "required": [
+    "id"
+   ],
+   "write": true,
+   "confirm": false,
+   "untrusted": false,
+   "escalates": null
+  },
+  {
+   "id": "content.restore",
+   "tool": "content",
+   "action": "restore",
+   "level": "live",
+   "summary": "Restore from trash.",
+   "params": {
+    "id": "int|ID"
+   },
+   "required": [
+    "id"
+   ],
+   "write": true,
+   "confirm": false,
+   "untrusted": false,
+   "escalates": null
+  },
+  {
+   "id": "content.delete",
+   "tool": "content",
+   "action": "delete",
+   "level": "admin",
+   "summary": "Delete permanently. Cannot be undone.",
+   "params": {
+    "id": "int|ID"
+   },
+   "required": [
+    "id"
+   ],
+   "write": true,
+   "confirm": true,
+   "untrusted": false,
+   "escalates": null
+  },
+  {
+   "id": "content.revisions",
+   "tool": "content",
+   "action": "revisions",
+   "level": "draft",
+   "summary": "List WordPress revisions of an item, or restore one.",
+   "params": {
+    "id": "int|Post ID",
+    "restore": "int|Revision ID to restore (needs live)"
+   },
+   "required": [
+    "id"
+   ],
+   "write": true,
+   "confirm": false,
+   "untrusted": true,
+   "escalates": null
+  },
+  {
+   "id": "content.bulk",
+   "tool": "content",
+   "action": "bulk",
+   "level": "live",
+   "summary": "Change the status of up to 50 items at once.",
+   "params": {
+    "ids": "array|Post IDs",
+    "status": "string|publish, draft, pending, private or trash"
+   },
+   "required": [
+    "ids",
+    "status"
+   ],
+   "write": true,
+   "confirm": false,
+   "untrusted": false,
+   "escalates": null
+  },
+  {
+   "id": "content.terms_list",
+   "tool": "content",
+   "action": "terms_list",
+   "level": "read",
+   "summary": "List categories, tags or any taxonomy terms.",
+   "params": {
+    "taxonomy": "string|Default category",
+    "search": "string|Search",
+    "hide_empty": "bool|Default false",
+    "page": "int|Page number (default 1)",
+    "per_page": "int|Items per page (default 20, max 100)"
+   },
+   "required": [],
+   "write": false,
+   "confirm": false,
+   "untrusted": true,
+   "escalates": null
+  },
+  {
+   "id": "content.terms_save",
+   "tool": "content",
+   "action": "terms_save",
+   "level": "live",
+   "summary": "Create or update a term.",
+   "params": {
+    "id": "int|Omit to create",
+    "taxonomy": "string|Default category",
+    "name": "string|Name",
+    "slug": "string|Slug",
+    "parent": "int|Parent term",
+    "description": "string|Description"
+   },
+   "required": [
+    "name"
+   ],
+   "write": true,
+   "confirm": false,
+   "untrusted": false,
+   "escalates": null
+  },
+  {
+   "id": "content.terms_delete",
+   "tool": "content",
+   "action": "terms_delete",
+   "level": "live",
+   "summary": "Delete a term (posts keep existing).",
+   "params": {
+    "id": "int|Term ID",
+    "taxonomy": "string|Default category"
+   },
+   "required": [
+    "id"
+   ],
+   "write": true,
+   "confirm": true,
+   "untrusted": false,
+   "escalates": null
+  },
+  {
+   "id": "content.comments_list",
+   "tool": "content",
+   "action": "comments_list",
+   "level": "draft",
+   "summary": "List comments (author email only at admin level).",
+   "params": {
+    "post_id": "int|Filter by post",
+    "status": "string|approve, hold, spam, trash, all",
+    "search": "string|Text",
+    "page": "int|Page number (default 1)",
+    "per_page": "int|Items per page (default 20, max 100)"
+   },
+   "required": [],
+   "write": false,
+   "confirm": false,
+   "untrusted": true,
+   "escalates": null
+  },
+  {
+   "id": "content.comments_moderate",
+   "tool": "content",
+   "action": "comments_moderate",
+   "level": "live",
+   "summary": "Approve, hold, spam or trash comments.",
+   "params": {
+    "ids": "array|Comment IDs",
+    "action": "enum:approve,hold,spam,trash,unspam"
+   },
+   "required": [
+    "ids",
+    "action"
+   ],
+   "write": true,
+   "confirm": false,
+   "untrusted": false,
+   "escalates": null
+  },
+  {
+   "id": "content.comments_reply",
+   "tool": "content",
+   "action": "comments_reply",
+   "level": "live",
+   "summary": "Reply to a comment as the connected admin.",
+   "params": {
+    "comment_id": "int|Parent comment",
+    "content": "string|Reply text"
+   },
+   "required": [
+    "comment_id",
+    "content"
+   ],
+   "write": true,
+   "confirm": false,
+   "untrusted": false,
+   "escalates": null
+  },
+  {
+   "id": "content.comments_delete",
+   "tool": "content",
+   "action": "comments_delete",
+   "level": "admin",
+   "summary": "Delete comments permanently.",
+   "params": {
+    "ids": "array|Comment IDs"
+   },
+   "required": [
+    "ids"
+   ],
+   "write": true,
+   "confirm": true,
+   "untrusted": false,
+   "escalates": null
+  },
+  {
+   "id": "design.tokens_get",
+   "tool": "design",
+   "action": "tokens_get",
+   "level": "read",
+   "summary": "Design tokens: colors, fonts, font sizes, spacing, layout widths (theme.json + site tokens).",
+   "params": {},
+   "required": [],
+   "write": false,
+   "confirm": false,
+   "untrusted": false,
+   "escalates": null
+  },
+  {
+   "id": "design.tokens_set",
+   "tool": "design",
+   "action": "tokens_set",
+   "level": "live",
+   "summary": "Merge design tokens. Emitted as CSS variables (--wpm-*) and, on block themes, merged into Global Styles.",
+   "params": {
+    "colors": "object|{slug: \"#hex\"}",
+    "fonts": "object|{slug: \"font-family stack\"}",
+    "font_sizes": "object|{slug: \"1.25rem\"}",
+    "spacing": "object|{slug: \"1rem\"}",
+    "radius": "string|Border radius",
+    "content_width": "string|Content width, e.g. 1100px"
+   },
+   "required": [],
+   "write": true,
+   "confirm": false,
+   "untrusted": false,
+   "escalates": null
+  },
+  {
+   "id": "design.css_get",
+   "tool": "design",
+   "action": "css_get",
+   "level": "read",
+   "summary": "Additional CSS (named sections) as stored.",
+   "params": {
+    "section": "string|Only this section"
+   },
+   "required": [],
+   "write": false,
+   "confirm": false,
+   "untrusted": false,
+   "escalates": null
+  },
+  {
+   "id": "design.css_set",
+   "tool": "design",
+   "action": "css_set",
+   "level": "live",
+   "summary": "Write CSS into a named section (replace, append or prepend). Other sections are untouched.",
+   "params": {
+    "css": "string|CSS text (max 200 KB)",
+    "section": "string|Section name, default main",
+    "mode": "enum:replace,append,prepend|Default replace"
+   },
+   "required": [
+    "css"
+   ],
+   "write": true,
+   "confirm": false,
+   "untrusted": false,
+   "escalates": null
+  },
+  {
+   "id": "design.css_remove",
+   "tool": "design",
+   "action": "css_remove",
+   "level": "live",
+   "summary": "Remove a CSS section.",
+   "params": {
+    "section": "string|Section name"
+   },
+   "required": [
+    "section"
+   ],
+   "write": true,
+   "confirm": false,
+   "untrusted": false,
+   "escalates": null
+  },
+  {
+   "id": "design.templates_list",
+   "tool": "design",
+   "action": "templates_list",
+   "level": "read",
+   "summary": "Block templates and template parts (header, footer…), or classic theme template files.",
+   "params": {
+    "kind": "enum:template,part|Default both"
+   },
+   "required": [],
+   "write": false,
+   "confirm": false,
+   "untrusted": false,
+   "escalates": null
+  },
+  {
+   "id": "design.template_get",
+   "tool": "design",
+   "action": "template_get",
+   "level": "read",
+   "summary": "Read a template or part (raw block markup).",
+   "params": {
+    "slug": "string|Template slug, e.g. header, footer, single, front-page",
+    "kind": "enum:template,part|Default template"
+   },
+   "required": [
+    "slug"
+   ],
+   "write": false,
+   "confirm": false,
+   "untrusted": true,
+   "escalates": null
+  },
+  {
+   "id": "design.template_save",
+   "tool": "design",
+   "action": "template_save",
+   "level": "live",
+   "summary": "Create or override a template/part (block themes). Revert with design.template_reset.",
+   "params": {
+    "slug": "string|Slug",
+    "content": "string|Block markup",
+    "kind": "enum:template,part|Default template",
+    "title": "string|Title",
+    "area": "enum:header,footer,uncategorized|For parts"
+   },
+   "required": [
+    "slug",
+    "content"
+   ],
+   "write": true,
+   "confirm": false,
+   "untrusted": false,
+   "escalates": null
+  },
+  {
+   "id": "design.template_reset",
+   "tool": "design",
+   "action": "template_reset",
+   "level": "live",
+   "summary": "Drop the custom version, falling back to the theme file.",
+   "params": {
+    "slug": "string|Slug",
+    "kind": "enum:template,part|Default template"
+   },
+   "required": [
+    "slug"
+   ],
+   "write": true,
+   "confirm": false,
+   "untrusted": false,
+   "escalates": null
+  },
+  {
+   "id": "design.menus_list",
+   "tool": "design",
+   "action": "menus_list",
+   "level": "read",
+   "summary": "Menus and theme locations.",
+   "params": {},
+   "required": [],
+   "write": false,
+   "confirm": false,
+   "untrusted": false,
+   "escalates": null
+  },
+  {
+   "id": "design.menu_get",
+   "tool": "design",
+   "action": "menu_get",
+   "level": "read",
+   "summary": "One menu as a tree.",
+   "params": {
+    "menu": "any|Menu ID, slug or name"
+   },
+   "required": [
+    "menu"
+   ],
+   "write": false,
+   "confirm": false,
+   "untrusted": false,
+   "escalates": null
+  },
+  {
+   "id": "design.menu_save",
+   "tool": "design",
+   "action": "menu_save",
+   "level": "live",
+   "summary": "Create or replace a menu from a tree and assign locations.",
+   "params": {
+    "name": "string|Menu name",
+    "items": "array|[{title, url | object:\"page\"+object_id, children:[…]}]",
+    "locations": "array|Theme locations to assign"
+   },
+   "required": [
+    "name",
+    "items"
+   ],
+   "write": true,
+   "confirm": false,
+   "untrusted": false,
+   "escalates": null
+  },
+  {
+   "id": "design.menu_delete",
+   "tool": "design",
+   "action": "menu_delete",
+   "level": "live",
+   "summary": "Delete a menu and its items (recoverable with activity.undo).",
+   "params": {
+    "menu": "any|ID, slug or name"
+   },
+   "required": [
+    "menu"
+   ],
+   "write": true,
+   "confirm": true,
+   "untrusted": false,
+   "escalates": null
+  },
+  {
+   "id": "design.homepage_set",
+   "tool": "design",
+   "action": "homepage_set",
+   "level": "live",
+   "summary": "Static front page / posts page, or latest posts.",
+   "params": {
+    "show_on_front": "enum:posts,page|Mode",
+    "front_page_id": "int|Page ID",
+    "posts_page_id": "int|Page ID for the blog"
+   },
+   "required": [],
+   "write": true,
+   "confirm": false,
+   "untrusted": false,
+   "escalates": null
+  },
+  {
+   "id": "design.branding_set",
+   "tool": "design",
+   "action": "branding_set",
+   "level": "live",
+   "summary": "Site title, tagline, logo and site icon.",
+   "params": {
+    "title": "string|Site title",
+    "tagline": "string|Tagline",
+    "logo_id": "int|Attachment ID (theme custom logo)",
+    "icon_id": "int|Attachment ID (site icon, square ≥512px)"
+   },
+   "required": [],
+   "write": true,
+   "confirm": false,
+   "untrusted": false,
+   "escalates": null
+  },
+  {
+   "id": "design.themes_list",
+   "tool": "design",
+   "action": "themes_list",
+   "level": "draft",
+   "summary": "Installed themes and which is active.",
+   "params": {},
+   "required": [],
+   "write": false,
+   "confirm": false,
+   "untrusted": false,
+   "escalates": null
+  },
+  {
+   "id": "design.theme_activate",
+   "tool": "design",
+   "action": "theme_activate",
+   "level": "admin",
+   "summary": "Switch the active theme.",
+   "params": {
+    "slug": "string|Theme directory"
+   },
+   "required": [
+    "slug"
+   ],
+   "write": true,
+   "confirm": true,
+   "untrusted": false,
+   "escalates": null
+  },
+  {
+   "id": "design.theme_install",
+   "tool": "design",
+   "action": "theme_install",
+   "level": "admin",
+   "summary": "Install a theme from WordPress.org by slug.",
+   "params": {
+    "slug": "string|WordPress.org slug",
+    "activate": "bool|Activate after install"
+   },
+   "required": [
+    "slug"
+   ],
+   "write": true,
+   "confirm": true,
+   "untrusted": false,
+   "escalates": null
+  },
+  {
+   "id": "design.theme_files",
+   "tool": "design",
+   "action": "theme_files",
+   "level": "admin",
+   "summary": "List files of the active (or given) theme.",
+   "params": {
+    "theme": "string|Theme directory"
+   },
+   "required": [],
+   "write": false,
+   "confirm": false,
+   "untrusted": false,
+   "escalates": null
+  },
+  {
+   "id": "design.theme_file_read",
+   "tool": "design",
+   "action": "theme_file_read",
+   "level": "admin",
+   "summary": "Read a theme file.",
+   "params": {
+    "path": "string|Path inside the theme",
+    "theme": "string|Theme directory",
+    "offset": "int|Byte offset"
+   },
+   "required": [
+    "path"
+   ],
+   "write": false,
+   "confirm": false,
+   "untrusted": true,
+   "escalates": null
+  },
+  {
+   "id": "design.theme_file_write",
+   "tool": "design",
+   "action": "theme_file_write",
+   "level": "admin",
+   "summary": "Write a theme file (PHP is syntax-checked; previous content is kept for undo).",
+   "params": {
+    "path": "string|Path inside the theme (php, css, js, json, html)",
+    "content": "string|File content",
+    "theme": "string|Theme directory"
+   },
+   "required": [
+    "path",
+    "content"
+   ],
+   "write": true,
+   "confirm": true,
+   "untrusted": false,
+   "escalates": null
+  },
+  {
+   "id": "media.list",
+   "tool": "media",
+   "action": "list",
+   "level": "read",
+   "summary": "Media library items with URLs, sizes and alt text.",
+   "params": {
+    "search": "string|Text",
+    "mime": "string|e.g. image, image/png, application/pdf",
+    "page": "int|Page number (default 1)",
+    "per_page": "int|Items per page (default 20, max 100)"
+   },
+   "required": [],
+   "write": false,
+   "confirm": false,
+   "untrusted": true,
+   "escalates": null
+  },
+  {
+   "id": "media.get",
+   "tool": "media",
+   "action": "get",
+   "level": "read",
+   "summary": "One attachment with all sizes.",
+   "params": {
+    "id": "int|Attachment ID"
+   },
+   "required": [
+    "id"
+   ],
+   "write": false,
+   "confirm": false,
+   "untrusted": true,
+   "escalates": null
+  },
+  {
+   "id": "media.upload",
+   "tool": "media",
+   "action": "upload",
+   "level": "draft",
+   "summary": "Upload a file from base64 data.",
+   "params": {
+    "filename": "string|e.g. hero.jpg",
+    "data_base64": "string|File bytes, base64 (max ~8 MB)",
+    "title": "string|Title",
+    "alt": "string|Alt text",
+    "caption": "string|Caption",
+    "attach_to": "int|Post ID"
+   },
+   "required": [
+    "filename",
+    "data_base64"
+   ],
+   "write": true,
+   "confirm": false,
+   "untrusted": false,
+   "escalates": null
+  },
+  {
+   "id": "media.import_url",
+   "tool": "media",
+   "action": "import_url",
+   "level": "live",
+   "summary": "Download an image/file from an https URL (no redirects, no private addresses).",
+   "params": {
+    "url": "string|https URL",
+    "filename": "string|Override filename",
+    "title": "string|Title",
+    "alt": "string|Alt text",
+    "attach_to": "int|Post ID"
+   },
+   "required": [
+    "url"
+   ],
+   "write": true,
+   "confirm": true,
+   "untrusted": false,
+   "escalates": null
+  },
+  {
+   "id": "media.update",
+   "tool": "media",
+   "action": "update",
+   "level": "draft",
+   "summary": "Update alt text, title, caption.",
+   "params": {
+    "id": "int|Attachment ID",
+    "alt": "string|Alt",
+    "title": "string|Title",
+    "caption": "string|Caption",
+    "description": "string|Description"
+   },
+   "required": [
+    "id"
+   ],
+   "write": true,
+   "confirm": false,
+   "untrusted": false,
+   "escalates": null
+  },
+  {
+   "id": "media.delete",
+   "tool": "media",
+   "action": "delete",
+   "level": "admin",
+   "summary": "Delete an attachment and its files permanently.",
+   "params": {
+    "id": "int|Attachment ID"
+   },
+   "required": [
+    "id"
+   ],
+   "write": true,
+   "confirm": true,
+   "untrusted": false,
+   "escalates": null
+  },
+  {
+   "id": "seo.get",
+   "tool": "seo",
+   "action": "get",
+   "level": "read",
+   "summary": "SEO fields of an item (title, description, canonical, robots, OG, schema), via Yoast/Rank Math/AIOSEO/SEOPress or the built-in fallback.",
+   "params": {
+    "id": "any|Post ID, or slug/path as a string"
+   },
+   "required": [
+    "id"
+   ],
+   "write": false,
+   "confirm": false,
+   "untrusted": true,
+   "escalates": "draft"
+  },
+  {
+   "id": "seo.set",
+   "tool": "seo",
+   "action": "set",
+   "level": "draft",
+   "summary": "Set SEO fields. Published items need live.",
+   "params": {
+    "id": "int|Post ID",
+    "title": "string|SEO title",
+    "description": "string|Meta description",
+    "canonical": "string|Canonical URL",
+    "noindex": "bool|Hide from search",
+    "nofollow": "bool|Do not follow links",
+    "og_title": "string|",
+    "og_description": "string|",
+    "og_image": "string|Image URL",
+    "focus_keyword": "string|Focus keyword"
+   },
+   "required": [
+    "id"
+   ],
+   "write": true,
+   "confirm": false,
+   "untrusted": false,
+   "escalates": "live"
+  },
+  {
+   "id": "seo.audit",
+   "tool": "seo",
+   "action": "audit",
+   "level": "read",
+   "summary": "Audit a page of this site: title/description length, headings, alt text, canonical, robots, OG, schema, links, size. Returns scored issues with fixes.",
+   "params": {
+    "path": "string|Path like /about/",
+    "id": "int|Post ID"
+   },
+   "required": [],
+   "write": false,
+   "confirm": false,
+   "untrusted": true,
+   "escalates": null
+  },
+  {
+   "id": "seo.site_get",
+   "tool": "seo",
+   "action": "site_get",
+   "level": "read",
+   "summary": "Site-wide SEO: search visibility, robots.txt, sitemap provider, organisation schema, active SEO plugin.",
+   "params": {},
+   "required": [],
+   "write": false,
+   "confirm": false,
+   "untrusted": false,
+   "escalates": null
+  },
+  {
+   "id": "seo.site_set",
+   "tool": "seo",
+   "action": "site_set",
+   "level": "live",
+   "summary": "Site-wide SEO (built-in layer): robots.txt text, organisation schema, title separator, default OG image. Search visibility needs admin.",
+   "params": {
+    "robots_txt": "string|Full robots.txt content",
+    "org_name": "string|",
+    "org_logo": "string|URL",
+    "org_same_as": "array|Profile URLs",
+    "title_separator": "string|",
+    "default_og_image": "string|URL",
+    "blog_public": "bool|false hides the whole site from search (admin only)"
+   },
+   "required": [],
+   "write": true,
+   "confirm": false,
+   "untrusted": false,
+   "escalates": "admin"
+  },
+  {
+   "id": "seo.sitemap",
+   "tool": "seo",
+   "action": "sitemap",
+   "level": "read",
+   "summary": "Sitemap provider, URL and number of URLs; can switch the core sitemap on or off.",
+   "params": {
+    "enable": "bool|Switch core sitemap (needs live)"
+   },
+   "required": [],
+   "write": false,
+   "confirm": false,
+   "untrusted": false,
+   "escalates": "live"
+  },
+  {
+   "id": "seo.redirects_list",
+   "tool": "seo",
+   "action": "redirects_list",
+   "level": "draft",
+   "summary": "Redirects managed by the bridge.",
+   "params": {
+    "page": "int|Page number (default 1)",
+    "per_page": "int|Items per page (default 20, max 100)"
+   },
+   "required": [],
+   "write": false,
+   "confirm": false,
+   "untrusted": false,
+   "escalates": null
+  },
+  {
+   "id": "seo.redirect_save",
+   "tool": "seo",
+   "action": "redirect_save",
+   "level": "live",
+   "summary": "Add or update a redirect.",
+   "params": {
+    "from": "string|Path like /old/ (or regex when regex=true)",
+    "to": "string|Path or URL (empty for 410/451)",
+    "code": "enum:301,302,307,308,410,451|Default 301",
+    "regex": "bool|Treat from as a regex"
+   },
+   "required": [
+    "from",
+    "to"
+   ],
+   "write": true,
+   "confirm": false,
+   "untrusted": false,
+   "escalates": null
+  },
+  {
+   "id": "seo.redirect_delete",
+   "tool": "seo",
+   "action": "redirect_delete",
+   "level": "live",
+   "summary": "Remove a redirect.",
+   "params": {
+    "from": "string|Exact from value"
+   },
+   "required": [
+    "from"
+   ],
+   "write": true,
+   "confirm": false,
+   "untrusted": false,
+   "escalates": null
+  },
+  {
+   "id": "seo.schema_get",
+   "tool": "seo",
+   "action": "schema_get",
+   "level": "read",
+   "summary": "Custom JSON-LD of an item.",
+   "params": {
+    "id": "int|Post ID"
+   },
+   "required": [
+    "id"
+   ],
+   "write": false,
+   "confirm": false,
+   "untrusted": true,
+   "escalates": null
+  },
+  {
+   "id": "seo.schema_set",
+   "tool": "seo",
+   "action": "schema_set",
+   "level": "live",
+   "summary": "Set custom JSON-LD for an item (empty removes it).",
+   "params": {
+    "id": "int|Post ID",
+    "json": "any|JSON-LD object or array (or a JSON string)"
+   },
+   "required": [
+    "id",
+    "json"
+   ],
+   "write": true,
+   "confirm": false,
+   "untrusted": false,
+   "escalates": null
+  },
+  {
+   "id": "inspect.page",
+   "tool": "inspect",
+   "action": "page",
+   "level": "read",
+   "summary": "Rendered HTML of a page of this site (same host only, redirects not followed off-site).",
+   "params": {
+    "path": "string|Path like /about/ or full URL on this site",
+    "max_bytes": "int|Default 60000",
+    "offset": "int|Byte offset"
+   },
+   "required": [
+    "path"
+   ],
+   "write": false,
+   "confirm": false,
+   "untrusted": true,
+   "escalates": null
+  },
+  {
+   "id": "inspect.render",
+   "tool": "inspect",
+   "action": "render",
+   "level": "draft",
+   "summary": "Render a post (also drafts) through the_content, without the theme.",
+   "params": {
+    "id": "int|Post ID",
+    "max_bytes": "int|Default 60000"
+   },
+   "required": [
+    "id"
+   ],
+   "write": false,
+   "confirm": false,
+   "untrusted": true,
+   "escalates": null
+  },
+  {
+   "id": "inspect.outline",
+   "tool": "inspect",
+   "action": "outline",
+   "level": "read",
+   "summary": "Compact structure of a page: headings, landmarks, images, links, forms, meta, scripts, and an element tree (depth-limited).",
+   "params": {
+    "path": "string|Path or URL on this site",
+    "selector": "string|Simple selector (#id, .class, tag) to zoom into",
+    "depth": "int|Tree depth (default 4)"
+   },
+   "required": [
+    "path"
+   ],
+   "write": false,
+   "confirm": false,
+   "untrusted": true,
+   "escalates": null
+  },
+  {
+   "id": "inspect.styles",
+   "tool": "inspect",
+   "action": "styles",
+   "level": "read",
+   "summary": "Stylesheets used by a page, or the text of one local stylesheet.",
+   "params": {
+    "path": "string|Page path to list its stylesheets",
+    "css_url": "string|One local stylesheet URL to read",
+    "offset": "int|Byte offset",
+    "max_bytes": "int|Default 60000"
+   },
+   "required": [],
+   "write": false,
+   "confirm": false,
+   "untrusted": true,
+   "escalates": null
+  },
+  {
+   "id": "maintain.health",
+   "tool": "maintain",
+   "action": "health",
+   "level": "draft",
+   "summary": "Site Health tests, versions, SSL, memory, disk, debug flags, cron, pending updates count.",
+   "params": {},
+   "required": [],
+   "write": false,
+   "confirm": false,
+   "untrusted": false,
+   "escalates": null
+  },
+  {
+   "id": "maintain.updates_check",
+   "tool": "maintain",
+   "action": "updates_check",
+   "level": "draft",
+   "summary": "Available core, plugin and theme updates.",
+   "params": {
+    "refresh": "bool|Force a new check"
+   },
+   "required": [],
+   "write": false,
+   "confirm": false,
+   "untrusted": false,
+   "escalates": null
+  },
+  {
+   "id": "maintain.update",
+   "tool": "maintain",
+   "action": "update",
+   "level": "admin",
+   "summary": "Update core, a plugin or a theme (takes a database backup first by default).",
+   "params": {
+    "type": "enum:core,plugin,theme|What to update",
+    "slug": "string|Plugin file (dir/file.php) or theme directory; omit for core",
+    "backup": "bool|Default true"
+   },
+   "required": [
+    "type"
+   ],
+   "write": true,
+   "confirm": true,
+   "untrusted": false,
+   "escalates": null
+  },
+  {
+   "id": "maintain.backup_create",
+   "tool": "maintain",
+   "action": "backup_create",
+   "level": "admin",
+   "summary": "Database backup (gzip SQL) stored outside public listing.",
+   "params": {
+    "label": "string|Note"
+   },
+   "required": [],
+   "write": true,
+   "confirm": false,
+   "untrusted": false,
+   "escalates": null
+  },
+  {
+   "id": "maintain.backup_list",
+   "tool": "maintain",
+   "action": "backup_list",
+   "level": "admin",
+   "summary": "Backups made by the bridge.",
+   "params": {},
+   "required": [],
+   "write": false,
+   "confirm": false,
+   "untrusted": false,
+   "escalates": null
+  },
+  {
+   "id": "maintain.backup_restore",
+   "tool": "maintain",
+   "action": "backup_restore",
+   "level": "admin",
+   "summary": "Restore a database backup (replaces current data).",
+   "params": {
+    "id": "string|Backup ID"
+   },
+   "required": [
+    "id"
+   ],
+   "write": true,
+   "confirm": true,
+   "untrusted": false,
+   "escalates": null
+  },
+  {
+   "id": "maintain.backup_delete",
+   "tool": "maintain",
+   "action": "backup_delete",
+   "level": "admin",
+   "summary": "Delete a backup.",
+   "params": {
+    "id": "string|Backup ID"
+   },
+   "required": [
+    "id"
+   ],
+   "write": true,
+   "confirm": true,
+   "untrusted": false,
+   "escalates": null
+  },
+  {
+   "id": "maintain.logs",
+   "tool": "maintain",
+   "action": "logs",
+   "level": "admin",
+   "summary": "Tail of debug.log / PHP error log with repeated lines grouped.",
+   "params": {
+    "lines": "int|Default 100, max 500",
+    "contains": "string|Filter text"
+   },
+   "required": [],
+   "write": false,
+   "confirm": false,
+   "untrusted": true,
+   "escalates": null
+  },
+  {
+   "id": "maintain.logs_clear",
+   "tool": "maintain",
+   "action": "logs_clear",
+   "level": "admin",
+   "summary": "Empty debug.log.",
+   "params": {},
+   "required": [],
+   "write": true,
+   "confirm": true,
+   "untrusted": false,
+   "escalates": null
+  },
+  {
+   "id": "maintain.cache_flush",
+   "tool": "maintain",
+   "action": "cache_flush",
+   "level": "live",
+   "summary": "Flush object cache, expired transients, rewrite rules and known cache plugins.",
+   "params": {
+    "scope": "array|any of: object, transients, rewrite, plugins (default all)"
+   },
+   "required": [],
+   "write": true,
+   "confirm": false,
+   "untrusted": false,
+   "escalates": null
+  },
+  {
+   "id": "maintain.db_info",
+   "tool": "maintain",
+   "action": "db_info",
+   "level": "admin",
+   "summary": "Table sizes, overhead, autoload size, counts of revisions/transients/spam/trash.",
+   "params": {},
+   "required": [],
+   "write": false,
+   "confirm": false,
+   "untrusted": false,
+   "escalates": null
+  },
+  {
+   "id": "maintain.db_cleanup",
+   "tool": "maintain",
+   "action": "db_cleanup",
+   "level": "admin",
+   "summary": "Clean revisions, expired transients, spam, trash, auto-drafts, orphan meta.",
+   "params": {
+    "targets": "array|revisions, transients, spam, trash, auto_drafts, orphan_meta",
+    "keep_revisions": "int|Revisions to keep per post (default 5)"
+   },
+   "required": [
+    "targets"
+   ],
+   "write": true,
+   "confirm": true,
+   "untrusted": false,
+   "escalates": null
+  },
+  {
+   "id": "maintain.db_optimize",
+   "tool": "maintain",
+   "action": "db_optimize",
+   "level": "admin",
+   "summary": "OPTIMIZE TABLE on the site tables.",
+   "params": {},
+   "required": [],
+   "write": true,
+   "confirm": false,
+   "untrusted": false,
+   "escalates": null
+  },
+  {
+   "id": "maintain.search_replace",
+   "tool": "maintain",
+   "action": "search_replace",
+   "level": "admin",
+   "summary": "Serialization-safe search and replace across the database. Always preview first.",
+   "params": {
+    "search": "string|Text to find",
+    "replace": "string|Replacement",
+    "tables": "array|Limit to these tables",
+    "apply": "bool|false (default) only counts"
+   },
+   "required": [
+    "search",
+    "replace"
+   ],
+   "write": true,
+   "confirm": "maybe",
+   "untrusted": false,
+   "escalates": null
+  },
+  {
+   "id": "maintain.cron_list",
+   "tool": "maintain",
+   "action": "cron_list",
+   "level": "admin",
+   "summary": "Scheduled events.",
+   "params": {},
+   "required": [],
+   "write": false,
+   "confirm": false,
+   "untrusted": false,
+   "escalates": null
+  },
+  {
+   "id": "maintain.cron_run",
+   "tool": "maintain",
+   "action": "cron_run",
+   "level": "admin",
+   "summary": "Run a scheduled hook now.",
+   "params": {
+    "hook": "string|Registered hook name"
+   },
+   "required": [
+    "hook"
+   ],
+   "write": true,
+   "confirm": false,
+   "untrusted": false,
+   "escalates": null
+  },
+  {
+   "id": "maintain.maintenance_mode",
+   "tool": "maintain",
+   "action": "maintenance_mode",
+   "level": "admin",
+   "summary": "Serve a 503 maintenance page to visitors (admins and the bridge still see the site).",
+   "params": {
+    "enabled": "bool|On or off",
+    "message": "string|Visitor message"
+   },
+   "required": [
+    "enabled"
+   ],
+   "write": true,
+   "confirm": false,
+   "untrusted": false,
+   "escalates": null
+  },
+  {
+   "id": "plugins.list",
+   "tool": "plugins",
+   "action": "list",
+   "level": "draft",
+   "summary": "Installed plugins with version, status and update availability.",
+   "params": {
+    "status": "enum:all,active,inactive,update|Default all"
+   },
+   "required": [],
+   "write": false,
+   "confirm": false,
+   "untrusted": false,
+   "escalates": null
+  },
+  {
+   "id": "plugins.search",
+   "tool": "plugins",
+   "action": "search",
+   "level": "draft",
+   "summary": "Search WordPress.org.",
+   "params": {
+    "query": "string|Search",
+    "per_page": "int|Default 10"
+   },
+   "required": [
+    "query"
+   ],
+   "write": false,
+   "confirm": false,
+   "untrusted": true,
+   "escalates": null
+  },
+  {
+   "id": "plugins.install",
+   "tool": "plugins",
+   "action": "install",
+   "level": "admin",
+   "summary": "Install a plugin from WordPress.org by slug.",
+   "params": {
+    "slug": "string|WordPress.org slug",
+    "activate": "bool|Activate after install"
+   },
+   "required": [
+    "slug"
+   ],
+   "write": true,
+   "confirm": true,
+   "untrusted": false,
+   "escalates": null
+  },
+  {
+   "id": "plugins.install_zip",
+   "tool": "plugins",
+   "action": "install_zip",
+   "level": "admin",
+   "summary": "Install a plugin from an https zip URL (no redirects, no private addresses).",
+   "params": {
+    "url": "string|https URL of a zip",
+    "activate": "bool|Activate after install"
+   },
+   "required": [
+    "url"
+   ],
+   "write": true,
+   "confirm": true,
+   "untrusted": false,
+   "escalates": null
+  },
+  {
+   "id": "plugins.activate",
+   "tool": "plugins",
+   "action": "activate",
+   "level": "admin",
+   "summary": "Activate a plugin.",
+   "params": {
+    "plugin": "string|Plugin file, e.g. woocommerce/woocommerce.php"
+   },
+   "required": [
+    "plugin"
+   ],
+   "write": true,
+   "confirm": false,
+   "untrusted": false,
+   "escalates": null
+  },
+  {
+   "id": "plugins.deactivate",
+   "tool": "plugins",
+   "action": "deactivate",
+   "level": "admin",
+   "summary": "Deactivate a plugin (the bridge itself cannot be deactivated).",
+   "params": {
+    "plugin": "string|Plugin file"
+   },
+   "required": [
+    "plugin"
+   ],
+   "write": true,
+   "confirm": false,
+   "untrusted": false,
+   "escalates": null
+  },
+  {
+   "id": "plugins.delete",
+   "tool": "plugins",
+   "action": "delete",
+   "level": "admin",
+   "summary": "Delete an inactive plugin and its files.",
+   "params": {
+    "plugin": "string|Plugin file"
+   },
+   "required": [
+    "plugin"
+   ],
+   "write": true,
+   "confirm": true,
+   "untrusted": false,
+   "escalates": null
+  },
+  {
+   "id": "plugins.settings_find",
+   "tool": "plugins",
+   "action": "settings_find",
+   "level": "admin",
+   "summary": "Names of options that belong to a plugin (values hidden; read them with options.get).",
+   "params": {
+    "slug": "string|Plugin slug or option prefix"
+   },
+   "required": [
+    "slug"
+   ],
+   "write": false,
+   "confirm": false,
+   "untrusted": false,
+   "escalates": null
+  },
+  {
+   "id": "users.authors",
+   "tool": "users",
+   "action": "authors",
+   "level": "read",
+   "summary": "Public authors: ID, name, slug, post count.",
+   "params": {
+    "page": "int|Page number (default 1)",
+    "per_page": "int|Items per page (default 20, max 100)"
+   },
+   "required": [],
+   "write": false,
+   "confirm": false,
+   "untrusted": false,
+   "escalates": null
+  },
+  {
+   "id": "users.list",
+   "tool": "users",
+   "action": "list",
+   "level": "admin",
+   "summary": "Users with roles (emails included).",
+   "params": {
+    "role": "string|Filter",
+    "search": "string|",
+    "page": "int|Page number (default 1)",
+    "per_page": "int|Items per page (default 20, max 100)"
+   },
+   "required": [],
+   "write": false,
+   "confirm": false,
+   "untrusted": true,
+   "escalates": null
+  },
+  {
+   "id": "users.get",
+   "tool": "users",
+   "action": "get",
+   "level": "admin",
+   "summary": "One user, by ID, login or email.",
+   "params": {
+    "id": "any|ID, login or email"
+   },
+   "required": [
+    "id"
+   ],
+   "write": false,
+   "confirm": false,
+   "untrusted": true,
+   "escalates": null
+  },
+  {
+   "id": "users.create",
+   "tool": "users",
+   "action": "create",
+   "level": "admin",
+   "summary": "Create a user and send the standard set-password email.",
+   "params": {
+    "login": "string|",
+    "email": "string|",
+    "role": "string|Default subscriber",
+    "display_name": "string|"
+   },
+   "required": [
+    "login",
+    "email"
+   ],
+   "write": true,
+   "confirm": true,
+   "untrusted": false,
+   "escalates": null
+  },
+  {
+   "id": "users.update",
+   "tool": "users",
+   "action": "update",
+   "level": "admin",
+   "summary": "Update name, email or role (role changes are confirmed).",
+   "params": {
+    "id": "int|",
+    "display_name": "string|",
+    "email": "string|",
+    "role": "string|"
+   },
+   "required": [
+    "id"
+   ],
+   "write": true,
+   "confirm": true,
+   "untrusted": false,
+   "escalates": null
+  },
+  {
+   "id": "users.delete",
+   "tool": "users",
+   "action": "delete",
+   "level": "admin",
+   "summary": "Delete a user, reassigning content.",
+   "params": {
+    "id": "int|",
+    "reassign": "int|User to receive content"
+   },
+   "required": [
+    "id"
+   ],
+   "write": true,
+   "confirm": true,
+   "untrusted": false,
+   "escalates": null
+  },
+  {
+   "id": "users.send_reset",
+   "tool": "users",
+   "action": "send_reset",
+   "level": "admin",
+   "summary": "Send a password-reset email to a user.",
+   "params": {
+    "id": "int|"
+   },
+   "required": [
+    "id"
+   ],
+   "write": true,
+   "confirm": false,
+   "untrusted": false,
+   "escalates": null
+  },
+  {
+   "id": "users.roles",
+   "tool": "users",
+   "action": "roles",
+   "level": "admin",
+   "summary": "Roles and their capabilities.",
+   "params": {},
+   "required": [],
+   "write": false,
+   "confirm": false,
+   "untrusted": false,
+   "escalates": null
+  },
+  {
+   "id": "options.get",
+   "tool": "options",
+   "action": "get",
+   "level": "read",
+   "summary": "Read options. Safe keys at read level, everything else at admin; keys that look like secrets are never returned.",
+   "params": {
+    "keys": "array|Option names"
+   },
+   "required": [
+    "keys"
+   ],
+   "write": false,
+   "confirm": false,
+   "untrusted": false,
+   "escalates": "admin"
+  },
+  {
+   "id": "options.list",
+   "tool": "options",
+   "action": "list",
+   "level": "read",
+   "summary": "Names of readable options, optionally by prefix.",
+   "params": {
+    "prefix": "string|",
+    "page": "int|Page number (default 1)",
+    "per_page": "int|Items per page (default 20, max 100)"
+   },
+   "required": [],
+   "write": false,
+   "confirm": false,
+   "untrusted": false,
+   "escalates": "admin"
+  },
+  {
+   "id": "options.set",
+   "tool": "options",
+   "action": "set",
+   "level": "live",
+   "summary": "Write options. Safe keys (title, tagline, permalinks, reading…) at live, others at admin (confirmed); secrets are refused.",
+   "params": {
+    "values": "object|{option: value}"
+   },
+   "required": [
+    "values"
+   ],
+   "write": true,
+   "confirm": "maybe",
+   "untrusted": false,
+   "escalates": "admin"
+  },
+  {
+   "id": "options.delete",
+   "tool": "options",
+   "action": "delete",
+   "level": "admin",
+   "summary": "Delete an option.",
+   "params": {
+    "key": "string|"
+   },
+   "required": [
+    "key"
+   ],
+   "write": true,
+   "confirm": true,
+   "untrusted": false,
+   "escalates": null
+  },
+  {
+   "id": "rest.routes",
+   "tool": "rest",
+   "action": "routes",
+   "level": "draft",
+   "summary": "REST namespaces and routes (with methods) so you can reach any plugin.",
+   "params": {
+    "namespace": "string|e.g. wc/v3",
+    "search": "string|Substring of the route"
+   },
+   "required": [],
+   "write": false,
+   "confirm": false,
+   "untrusted": false,
+   "escalates": null
+  },
+  {
+   "id": "rest.call",
+   "tool": "rest",
+   "action": "call",
+   "level": "read",
+   "summary": "Call any REST route internally as the connected admin. Level depends on method and route: public content GET = read, sensitive routes and unknown namespaces = admin, DELETE needs confirmation.",
+   "params": {
+    "method": "enum:GET,POST,PUT,PATCH,DELETE|HTTP method",
+    "path": "string|e.g. /wp/v2/posts or /wc/v3/products",
+    "query": "object|Query parameters",
+    "body": "object|JSON body"
+   },
+   "required": [
+    "method",
+    "path"
+   ],
+   "write": true,
+   "confirm": "maybe",
+   "untrusted": true,
+   "escalates": "admin"
+  },
+  {
+   "id": "shop.status",
+   "tool": "shop",
+   "action": "status",
+   "level": "read",
+   "summary": "Is WooCommerce active: version, currency, product/order counts, pages.",
+   "params": {},
+   "required": [],
+   "write": false,
+   "confirm": false,
+   "untrusted": false,
+   "escalates": null
+  },
+  {
+   "id": "shop.products_list",
+   "tool": "shop",
+   "action": "products_list",
+   "level": "read",
+   "summary": "Products (published only at read level).",
+   "params": {
+    "search": "string|",
+    "category": "string|Category slug",
+    "status": "string|publish, draft, any",
+    "page": "int|Page number (default 1)",
+    "per_page": "int|Items per page (default 20, max 100)"
+   },
+   "required": [],
+   "write": false,
+   "confirm": false,
+   "untrusted": true,
+   "escalates": "draft"
+  },
+  {
+   "id": "shop.product_get",
+   "tool": "shop",
+   "action": "product_get",
+   "level": "read",
+   "summary": "One product with prices, stock, attributes, variations summary.",
+   "params": {
+    "id": "int|"
+   },
+   "required": [
+    "id"
+   ],
+   "write": false,
+   "confirm": false,
+   "untrusted": true,
+   "escalates": "draft"
+  },
+  {
+   "id": "shop.product_save",
+   "tool": "shop",
+   "action": "product_save",
+   "level": "draft",
+   "summary": "Create or update a simple/variable product (publishing needs live).",
+   "params": {
+    "id": "int|Omit to create",
+    "name": "string|",
+    "type": "enum:simple,variable,grouped,external|",
+    "status": "string|",
+    "description": "string|",
+    "short_description": "string|",
+    "sku": "string|",
+    "regular_price": "string|",
+    "sale_price": "string|",
+    "manage_stock": "bool|",
+    "stock_quantity": "int|",
+    "categories": "array|Category names or IDs",
+    "images": "array|Attachment IDs",
+    "attributes": "array|[{name, options:[…], variation:bool}]"
+   },
+   "required": [],
+   "write": true,
+   "confirm": false,
+   "untrusted": false,
+   "escalates": "live"
+  },
+  {
+   "id": "shop.product_delete",
+   "tool": "shop",
+   "action": "product_delete",
+   "level": "admin",
+   "summary": "Delete a product permanently.",
+   "params": {
+    "id": "int|"
+   },
+   "required": [
+    "id"
+   ],
+   "write": true,
+   "confirm": true,
+   "untrusted": false,
+   "escalates": null
+  },
+  {
+   "id": "shop.stock_update",
+   "tool": "shop",
+   "action": "stock_update",
+   "level": "live",
+   "summary": "Set stock or price of products quickly.",
+   "params": {
+    "items": "array|[{id, stock_quantity?, regular_price?, sale_price?}] max 50"
+   },
+   "required": [
+    "items"
+   ],
+   "write": true,
+   "confirm": false,
+   "untrusted": false,
+   "escalates": null
+  },
+  {
+   "id": "shop.coupons_list",
+   "tool": "shop",
+   "action": "coupons_list",
+   "level": "live",
+   "summary": "List discount coupons.",
+   "params": {
+    "page": "int|Page number (default 1)",
+    "per_page": "int|Items per page (default 20, max 100)"
+   },
+   "required": [],
+   "write": false,
+   "confirm": false,
+   "untrusted": false,
+   "escalates": null
+  },
+  {
+   "id": "shop.coupon_save",
+   "tool": "shop",
+   "action": "coupon_save",
+   "level": "live",
+   "summary": "Create or update a coupon.",
+   "params": {
+    "id": "int|",
+    "code": "string|",
+    "discount_type": "enum:percent,fixed_cart,fixed_product|",
+    "amount": "string|",
+    "date_expires": "string|",
+    "usage_limit": "int|"
+   },
+   "required": [
+    "code"
+   ],
+   "write": true,
+   "confirm": false,
+   "untrusted": false,
+   "escalates": null
+  },
+  {
+   "id": "shop.orders_list",
+   "tool": "shop",
+   "action": "orders_list",
+   "level": "admin",
+   "summary": "Orders (customer data included).",
+   "params": {
+    "status": "string|",
+    "page": "int|Page number (default 1)",
+    "per_page": "int|Items per page (default 20, max 100)"
+   },
+   "required": [],
+   "write": false,
+   "confirm": false,
+   "untrusted": true,
+   "escalates": null
+  },
+  {
+   "id": "shop.order_get",
+   "tool": "shop",
+   "action": "order_get",
+   "level": "admin",
+   "summary": "One order with billing and shipping details.",
+   "params": {
+    "id": "int|"
+   },
+   "required": [
+    "id"
+   ],
+   "write": false,
+   "confirm": false,
+   "untrusted": true,
+   "escalates": null
+  },
+  {
+   "id": "shop.order_update",
+   "tool": "shop",
+   "action": "order_update",
+   "level": "admin",
+   "summary": "Change order status or add a note.",
+   "params": {
+    "id": "int|",
+    "status": "string|",
+    "note": "string|Private note"
+   },
+   "required": [
+    "id"
+   ],
+   "write": true,
+   "confirm": true,
+   "untrusted": false,
+   "escalates": null
+  },
+  {
+   "id": "forms.list",
+   "tool": "forms",
+   "action": "list",
+   "level": "live",
+   "summary": "Forms from Contact Form 7, Gravity Forms, WPForms or Fluent Forms.",
+   "params": {},
+   "required": [],
+   "write": false,
+   "confirm": false,
+   "untrusted": false,
+   "escalates": null
+  },
+  {
+   "id": "forms.get",
+   "tool": "forms",
+   "action": "get",
+   "level": "live",
+   "summary": "Form definition (fields and mail settings, without secrets).",
+   "params": {
+    "id": "any|Form ID",
+    "provider": "string|cf7, gravity, wpforms, fluent"
+   },
+   "required": [
+    "id"
+   ],
+   "write": false,
+   "confirm": false,
+   "untrusted": true,
+   "escalates": null
+  },
+  {
+   "id": "forms.save",
+   "tool": "forms",
+   "action": "save",
+   "level": "live",
+   "summary": "Create or update a Contact Form 7 form (other providers: use rest.call).",
+   "params": {
+    "id": "int|",
+    "title": "string|",
+    "form": "string|CF7 form markup",
+    "mail_to": "string|Recipient",
+    "mail_subject": "string|",
+    "mail_body": "string|"
+   },
+   "required": [],
+   "write": true,
+   "confirm": false,
+   "untrusted": false,
+   "escalates": null
+  },
+  {
+   "id": "forms.entries",
+   "tool": "forms",
+   "action": "entries",
+   "level": "admin",
+   "summary": "Submitted entries (personal data).",
+   "params": {
+    "id": "any|Form ID",
+    "provider": "string|",
+    "page": "int|Page number (default 1)",
+    "per_page": "int|Items per page (default 20, max 100)"
+   },
+   "required": [
+    "id"
+   ],
+   "write": false,
+   "confirm": false,
+   "untrusted": true,
+   "escalates": null
+  },
+  {
+   "id": "activity.list",
+   "tool": "activity",
+   "action": "list",
+   "level": "read",
+   "summary": "What the bridge did on this site: operation, who, when, result, revision ID.",
+   "params": {
+    "op": "string|Filter by operation",
+    "status": "enum:ok,error,denied|",
+    "since": "string|ISO date",
+    "page": "int|Page number (default 1)",
+    "per_page": "int|Items per page (default 20, max 100)"
+   },
+   "required": [],
+   "write": false,
+   "confirm": false,
+   "untrusted": false,
+   "escalates": null
+  },
+  {
+   "id": "activity.revisions",
+   "tool": "activity",
+   "action": "revisions",
+   "level": "draft",
+   "summary": "Undoable changes with before/after summary.",
+   "params": {
+    "target": "string|post, option, file, redirect, css…",
+    "id": "any|Target ID",
+    "page": "int|Page number (default 1)",
+    "per_page": "int|Items per page (default 20, max 100)"
+   },
+   "required": [],
+   "write": false,
+   "confirm": false,
+   "untrusted": false,
+   "escalates": null
+  },
+  {
+   "id": "activity.undo",
+   "tool": "activity",
+   "action": "undo",
+   "level": "live",
+   "summary": "Revert a change by revision ID (needs at least the level of the original change). Permanent deletions cannot be undone.",
+   "params": {
+    "revision": "int|Revision ID"
+   },
+   "required": [
+    "revision"
+   ],
+   "write": true,
+   "confirm": false,
+   "untrusted": false,
+   "escalates": null
+  }
+ ]
+}
