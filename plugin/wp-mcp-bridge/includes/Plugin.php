@@ -18,6 +18,7 @@ final class Plugin {
         add_action( 'wpm_bridge_daily', array( self::class, 'daily' ) );
         add_action( 'init', array( self::class, 'maybe_upgrade' ) );
         Frontend::init();
+        Optimizer::init();
         if ( is_admin() ) {
             Admin::init();
         }

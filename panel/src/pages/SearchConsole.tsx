@@ -94,6 +94,7 @@ function Dashboard({ status, reload }: { status: Status; reload: () => Promise<v
   const [maps, setMaps] = useState<any[]>([]);
   const [cov, setCov] = useState<any>(null);
   const [insp, setInsp] = useState<any>(null);
+  const [opp, setOpp] = useState<any>(null);
   const [url, setUrl] = useState('');
   const [busy, setBusy] = useState('');
   const [err, setErr] = useState('');
@@ -151,6 +152,16 @@ function Dashboard({ status, reload }: { status: Status; reload: () => Promise<v
       </div>
 
       <Card>
+        <CardHeader><CardTitle>{t('Easy wins', 'فرصت‌های سریع')}</CardTitle><CardDescription>{t('Queries ranking 4-20 with many impressions: improve that page for the query.', 'جستجوهایی با جایگاه ۴ تا ۲۰ و نمایش زیاد: همان صفحه را برای آن عبارت بهتر کنید.')}</CardDescription></CardHeader>
+        <CardContent className="space-y-3">
+          <Button variant="outline" disabled={!!busy || !site} onClick={async () => { setBusy('opp'); setOpp(await run('opportunities', { site, days: Number(days) })); setBusy(''); }}>{t('Find opportunities', 'پیدا کردن فرصت‌ها')}</Button>
+          {busy === 'opp' && <Loading />}
+          {opp?.ok === false && <ErrorBox message={opp.error?.message ?? 'Failed'} />}
+          {opp?.ok && <Table><TableHeader><TableRow><TableHead>{t('Query', 'عبارت')}</TableHead><TableHead>{t('Page', 'صفحه')}</TableHead><TableHead className="text-end">{t('Impr.', 'نمایش')}</TableHead><TableHead className="text-end">{t('Pos.', 'جایگاه')}</TableHead><TableHead className="text-end">{t('Potential', 'پتانسیل')}</TableHead></TableRow></TableHeader><TableBody>{(opp.rows as Record<string, any>[]).map((r) => { const g = (c: string) => r[c]; return <TableRow key={`${g('query')}|${g('page')}`}><TableCell dir="auto" className="max-w-[14rem] truncate">{g('query')}</TableCell><TableCell dir="ltr" className="max-w-[14rem] truncate">{g('page')}</TableCell><TableCell className="text-end">{g('impressions')}</TableCell><TableCell className="text-end">{g('position')}</TableCell><TableCell className="text-end">+{g('potential_clicks')}</TableCell></TableRow>; })}</TableBody></Table>}
+        </CardContent>
+      </Card>
+
+      <Card>
         <CardHeader><CardTitle>{t('Sitemaps', 'نقشه‌های سایت')}</CardTitle></CardHeader>
         <CardContent>
           {maps.length === 0 ? <p className="text-sm text-muted-foreground">{t('No sitemap submitted in Search Console. Submit one there (Sitemaps).', 'نقشه‌ای در Search Console ثبت نشده. از بخش Sitemaps ثبت کنید.')}</p> : (
@@ -179,7 +190,7 @@ function Dashboard({ status, reload }: { status: Status; reload: () => Promise<v
       </Card>
 
       <Card>
-        <CardHeader><CardTitle>{t('Inspect one URL', 'بازرسی یک آدرس')}</CardTitle></CardHeader>
+        <CardHeader><CardTitle>{t('Inspect one URL', 'بازرسی یک آدرس')}</CardTitle><CardDescription>{t("Core Web Vitals and Merchant listings reports are not available through Google's API. Use this for the index status and rich-result errors of any URL.", 'گزارش‌های Core Web Vitals و Merchant listings از طریق API گوگل در دسترس نیست. برای وضعیت ایندکس و خطاهای rich result هر آدرس از همین بخش استفاده کنید.')}</CardDescription></CardHeader>
         <CardContent className="space-y-3">
           <div className="flex gap-2"><Input dir="ltr" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://…" /><Button disabled={!url || !!busy} onClick={async () => { setBusy('insp'); setInsp(await run('inspect', { site, url })); setBusy(''); }}>{t('Inspect', 'بازرسی')}</Button></div>
           {busy === 'insp' && <Loading />}

@@ -4,6 +4,10 @@
 
 Google Search Console: new local-panel page (sign in with Google, dashboard of clicks, queries, pages, countries, devices, sitemaps, live indexing check, URL inspection) and read-only `search_console` MCP tool (status, sites, performance, queries, pages, compare, sitemaps, inspect, coverage). The owner's own Google OAuth client (Desktop app) is used; only a read-only refresh token is stored, encrypted. See docs/search-console.md.
 
+Media: `media.register` adds files already in wp-content/uploads to the library (sizes, alt, featured image); `media.upload` is hardened (uploads folder check, memory/time, thumbnail failure no longer loses the file, clear errors) and accepts `optimize`; `media.optimize` shrinks/converts images (webp, avif, jpeg) and videos (ffmpeg), rewriting links; `media.update` edits caption, description, slug. Plugin admin page now has separate MCP (connection only), Activity and Media tabs; the Media tab can optimize every library upload automatically.
+
+Search Console: `overview` and `opportunities` actions, compact `{cols, data}` tables in the MCP tool, limits (Core Web Vitals, Merchant listings) stated. Fewer tokens: shorter tool descriptions and result envelopes.
+
 ## 2.0.0
 
 M6: signed agent self-update (Ed25519, anti-downgrade, backup and automatic restore), host self-test with outside exposure probe, `studio` MCP tool (static projects, confirmed publish/rollback), release and key scripts, Linux CI with symlink and signed-update tests, test matrix.

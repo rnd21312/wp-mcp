@@ -340,7 +340,46 @@ export async function coverage(app: App, a: { site?: string; urls?: string[]; li
 
 /* ------------------------------------------------------------- dispatcher */
 
+/** Tables as {cols, data:[[…]]} instead of one object per row: the same facts in roughly a third of the tokens. */
+function compactTable(out: Record<string, unknown>, origin: string): Record<string, unknown> {
+  const rows = out.rows as Record<string, unknown>[] | undefined;
+  if (!rows || !rows.length) return out;
+  const cols = Object.keys(rows[0]);
+  const data = rows.map((r) => cols.map((c) => (c === 'page' || c === 'url' ? String(r[c]).replace(origin, '') || '/' : r[c])));
+  const { rows: _drop, content_notice: _n, ...rest } = out;
+
+  return { ...rest, cols, data };
+}
+
+const originOf = (site: string): string => (site.startsWith('sc-domain:') ? '' : site.replace(/\/$/, ''));
+
+/** One call instead of four: totals, best queries and pages, sitemap problems. */
+export async function overview(app: App, a: PerfArgs): Promise<Record<string, unknown>> {
+  const site = await pickSite(app, a.site);
+  const args = { site, days: a.days, start: a.start, end: a.end };
+  const [q, p, m] = await Promise.all([performance(app, { ...args, dimensions: ['query'], limit: 10 }), performance(app, { ...args, dimensions: ['page'], limit: 10 }), sitemaps(app, { site }).catch(() => ({ sitemaps: [] }))]);
+  const bad = (m.sitemaps as { path: string; errors: number; warnings: number }[]).filter((x) => x.errors || x.warnings).map((x) => ({ path: x.path, errors: x.errors, warnings: x.warnings }));
+
+  return { ok: true, site, range: q.range, totals: q.totals, queries: q.rows, pages: p.rows, sitemaps: (m.sitemaps as unknown[]).length, sitemap_problems: bad };
+}
+
+/** "Striking distance": queries ranking 4-20 with many impressions, the cheapest wins in SEO. */
+export async function opportunities(app: App, a: PerfArgs & { min_impressions?: number }): Promise<Record<string, unknown>> {
+  const site = await pickSite(app, a.site);
+  const out = await performance(app, { ...a, site, dimensions: ['query', 'page'], limit: 1000 });
+  const min = Math.max(1, Number(a.min_impressions) || 30);
+  const rows = (out.rows as Record<string, any>[])
+    .filter((r) => r.position >= 4 && r.position <= 20 && r.impressions >= min)
+    .map((r) => ({ ...r, potential_clicks: Math.round(r.impressions * Math.max(0, 0.25 - r.ctr_pct / 100)) }))
+    .sort((x, y) => y.potential_clicks - x.potential_clicks)
+    .slice(0, Math.max(1, Math.min(100, Number(a.limit) || 25)));
+
+  return { ok: true, site, range: out.range, rows, note: 'Queries on page 1-2 of Google with many impressions. potential_clicks = extra clicks if CTR reached ~25%. Improve title, description and content of that page for the query.' };
+}
+
 export const GSC_ACTIONS: Record<string, { summary: string; args: string }> = {
+  overview: { summary: 'START HERE for a report: totals, top 10 queries and pages and sitemap problems in one call.', args: 'site, days' },
+  opportunities: { summary: 'Queries ranking 4-20 with many impressions and the page for each: the easiest SEO wins.', args: 'site, days, min_impressions, limit' },
   status: { summary: 'Is Search Console connected, and as which Google account.', args: '' },
   sites: { summary: 'Search Console properties this Google account can read.', args: '' },
   performance: { summary: 'Clicks, impressions, CTR and position, grouped by dimensions (query, page, country, device, date, searchAppearance).', args: 'site, days, start, end, dimensions, search_type, filters[{dimension,operator,expression}], limit, offset' },
@@ -353,8 +392,22 @@ export const GSC_ACTIONS: Record<string, { summary: string; args: string }> = {
 };
 
 /** One entry point for the panel and the MCP tool. */
-export async function runGsc(app: App, action: string, args: Record<string, any> = {}): Promise<Record<string, unknown>> {
+export async function runGsc(app: App, action: string, args: Record<string, any> = {}, compact = false): Promise<Record<string, unknown>> {
+  const out = await runGscRaw(app, action, args);
+  if (!compact || out.ok === false) return out;
+  const origin = originOf(String(out.site ?? ''));
+  if (action === 'overview') return { ...out, queries: compactTable({ rows: out.queries }, origin), pages: compactTable({ rows: out.pages }, origin) };
+  if (['performance', 'queries', 'pages', 'compare', 'opportunities'].includes(action)) return compactTable(out, origin);
+
+  return out;
+}
+
+async function runGscRaw(app: App, action: string, args: Record<string, any> = {}): Promise<Record<string, unknown>> {
   switch (action) {
+    case 'overview':
+      return overview(app, args);
+    case 'opportunities':
+      return opportunities(app, args);
     case 'status':
       return gscStatus(app);
     case 'sites':

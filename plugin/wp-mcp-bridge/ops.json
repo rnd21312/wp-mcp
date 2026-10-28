@@ -743,14 +743,17 @@
    "tool": "media",
    "action": "upload",
    "level": "draft",
-   "summary": "Upload a file from base64 data.",
+   "summary": "Upload a file from base64 data (max 10 MB; bigger: put it in uploads and use media.register).",
    "params": {
     "filename": "string|e.g. hero.jpg",
-    "data_base64": "string|File bytes, base64 (max ~8 MB)",
+    "data_base64": "string|File bytes, base64",
     "title": "string|Title",
-    "alt": "string|Alt text",
+    "alt": "string|Alt text (default: title)",
     "caption": "string|Caption",
-    "attach_to": "int|Post ID"
+    "description": "string|Description",
+    "attach_to": "int|Post ID",
+    "featured": "bool|With attach_to: make it the featured image",
+    "optimize": "any|true (saved settings) or {max_width, quality 30-100, format webp|jpeg|png|avif|mp4|webm}: shrink and convert while storing"
    },
    "required": [
     "filename",
@@ -783,17 +786,62 @@
    "escalates": null
   },
   {
+   "id": "media.register",
+   "tool": "media",
+   "action": "register",
+   "level": "draft",
+   "summary": "Add files that already lie in wp-content/uploads (copied by FTP/files.write) to the media library: makes sizes, alt text, optional featured image. scan:true finds all unregistered files.",
+   "params": {
+    "paths": "array|Paths relative to uploads, e.g. [\"2025/05/hero.jpg\"]",
+    "scan": "bool|Find every file not yet in the library",
+    "attach_to": "int|Post ID",
+    "featured": "bool|With attach_to: first image becomes the featured image",
+    "title": "string|Title (single file)",
+    "alt": "string|Alt text (single file)",
+    "caption": "string|Caption",
+    "description": "string|Description",
+    "limit": "int|Max files per call (default 30, max 100)",
+    "optimize": "any|true (saved settings) or {max_width, quality 30-100, format webp|jpeg|png|avif|mp4|webm}: shrink and convert while storing"
+   },
+   "required": [],
+   "write": true,
+   "confirm": false,
+   "untrusted": false,
+   "escalates": null
+  },
+  {
+   "id": "media.optimize",
+   "tool": "media",
+   "action": "optimize",
+   "level": "live",
+   "summary": "Shrink and/or convert existing library images (jpeg/png/webp/avif) or videos (ffmpeg needed) to save space. Replaces the file for good; links in posts are rewritten.",
+   "params": {
+    "id": "int|Attachment ID",
+    "ids": "array|Up to 10 attachment IDs",
+    "max_width": "int|Resize wider images (0 = keep)",
+    "quality": "int|30-100 (default saved setting, 82)",
+    "format": "string|keep, webp, jpeg, png, avif, mp4, webm",
+    "fix_links": "bool|Rewrite old URLs in post content (default true)"
+   },
+   "required": [],
+   "write": true,
+   "confirm": true,
+   "untrusted": false,
+   "escalates": null
+  },
+  {
    "id": "media.update",
    "tool": "media",
    "action": "update",
    "level": "draft",
-   "summary": "Update alt text, title, caption.",
+   "summary": "Edit metadata of one item: alt text, title, caption, description, slug.",
    "params": {
     "id": "int|Attachment ID",
     "alt": "string|Alt",
     "title": "string|Title",
     "caption": "string|Caption",
-    "description": "string|Description"
+    "description": "string|Description",
+    "slug": "string|File page slug"
    },
    "required": [
     "id"

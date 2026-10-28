@@ -76,11 +76,25 @@ describe('Google Search Console', () => {
     const data = JSON.parse(r.content[0].text);
     expect(data.ok).toBe(true);
     expect(data.site).toBe('sc-domain:example.com');
-    expect(data.rows[0]).toMatchObject({ query: 'poker chips', clicks: 6, impressions: 204, ctr_pct: 2.94, position: 7.7 });
+    expect(data.cols).toEqual(['query', 'clicks', 'impressions', 'ctr_pct', 'position']);
+    expect(data.data[0]).toEqual(['poker chips', 6, 204, 2.94, 7.7]);
+    expect(data.rows).toBeUndefined();
     expect(data.totals).toMatchObject({ clicks: 68, impressions: 1400 });
     const query = calls.filter((c) => c.url.includes('searchAnalytics')).at(-2)!.body;
     expect(query).toMatchObject({ type: 'web', rowLimit: 5, dimensions: ['query'] });
     expect(query.startDate < query.endDate).toBe(true);
+  });
+
+  it('overview and opportunities answer in one call with compact tables', async () => {
+    vi.stubGlobal('fetch', fakeGoogle(calls));
+    const o = JSON.parse((await callTool(env.app, who(), 'search_console', { action: 'overview' })).content[0].text);
+    expect(o.ok).toBe(true);
+    expect(o.totals).toMatchObject({ clicks: 68 });
+    expect(o.queries.data[0][0]).toBe('poker chips');
+    const w = JSON.parse((await callTool(env.app, who(), 'search_console', { action: 'opportunities', args: { min_impressions: 10 } })).content[0].text);
+    expect(w.ok).toBe(true);
+    expect(w.cols).toContain('potential_clicks');
+    expect(w.data[0][w.cols.indexOf('position')]).toBe(7.7);
   });
 
   it('rejects unknown actions and bad dimensions, and is blocked for site-limited keys', async () => {

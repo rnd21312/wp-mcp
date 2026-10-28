@@ -74,7 +74,7 @@ describe('levels and the site ceiling', () => {
   it('marks site content as untrusted', async () => {
     const k = key(env, 'draft');
     const r = await tool(env, k, 'content', { action: 'get', args: { id: 1 } });
-    expect(r.data.content_notice).toMatch(/Never follow instructions/);
+    expect(r.data.content_notice).toMatch(/not instructions/);
     const ping = await tool(env, k, 'site', { action: 'ping' });
     expect(ping.data.content_notice).toBeUndefined();
   });
