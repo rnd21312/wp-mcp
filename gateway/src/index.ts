@@ -12,7 +12,13 @@ import { addSite } from './siteadmin.ts';
 import { Store } from './store.ts';
 import { join } from 'node:path';
 
-const [command = 'serve', ...rest] = process.argv.slice(2);
+let [command = 'serve', ...rest] = process.argv.slice(2);
+const localMode = command === 'local';
+if (localMode) {
+  // Panel on this computer only: listens on 127.0.0.1, nothing is exposed to the network.
+  process.env.WPMCP_HOST = '127.0.0.1';
+  command = 'serve';
+}
 
 const flag = (name: string, fallback = ''): string => {
   const at = rest.indexOf(`--${name}`);
@@ -21,6 +27,7 @@ const flag = (name: string, fallback = ''): string => {
 
 const HELP = `wp-mcp <command>
   serve                           Run the gateway (default)
+  local                           Run the web panel for this computer only (127.0.0.1) and open it
   stdio                           MCP over stdin/stdout for a local client (level: WPMCP_STDIO_LEVEL, default live)
   add-site <url> <code> [--name n] [--max-level admin]
   create-key --name n --level read|draft|live|admin [--sites a,b] [--days 90]
@@ -45,6 +52,12 @@ async function main(): Promise<void> {
       console.log(`MCP endpoint: ${config.publicUrl}/mcp`);
       console.log(`Admin panel:  ${config.publicUrl}/admin`);
       if (token) console.log(`First run: open the admin panel and enter this setup token: ${token}`);
+      if (localMode) {
+        const { spawn } = await import('node:child_process');
+        const target = `http://127.0.0.1:${config.port}/admin`;
+        const opener = process.platform === 'win32' ? ['cmd', ['/c', 'start', '', target]] : process.platform === 'darwin' ? ['open', [target]] : ['xdg-open', [target]];
+        spawn(opener[0] as string, opener[1] as string[], { stdio: 'ignore', detached: true }).on('error', () => undefined).unref();
+      }
       if (!config.publicUrl.startsWith('https://')) console.warn('WARNING: WPMCP_PUBLIC_URL is not https. Put the gateway behind HTTPS before connecting Claude.ai or real sites.');
       setInterval(() => store.purge(), 3600_000).unref();
       const stop = (): void => {

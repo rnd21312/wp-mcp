@@ -147,6 +147,20 @@ check( 'search/replace leaves serialized objects alone', $obj === \WPMCP\Bridge\
 $hits = 0;
 check( 'plain strings replaced and counted', 'a-NEW-b-NEW' === \WPMCP\Bridge\Handlers\Maintain::replace_deep( 'a-OLD-b-OLD', 'OLD', 'NEW', $hits ) && 2 === $hits );
 
+
+/* ---------------------------------------------------------------- transfer / files */
+check( 'builder and shop meta travels', Policy::transfer_meta_ok( '_elementor_data' ) && Policy::transfer_meta_ok( '_regular_price' ) && Policy::transfer_meta_ok( '_sku' ) && Policy::transfer_meta_ok( 'rank_math_title' ) && Policy::transfer_meta_ok( 'subtitle' ) );
+check( 'secrets and internals do not travel', ! Policy::transfer_meta_ok( '_edit_lock' ) && ! Policy::transfer_meta_ok( 'api_secret' ) && ! Policy::transfer_meta_ok( '_thumbnail_id' ) && ! Policy::transfer_meta_ok( '_wp_attached_file' ) );
+check( 'files: text anywhere, media in uploads only', Policy::files_path_ok( 'inc/a.php', false ) && Policy::files_path_ok( 'style.css', false ) && Policy::files_path_ok( 'img/a.png', true ) && ! Policy::files_path_ok( 'shell.php', true ) );
+foreach ( array( '../x.php', '/etc/passwd', '.env', 'a/.git/config', 'wpmcp-backups/db.sql.gz', "a\0.php", 'run.exe', 'x.sh' ) as $p ) {
+    check( 'files path refused: ' . str_replace( "\0", '\0', $p ), ! Policy::files_path_ok( $p, false ) );
+}
+$core = new ReflectionMethod( \WPMCP\Bridge\Handlers\Files::class, 'core_ok' );
+$core->setAccessible( true );
+check( 'core: wp-config and wp-content are closed', ! $core->invoke( null, 'wp-config.php', false ) && ! $core->invoke( null, 'WP-CONFIG.PHP', false ) && ! $core->invoke( null, 'wp-content/plugins/x.php', false ) && ! $core->invoke( null, '.env', false ) );
+check( 'core: readable files', $core->invoke( null, 'wp-includes/version.php', false ) && $core->invoke( null, 'index.php', false ) && $core->invoke( null, '.htaccess', false ) );
+check( 'core: only server files are writable', $core->invoke( null, '.htaccess', true ) && $core->invoke( null, 'robots.txt', true ) && ! $core->invoke( null, 'wp-includes/version.php', true ) && ! $core->invoke( null, 'index.php', true ) && ! $core->invoke( null, 'wp-admin/../wp-config.php', true ) );
+
 /* ------------------------------------------------------ spec ↔ handler coverage */
 $ops = Spec::all();
 check( 'spec loaded', count( $ops ) > 100 );

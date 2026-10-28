@@ -11,7 +11,7 @@ const titles = {
   inspect: 'Inspect rendered pages', maintain: 'Maintenance', plugins: 'Plugins', users: 'Users', options: 'Site options', rest: 'Generic REST layer', shop: 'WooCommerce', forms: 'Forms', files: 'Files in wp-content', transfer: 'Export and import content', activity: 'Activity and undo',
 };
 const local = {
-  site: [['transfer', 'draft>live', 'Copy content between two sites through the gateway (resumable, drafts by default).', 'from*, to*, kinds, post_type, ids, page, pages, id_map, overwrite, publish'], ['transfer_files', 'admin', 'Copy files between two sites (confirm).', 'from*, to*, root*, path, skip_existing'], ['sites', 'read', 'Every site you can use: name, URL, status, your effective level.', ''], ['whoami', 'read', 'Who you are connected as: level, sites, rate limits.', ''], ['describe', 'read', 'Full parameter schema of one action (or all actions of one tool).', 'tool*, action']],
+  site: [['transfer', 'draft>live', 'Copy content between two sites through the gateway (resumable, drafts by default).', 'from*, to*, kinds, prefixes, post_type, ids, page, pages, id_map, overwrite, publish'], ['transfer_files', 'admin', 'Copy files between two sites (confirm).', 'from*, to*, root*, path, skip_existing'], ['sites', 'read', 'Every site you can use: name, URL, status, your effective level.', ''], ['whoami', 'read', 'Who you are connected as: level, sites, rate limits.', ''], ['describe', 'read', 'Full parameter schema of one action (or all actions of one tool).', 'tool*, action']],
   activity: [['log', 'read', 'Gateway log of calls made by AI clients.', 'limit, mine']],
 };
 

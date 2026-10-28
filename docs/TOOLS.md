@@ -8,7 +8,7 @@ Levels: **read** < **draft** < **live** < **admin**. `A>B` means the action star
 
 | Action | Level | Arguments (* required) | What it does |
 |---|---|---|---|
-| `transfer` | draft>live | `from*, to*, kinds, post_type, ids, page, pages, id_map, overwrite, publish` | Copy content between two sites through the gateway (resumable, drafts by default). *(gateway)* |
+| `transfer` | draft>live | `from*, to*, kinds, prefixes, post_type, ids, page, pages, id_map, overwrite, publish` | Copy content between two sites through the gateway (resumable, drafts by default). *(gateway)* |
 | `transfer_files` | admin | `from*, to*, root*, path, skip_existing` | Copy files between two sites (confirm). *(gateway)* |
 | `sites` | read |  | Every site you can use: name, URL, status, your effective level. *(gateway)* |
 | `whoami` | read |  | Who you are connected as: level, sites, rate limits. *(gateway)* |
@@ -192,7 +192,7 @@ Levels: **read** < **draft** < **live** < **admin**. `A>B` means the action star
 
 | Action | Level | Arguments (* required) | What it does |
 |---|---|---|---|
-| `list` | admin | `root*, path, depth` | List files under a root: themes/<slug>, plugins/<slug>, mu-plugins, uploads[/sub]. |
+| `list` | admin | `root*, path, depth` | List files under a root: core (WordPress folder, read-only except .htaccess and robots.txt), themes/<slug>, plugins/<slug>, mu-plugins, uploads[/sub]. |
 | `read` | admin | `root*, path*, offset` | Read a file: text as text, other types as base64 (2 MB max). *(site content)* |
 | `write` | admin | `root*, path*, content, data_base64` | Create or replace a file. Text types in themes/plugins/mu-plugins, media types in uploads. PHP is syntax-checked and the front page probed; previous content is kept for undo. *(confirm, write)* |
 | `delete` | admin | `root*, path*` | Delete a file permanently. *(confirm, write)* |
@@ -201,7 +201,7 @@ Levels: **read** < **draft** < **live** < **admin**. `A>B` means the action star
 
 | Action | Level | Arguments (* required) | What it does |
 |---|---|---|---|
-| `export` | draft | `kind*, post_type, status, ids, page, per_page` | Export a page of content as portable JSON: posts (with meta, terms, SEO, builder data), terms, menus, media index or design settings. *(site content)* |
+| `export` | draft | `kind*, post_type, status, ids, page, per_page, prefixes` | Export a page of content as portable JSON: posts (with meta, terms, SEO, builder data), terms, menus, media index or design settings. *(site content)* |
 | `import` | draft>live | `kind*, items*, id_map, source_url, overwrite, publish` | Import items made by transfer.export. Creates drafts by default and skips slugs that already exist. *(confirm if risky, write)* |
 
 ## activity: Activity and undo

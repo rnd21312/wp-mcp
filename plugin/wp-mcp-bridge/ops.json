@@ -2018,7 +2018,7 @@
    "tool": "files",
    "action": "list",
    "level": "admin",
-   "summary": "List files under a root: themes/<slug>, plugins/<slug>, mu-plugins, uploads[/sub].",
+   "summary": "List files under a root: core (WordPress folder, read-only except .htaccess and robots.txt), themes/<slug>, plugins/<slug>, mu-plugins, uploads[/sub].",
    "params": {
     "root": "string|e.g. themes/twentytwentyfive, plugins/akismet, mu-plugins, uploads/2026",
     "path": "string|Subfolder inside the root",
@@ -2099,12 +2099,13 @@
    "level": "draft",
    "summary": "Export a page of content as portable JSON: posts (with meta, terms, SEO, builder data), terms, menus, media index or design settings.",
    "params": {
-    "kind": "enum:posts,terms,menus,media,design|What to export",
+    "kind": "enum:posts,terms,menus,media,design,users,options|What to export (users and options need admin)",
     "post_type": "string|For posts and media (default page)",
     "status": "string|publish (default); other statuses need draft level",
     "ids": "array|Only these post IDs",
     "page": "int|Page number",
-    "per_page": "int|Default 10, max 25"
+    "per_page": "int|Default 10, max 25",
+    "prefixes": "array|For kind options: option name prefixes, e.g. [\"woocommerce_\"]"
    },
    "required": [
     "kind"
@@ -2121,7 +2122,7 @@
    "level": "draft",
    "summary": "Import items made by transfer.export. Creates drafts by default and skips slugs that already exist.",
    "params": {
-    "kind": "enum:posts,terms,menus,media,design|What is imported",
+    "kind": "enum:posts,terms,menus,media,design,users,options|What is imported (users and options need admin and confirmation)",
     "items": "array|Items from transfer.export",
     "id_map": "object|{posts:{old:new}, media:{old:new}} from earlier imports",
     "source_url": "string|Home URL of the source site (its links are rewritten and its uploads fetched over https)",

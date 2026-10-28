@@ -16,7 +16,7 @@ export interface Helpers {
 type Result = ReturnType<Helpers['text']>;
 type Json = Record<string, any>;
 
-const KINDS = ['terms', 'posts', 'menus', 'design'];
+const KINDS = ['terms', 'posts', 'menus', 'design', 'users', 'options'];
 const CONFIRM_TTL = 300;
 
 export async function runTransfer(app: App, principal: Principal, op: OpSpec, args: Json, input: Json, h: Helpers): Promise<Result> {
@@ -34,8 +34,8 @@ export async function runTransfer(app: App, principal: Principal, op: OpSpec, ar
   const kinds: string[] = files ? [] : (args.kinds as string[] | undefined) ?? ['terms', 'posts'];
   if (!files && kinds.some((k) => !KINDS.includes(k))) return h.fail('bad_arguments', `kinds may contain: ${KINDS.join(', ')}.`);
 
-  const needTo: Level = files ? 'admin' : args.overwrite || args.publish || kinds.includes('menus') || kinds.includes('design') ? 'live' : 'draft';
-  const needFrom: Level = files ? 'admin' : 'draft';
+  const needTo: Level = files ? 'admin' : kinds.includes('users') || kinds.includes('options') ? 'admin' : args.overwrite || args.publish || kinds.includes('menus') || kinds.includes('design') ? 'live' : 'draft';
+  const needFrom: Level = files || kinds.includes('users') || kinds.includes('options') ? 'admin' : 'draft';
   if (!atLeast(lvFrom, needFrom)) return h.fail('level_too_low', `Reading from ${from.name} needs level ${needFrom}; yours is ${lvFrom}.`, { site: from.name });
   if (!atLeast(lvTo, needTo)) return h.fail('level_too_low', `Writing to ${to.name} needs level ${needTo} for this request; yours is ${lvTo}.`, { site: to.name });
 
@@ -46,7 +46,7 @@ export async function runTransfer(app: App, principal: Principal, op: OpSpec, ar
     app.sites.call(site, opId, a, { level, actor: principal.name, client: principal.id, requestId, write, idempotencyKey: write ? key ?? `gw-${requestId}-${opId}-${sha256(canonical(a)).slice(0, 10)}` : undefined });
 
   /* confirmation for risky copies */
-  const risky = files || !!args.overwrite || !!args.publish;
+  const risky = files || !!args.overwrite || !!args.publish || kinds.includes('users') || kinds.includes('options');
   const hash = sha256(canonical({ ...args, id_map: undefined, page: undefined, pages: undefined }));
   const given = typeof input.confirm_token === 'string' ? input.confirm_token : '';
   const claim = given ? unseal<{ p: string; s: string; o: string; h: string }>(app.config.masterKey, given) : null;
@@ -82,6 +82,7 @@ export async function runTransfer(app: App, principal: Principal, op: OpSpec, ar
       r.created += data.created?.length ?? 0;
       r.skipped += data.skipped?.length ?? 0;
       r.failed.push(...(data.failed ?? []).slice(0, 10));
+      if (data.media_pending) r.media_pending = (r.media_pending ?? 0) + data.media_pending;
     };
 
     for (const kind of kinds) {
@@ -89,7 +90,7 @@ export async function runTransfer(app: App, principal: Principal, op: OpSpec, ar
       let page = kind === 'posts' ? Number(args.page ?? 1) : 1;
       const last = page + Number(args.pages ?? 3) - 1;
       for (;;) {
-        const exp = (await call(from, lvFrom, 'transfer.export', { kind, post_type: type, page, per_page: kind === 'posts' ? 10 : 25, ...(args.ids ? { ids: args.ids } : {}) }, false)).data as Json;
+        const exp = (await call(from, lvFrom, 'transfer.export', { kind, post_type: type, page, per_page: kind === 'posts' ? 10 : 25, ...(args.prefixes ? { prefixes: args.prefixes } : {}), ...(args.ids ? { ids: args.ids } : {}) }, false)).data as Json;
         if (exp.items?.length) {
           const imp = (await call(to, lvTo, 'transfer.import', { kind, items: exp.items, id_map: idMap, source_url: exp.home_url ?? from.url, overwrite: !!args.overwrite, publish: !!args.publish }, true, `gw-${requestId}-${kind}-${page}`)).data as Json;
           merge(imp);
@@ -149,7 +150,7 @@ async function copyFiles(app: App, principal: Principal, args: Json, input: Json
     const l = (await c.call(c.from, c.lvFrom, 'files.list', { root, ...(path ? { path } : {}), depth: 4 }, false)).data as Json;
     list = l.files as { path: string; bytes: number }[];
   }
-  list = list.slice(0, 100);
+  list = list.slice(0, 1000);
   const total = list.reduce((n, f) => n + f.bytes, 0);
 
   if (!c.valid) {
@@ -194,5 +195,5 @@ async function copyFiles(app: App, principal: Principal, args: Json, input: Json
     }
   }
   h.log(`${c.from.name}>${c.to.name}`, c.op.id, c.lvTo, failed.length ? 'error' : 'ok', `${root}: ${copied.length} copied, ${skipped.length} skipped, ${failed.length} failed`);
-  return h.text({ ok: true, action: c.op.id, from: c.from.name, to: c.to.name, root, copied: copied.length, skipped: skipped.length, failed: failed.slice(0, 20), note: list.length === 100 ? 'Only the first 100 files were considered; run again for the rest (use skip_existing).' : undefined });
+  return h.text({ ok: true, action: c.op.id, from: c.from.name, to: c.to.name, root, copied: copied.length, skipped: skipped.length, failed: failed.slice(0, 20), note: list.length === 100 ? 'Only the first 1000 files were considered; run again for the rest (use skip_existing).' : undefined });
 }

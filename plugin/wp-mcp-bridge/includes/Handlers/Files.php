@@ -23,12 +23,18 @@ final class Files {
 
     private const MAX = 2097152;
 
+    /** True while the current root is the WordPress install folder. */
+    private static bool $core = false;
+
+    private const CORE_WRITABLE = array( '.htaccess', 'robots.txt', '.user.ini', 'php.ini', 'web.config' );
+
     /**
      * Absolute directory of a root.
      *
      * @return array{0: string, 1: bool} Directory and whether it is the uploads area.
      */
     private static function root( string $root ): array {
+        self::$core = false;
         $root  = trim( str_replace( '\\', '/', $root ), '/' );
         $parts = explode( '/', $root, 2 );
         $kind  = $parts[0];
@@ -37,6 +43,13 @@ final class Files {
             throw new BridgeError( 'bad_root', 'Invalid root.', 400 );
         }
         switch ( $kind ) {
+            case 'core':
+                if ( '' !== $rest ) {
+                    throw new BridgeError( 'bad_root', 'Use path for subfolders of core.', 400 );
+                }
+                self::$core = true;
+
+                return array( wp_normalize_path( untrailingslashit( ABSPATH ) ), false );
             case 'mu-plugins':
                 if ( '' !== $rest ) {
                     throw new BridgeError( 'bad_root', 'Use path for subfolders of mu-plugins.', 400 );
@@ -58,7 +71,7 @@ final class Files {
 
                 return is_dir( $dir ) ? array( $dir, true ) : self::missing( $root );
             default:
-                throw new BridgeError( 'bad_root', 'Root must start with themes/<slug>, plugins/<slug>, mu-plugins or uploads.', 400 );
+                throw new BridgeError( 'bad_root', 'Root must be core, themes/<slug>, plugins/<slug>, mu-plugins or uploads.', 400 );
         }
         if ( '' === $rest || str_contains( $rest, '/' ) ) {
             throw new BridgeError( 'bad_root', "Use $kind/<folder-name> as the root, then path for anything deeper.", 400 );
@@ -72,9 +85,25 @@ final class Files {
         throw new BridgeError( 'not_found', "The root \"$root\" does not exist on this site.", 404 );
     }
 
-    private static function full( string $dir, bool $uploads, string $path, bool $must_exist ): string {
+    /** Core install folder: everything readable except secrets; only a few server files writable. */
+    private static function core_ok( string $path, bool $write ): bool {
+        $low = strtolower( $path );
+        if ( '' === $path || str_contains( $path, "\0" ) || str_contains( $path, '\\' ) || preg_match( '#(^|/)\.\.?(/|$)#', $path ) ) {
+            return false;
+        }
+        if ( in_array( $low, array( 'wp-config.php', '.env', 'wp-config-backup.php' ), true ) || str_starts_with( $low, 'wp-content/' ) || str_contains( $low, 'wpmcp-backups' ) ) {
+            return false;
+        }
+        if ( $write ) {
+            return in_array( $low, self::CORE_WRITABLE, true );
+        }
+
+        return in_array( $low, self::CORE_WRITABLE, true ) || Policy::files_path_ok( $path, false );
+    }
+
+    private static function full( string $dir, bool $uploads, string $path, bool $must_exist, bool $write = false ): string {
         $path = trim( str_replace( '\\', '/', $path ), '/' );
-        if ( ! Policy::files_path_ok( $path, $uploads ) ) {
+        if ( self::$core ? ! self::core_ok( $path, $write ) : ! Policy::files_path_ok( $path, $uploads ) ) {
             throw new BridgeError( 'bad_path', 'File path not allowed (no .., no dot files, only known text or media types; PHP is not allowed in uploads).', 400 );
         }
         $full = $dir . '/' . $path;
@@ -130,7 +159,10 @@ final class Files {
                 break;
             }
             $rel = ltrim( substr( wp_normalize_path( $f->getPathname() ), strlen( $dir ) ), '/' );
-            if ( $f->isFile() && ! preg_match( '#(^|/)\.#', $rel ) && ! str_contains( $rel, 'node_modules/' ) ) {
+            if ( self::$core && ( str_starts_with( $rel, 'wp-content' ) || 'wp-config.php' === $rel ) ) {
+                continue;
+            }
+            if ( $f->isFile() && ( ! preg_match( '#(^|/)\.#', $rel ) || ( self::$core && in_array( $rel, self::CORE_WRITABLE, true ) ) ) && ! str_contains( $rel, 'node_modules/' ) ) {
                 $files[] = array( 'path' => $rel, 'bytes' => $f->getSize(), 'modified' => gmdate( 'c', $f->getMTime() ) );
             }
         }
@@ -164,7 +196,7 @@ final class Files {
     public static function preview_write( array $a, Context $c ): array {
         [ $dir, $up ] = self::root( (string) $a['root'] );
         self::guard_self( (string) $a['root'] );
-        $full  = self::full( $dir, $up, (string) $a['path'], false );
+        $full  = self::full( $dir, $up, (string) $a['path'], false, true );
         $bytes = self::payload( $a );
 
         return array( 'will_write' => $a['path'], 'root' => $a['root'], 'exists' => is_file( $full ), 'old_bytes' => is_file( $full ) ? filesize( $full ) : 0, 'new_bytes' => strlen( $bytes ), 'syntax' => self::php_problem( (string) $a['path'], $bytes ) ?? 'ok', 'warning' => str_ends_with( strtolower( (string) $a['path'] ), '.php' ) ? 'PHP runs with full access to the site.' : null );
@@ -236,7 +268,7 @@ final class Files {
         self::guard_self( $root );
         [ $dir, $up ] = self::root( $root );
         $path         = trim( str_replace( '\\', '/', (string) $a['path'] ), '/' );
-        $full         = self::full( $dir, $up, $path, false );
+        $full         = self::full( $dir, $up, $path, false, true );
         $bytes        = self::payload( $a );
         if ( null !== ( $problem = self::php_problem( $path, $bytes ) ) ) {
             throw new BridgeError( 'syntax_error', $problem . ' Nothing was written.', 400 );
@@ -261,7 +293,7 @@ final class Files {
     public static function preview_delete( array $a, Context $c ): array {
         [ $dir, $up ] = self::root( (string) $a['root'] );
         self::guard_self( (string) $a['root'] );
-        $full = self::full( $dir, $up, (string) $a['path'], true );
+        $full = self::full( $dir, $up, (string) $a['path'], true, true );
 
         return array( 'will_delete' => $a['path'], 'bytes' => filesize( $full ), 'undo' => filesize( $full ) <= 1500000 ? 'possible' : 'not possible (file too large to snapshot)' );
     }
@@ -275,7 +307,7 @@ final class Files {
         self::guard_self( $root );
         [ $dir, $up ] = self::root( $root );
         $path         = trim( str_replace( '\\', '/', (string) $a['path'] ), '/' );
-        $full         = self::full( $dir, $up, $path, true );
+        $full         = self::full( $dir, $up, $path, true, true );
         $before       = self::snapshot( $root, $path, $full );
         unlink( $full );
         if ( null !== $before['data'] ) {
@@ -296,7 +328,7 @@ final class Files {
         self::guard_self( $root );
         [ $dir, $up ] = self::root( $root );
         $path         = (string) ( $before['path'] ?? '' );
-        $full         = self::full( $dir, $up, $path, false );
+        $full         = self::full( $dir, $up, $path, false, true );
         if ( ! empty( $before['exists'] ) ) {
             if ( null === ( $before['data'] ?? null ) ) {
                 throw new BridgeError( 'not_undoable', 'The old content was too large to snapshot.', 409 );

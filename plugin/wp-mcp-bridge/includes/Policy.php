@@ -246,7 +246,7 @@ final class Policy {
             return true;
         }
 
-        return 1 === preg_match( '/^_(elementor_|wpb_|et_pb_|fl_builder|fusion|yoast_wpseo_|aioseo_|seopress_|wpm_|oembed_)/', $key ) || 1 === preg_match( '/^(rank_math_|_wp_page_template$)/', $key );
+        return 1 === preg_match( '/^_(elementor_|wpb_|et_pb_|fl_builder|fusion|yoast_wpseo_|aioseo_|seopress_|wpm_|oembed_|price$|regular_price$|sale_price$|sku$|stock$|stock_status$|manage_stock$|backorders$|virtual$|downloadable$|weight$|length$|width$|height$|product_attributes$|visibility$|featured$|sold_individually$|tax_status$|tax_class$|wc_)/', $key ) || 1 === preg_match( '/^(rank_math_|_wp_page_template$)/', $key );
     }
 
     /** A file path inside a files root. Text types are allowed everywhere; media types only matter for uploads. */

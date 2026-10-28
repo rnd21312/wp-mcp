@@ -55,6 +55,10 @@ Start the gateway. The log prints a **setup token**. Open `/admin`, enter it, ch
 
 CLI helpers (same data folder): `wp-mcp add-site <url> <code>`, `wp-mcp create-key --name n --level draft`, `wp-mcp sites`, `wp-mcp set-password` (reads `WPMCP_NEW_PASSWORD`), `wp-mcp stdio`.
 
+### Local panel (no server, no domain)
+
+`start-local.cmd` (Windows) or `node gateway/dist/index.js local` starts the panel on `127.0.0.1:8787` and opens it. Use it to connect sites, run actions in the Workbench and copy the commands that connect Claude Code or Claude Desktop (stdio) to the same data folder.
+
 ## 2. The plugin (on each WordPress site)
 
 Requirements: WordPress 6.2+, PHP 8.1+, the site reachable over HTTPS from the gateway.

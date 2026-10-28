@@ -73,6 +73,33 @@ final class Transfer {
 
                 return $base + array( 'total' => count( $items ), 'pages' => 1, 'items' => $items );
 
+            case 'users':
+                $c->need( 'admin', 'Users are personal data.' );
+                $q = new \WP_User_Query( array( 'number' => $per, 'paged' => $page, 'orderby' => 'ID', 'order' => 'ASC' ) );
+
+                return $base + array( 'total' => (int) $q->get_total(), 'pages' => (int) ceil( $q->get_total() / $per ), 'items' => array_map( static fn ( $u ) => array( 'old_id' => $u->ID, 'login' => $u->user_login, 'email' => $u->user_email, 'display_name' => $u->display_name, 'role' => (string) ( $u->roles[0] ?? 'subscriber' ), 'registered' => $u->user_registered ), $q->get_results() ) );
+
+            case 'options':
+                $c->need( 'admin', 'Plugin settings can contain private data.' );
+                global $wpdb;
+                $prefixes = array_filter( array_map( 'sanitize_text_field', array_map( 'strval', (array) ( $a['prefixes'] ?? array() ) ) ) );
+                if ( ! $prefixes ) {
+                    throw new BridgeError( 'prefixes_required', 'Pass prefixes, e.g. ["woocommerce_", "wpseo"], to say which plugin settings to export.', 400 );
+                }
+                $items = array();
+                foreach ( $prefixes as $prefix ) {
+                    $rows = (array) $wpdb->get_results( $wpdb->prepare( "SELECT option_name FROM {$wpdb->options} WHERE option_name LIKE %s AND option_name NOT LIKE %s AND option_name NOT LIKE %s ORDER BY option_name LIMIT 300", $wpdb->esc_like( $prefix ) . '%', '\\_transient\\_%', '\\_site\\_transient\\_%' ), ARRAY_A ); // phpcs:ignore WordPress.DB
+                    foreach ( $rows as $row ) {
+                        $name = (string) $row['option_name'];
+                        if ( 'secret' === Policy::option_tier( $name ) || self::option_blocked( $name ) ) {
+                            continue;
+                        }
+                        $items[ $name ] = array( 'name' => $name, 'value' => self::strip_secrets( get_option( $name ) ) );
+                    }
+                }
+
+                return $base + array( 'total' => count( $items ), 'pages' => 1, 'items' => array_values( $items ), 'note' => 'Values under secret-looking keys (API keys, tokens, passwords) are left out; enter those on the target by hand.' );
+
             case 'design':
                 $site = (array) get_option( 'wpm_seo_site', array() );
 
@@ -170,7 +197,7 @@ final class Transfer {
      * @return array<string, mixed>
      */
     public static function preview_import( array $a, Context $c ): array {
-        $risky = ! empty( $a['overwrite'] ) || ! empty( $a['publish'] );
+        $risky = ! empty( $a['overwrite'] ) || ! empty( $a['publish'] ) || in_array( (string) ( $a['kind'] ?? '' ), array( 'users', 'options' ), true );
 
         return array( 'kind' => $a['kind'], 'items' => count( (array) ( $a['items'] ?? array() ) ), 'creates' => $risky ? 'items with their source status, replacing existing slugs when overwrite is set' : 'drafts; existing slugs are skipped', 'needs_confirmation' => $risky );
     }
@@ -183,7 +210,7 @@ final class Transfer {
         $kind  = (string) $a['kind'];
         $items = array_slice( array_values( (array) $a['items'] ), 0, self::MAX_ITEMS );
         $map   = array_replace_recursive( array( 'posts' => array(), 'media' => array(), 'urls' => array() ), (array) ( $a['id_map'] ?? array() ) );
-        $ctx   = array( 'source' => rtrim( (string) ( $a['source_url'] ?? '' ), '/' ), 'overwrite' => ! empty( $a['overwrite'] ), 'publish' => ! empty( $a['publish'] ), 'budget' => 25 );
+        $ctx   = array( 'source' => rtrim( (string) ( $a['source_url'] ?? '' ), '/' ), 'overwrite' => ! empty( $a['overwrite'] ), 'publish' => ! empty( $a['publish'] ), 'deadline' => microtime( true ) + 90, 'pending' => 0 );
         if ( $ctx['overwrite'] || $ctx['publish'] ) {
             $c->need( 'live', 'Overwriting or keeping published status needs live level.' );
         }
@@ -216,12 +243,20 @@ final class Transfer {
                 $c->need( 'live', 'Design settings are visible to visitors.' );
                 $out = self::import_design( $items, $c );
                 break;
+            case 'users':
+                $c->need( 'admin', 'Users are personal data.' );
+                $out = self::import_users( $items, $ctx );
+                break;
+            case 'options':
+                $c->need( 'admin', 'Plugin settings can change how the site behaves.' );
+                $out = self::import_options( $items, $c );
+                break;
             default:
                 throw new BridgeError( 'bad_kind', 'kind must be posts, terms, menus, media or design.', 400 );
         }
         $c->summary = "imported $kind: " . count( $out['created'] ) . ' created, ' . count( $out['skipped'] ) . ' skipped, ' . count( $out['failed'] ) . ' failed';
 
-        return $out + array( 'kind' => $kind, 'id_map' => $map );
+        return $out + array( 'kind' => $kind, 'id_map' => $map, 'media_pending' => $ctx['pending'] );
     }
 
     /**
@@ -273,28 +308,34 @@ final class Transfer {
         if ( '' === $source || '' === $text ) {
             return $text;
         }
-        $host = (string) wp_parse_url( $source, PHP_URL_HOST );
-        if ( '' !== $host && preg_match_all( '#https?://' . preg_quote( $host, '#' ) . '[^\s"\'<>)\\\\,;]*?/wp-content/uploads/[^\s"\'<>)\\\\,;]+#i', $text, $m ) ) {
+        $host    = (string) wp_parse_url( $source, PHP_URL_HOST );
+        $plain   = str_replace( '\\/', '/', $text ); // JSON-escaped slashes (page builders) are read like normal URLs.
+        $replace = array();
+        if ( '' !== $host && preg_match_all( '#https?://' . preg_quote( $host, '#' ) . '[^\s"\'<>)\\\\,;]*?/wp-content/uploads/[^\s"\'<>)\\\\,;]+#i', $plain, $m ) ) {
             foreach ( array_unique( $m[0] ) as $url ) {
-                if ( isset( $map['urls'][ $url ] ) ) {
-                    continue;
+                if ( ! isset( $map['urls'][ $url ] ) ) {
+                    if ( microtime( true ) > $ctx['deadline'] ) {
+                        ++$ctx['pending'];
+                        continue;
+                    }
+                    try {
+                        $att                 = Media::import_from_url( $url, array(), $c );
+                        $map['urls'][ $url ] = $att['url'];
+                    } catch ( \Throwable $e ) {
+                        $map['urls'][ $url ] = $url; // Keep the source URL; it still works while the source exists.
+                    }
                 }
-                if ( $ctx['budget'] <= 0 ) {
-                    break;
-                }
-                --$ctx['budget'];
-                try {
-                    $att                 = Media::import_from_url( $url, array(), $c );
-                    $map['urls'][ $url ] = $att['url'];
-                } catch ( \Throwable $e ) {
-                    $map['urls'][ $url ] = $url; // Keep the source URL; it still works while the source exists.
+                if ( $map['urls'][ $url ] !== $url ) {
+                    $replace[ $url ]                          = $map['urls'][ $url ];
+                    $replace[ str_replace( '/', '\\/', $url ) ] = str_replace( '/', '\\/', $map['urls'][ $url ] );
                 }
             }
-            $text = strtr( $text, array_filter( $map['urls'], static fn ( $to, $from ) => $to !== $from, ARRAY_FILTER_USE_BOTH ) );
         }
-        $home = untrailingslashit( home_url() );
+        $home                                     = untrailingslashit( home_url() );
+        $replace[ $source ]                       = $home;
+        $replace[ str_replace( '/', '\\/', $source ) ] = str_replace( '/', '\\/', $home );
 
-        return str_replace( array( $source, str_replace( '/', '\\/', $source ) ), array( $home, str_replace( '/', '\\/', $home ) ), $text );
+        return strtr( $text, $replace );
     }
 
     /**
@@ -374,8 +415,7 @@ final class Transfer {
                 }
                 if ( ! empty( $item['featured']['url'] ) ) {
                     $fid = (int) ( $map['media'][ (string) $item['featured']['old_id'] ] ?? 0 );
-                    if ( ! $fid && $ctx['budget'] > 0 ) {
-                        --$ctx['budget'];
+                    if ( ! $fid && microtime( true ) < $ctx['deadline'] ) {
                         $fid = (int) Media::import_from_url( (string) $item['featured']['url'], array( 'alt' => $item['featured']['alt'] ?? '', 'title' => $item['featured']['title'] ?? '' ), $c )['id'];
                         $map['media'][ (string) $item['featured']['old_id'] ] = $fid;
                     }
@@ -480,6 +520,96 @@ final class Transfer {
         }
         if ( ! empty( $d['seo_site'] ) ) {
             $do( 'seo_site', static fn () => Seo::op_site_set( array_intersect_key( (array) $d['seo_site'], array_flip( array( 'robots_txt', 'org_name', 'org_logo', 'org_same_as', 'title_separator', 'default_og_image' ) ) ), $c ) );
+        }
+
+        return $out;
+    }
+
+    /* ------------------------------------------------------- users and options */
+
+    private static function option_blocked( string $name ): bool {
+        return in_array( $name, array( 'siteurl', 'home', 'admin_email', 'active_plugins', 'template', 'stylesheet', 'user_roles', 'cron', 'rewrite_rules', 'db_version', 'initial_db_version', 'recently_activated', 'default_role', 'users_can_register', 'blog_public', 'sidebars_widgets' ), true ) || str_starts_with( $name, 'wpm_' ) || str_contains( $name, 'secret' );
+    }
+
+    /**
+     * Removes values under secret-looking keys, at any depth.
+     *
+     * @param mixed $value Option value.
+     * @return mixed
+     */
+    private static function strip_secrets( $value ) {
+        if ( is_object( $value ) ) {
+            $value = (array) $value;
+        }
+        if ( ! is_array( $value ) ) {
+            return $value;
+        }
+        $out = array();
+        foreach ( $value as $k => $v ) {
+            if ( is_string( $k ) && Policy::is_secret_key( $k ) ) {
+                continue;
+            }
+            $out[ $k ] = self::strip_secrets( $v );
+        }
+
+        return $out;
+    }
+
+    /**
+     * @param array<int, mixed>    $items Users.
+     * @param array<string, mixed> $ctx   Import context.
+     * @return array<string, mixed>
+     */
+    private static function import_users( array $items, array $ctx ): array {
+        $out = array( 'created' => array(), 'skipped' => array(), 'failed' => array() );
+        foreach ( $items as $u ) {
+            $u     = (array) $u;
+            $login = sanitize_user( (string) ( $u['login'] ?? '' ), true );
+            $email = sanitize_email( (string) ( $u['email'] ?? '' ) );
+            if ( '' === $login || username_exists( $login ) || ( '' !== $email && email_exists( $email ) ) ) {
+                $out['skipped'][] = array( 'login' => $login, 'reason' => 'login or email already exists' );
+                continue;
+            }
+            $role = sanitize_key( (string) ( $u['role'] ?? 'subscriber' ) );
+            if ( ! get_role( $role ) ) {
+                $role = 'subscriber';
+            }
+            if ( 'administrator' === $role && ! $ctx['publish'] ) {
+                $out['skipped'][] = array( 'login' => $login, 'reason' => 'administrator accounts are only imported with publish=true' );
+                continue;
+            }
+            $id = wp_insert_user( array( 'user_login' => $login, 'user_email' => $email, 'user_pass' => wp_generate_password( 32 ), 'role' => $role, 'display_name' => sanitize_text_field( (string) ( $u['display_name'] ?? $login ) ) ) );
+            if ( is_wp_error( $id ) ) {
+                $out['failed'][] = array( 'login' => $login, 'error' => $id->get_error_message() );
+                continue;
+            }
+            $out['created'][] = array( 'login' => $login, 'id' => (int) $id, 'role' => $role );
+        }
+        $out['note'] = 'Passwords are not copied: the new users must use "lost password" to sign in.';
+
+        return $out;
+    }
+
+    /**
+     * @param array<int, mixed> $items Options.
+     * @return array<string, mixed>
+     */
+    private static function import_options( array $items, Context $c ): array {
+        $out    = array( 'created' => array(), 'skipped' => array(), 'failed' => array() );
+        $before = array();
+        foreach ( $items as $item ) {
+            $item = (array) $item;
+            $name = (string) ( $item['name'] ?? '' );
+            if ( '' === $name || 'secret' === Policy::option_tier( $name ) || self::option_blocked( $name ) ) {
+                $out['skipped'][] = array( 'name' => $name, 'reason' => 'protected option' );
+                continue;
+            }
+            $before[] = Revisions::snap_option( $name );
+            update_option( $name, $item['value'] ?? '' );
+            $out['created'][] = $name;
+        }
+        if ( $before ) {
+            Revisions::record( $c, 'options', 'import', $before );
         }
 
         return $out;

@@ -20,7 +20,7 @@ export interface AdminReq {
 
 const html = (body: string, title: string, status = 200, extra: Partial<Reply> = {}): Reply => ({ status, headers: securityHeaders(), html: page(title, body, nav()), ...extra });
 const redirect = (to: string, cookies: string[] = []): Reply => ({ status: 303, headers: { location: to, 'cache-control': 'no-store' }, cookies });
-const nav = (): string => '<nav><a href="/admin">Dashboard</a><a href="/admin/activity">Activity</a></nav>';
+const nav = (): string => '<nav><a href="/admin">Dashboard</a><a href="/admin/workbench">Workbench</a><a href="/admin/connect">Connect AI</a><a href="/admin/activity">Activity</a><a href="/admin/lang?l=fa">فارسی</a> <a href="/admin/lang?l=en">English</a></nav>';
 
 /** Setup token printed at start-up: only someone who can read the server log can claim an empty gateway. */
 let setupToken = '';
@@ -46,7 +46,22 @@ export function loginRedirect(next: string): Reply {
 /** The signed-in owner's session, or null. */
 export const sessionOf = (app: App, cookie: string | undefined): Session | null => (app.store.ownerHash() ? readSession(app, cookie) : null);
 
+import { handlePanel } from './panel.ts';
+import { translate } from './fa.ts';
+
 export async function handleAdmin(app: App, req: AdminReq): Promise<Reply> {
+  if (req.path === '/admin/lang') {
+    const l = req.query.get('l') === 'en' ? 'en' : 'fa';
+    return redirect('/admin', [`wpm_lang=${l}; Path=/; SameSite=Lax; Max-Age=31536000`]);
+  }
+  const reply = await handleAdminInner(app, req);
+  const lang = /(?:^|;\s*)wpm_lang=(\w+)/.exec(req.cookie ?? '')?.[1] ?? 'fa';
+  if (lang === 'fa' && reply.html) reply.html = translate(reply.html);
+
+  return reply;
+}
+
+async function handleAdminInner(app: App, req: AdminReq): Promise<Reply> {
   const { path, method } = req;
 
   if (path === '/admin/setup') return setup(app, req);
@@ -55,6 +70,9 @@ export async function handleAdmin(app: App, req: AdminReq): Promise<Reply> {
 
   const session = readSession(app, req.cookie);
   if (!session) return loginRedirect(req.path === '/admin' ? '/admin' : req.path);
+
+  const panel = await handlePanel(app, req, session);
+  if (panel) return panel;
 
   if (method === 'GET') {
     if (path === '/admin') return dashboard(app, session);

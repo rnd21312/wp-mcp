@@ -16,15 +16,15 @@ label{display:block;margin:10px 0 4px;font-weight:600}.muted{color:var(--muted)}
 .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.radio{display:block;font-weight:400;margin:6px 0}nav a{margin-right:14px}
 `;
 
-export function page(title: string, body: string, nav = '', lang = 'en'): string {
-  return `<!doctype html><html lang="${lang}" dir="${lang === 'fa' ? 'rtl' : 'ltr'}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>${esc(title)}</title><style>${CSS}</style></head><body><main>${nav}${body}</main></body></html>`;
+export function page(title: string, body: string, nav = '', lang = 'en', script = '', nonce = ''): string {
+  return `<!doctype html><html lang="${lang}" dir="${lang === 'fa' ? 'rtl' : 'ltr'}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>${esc(title)}</title><style>${CSS}</style></head><body><main>${nav}${body}</main>${script ? `<script nonce="${nonce}">${script}</script>` : ''}</body></html>`;
 }
 
-export const securityHeaders = (): Record<string, string> => ({
+export const securityHeaders = (nonce = ''): Record<string, string> => ({
   'content-type': 'text/html; charset=utf-8',
   'cache-control': 'no-store',
   'x-frame-options': 'DENY',
   'x-content-type-options': 'nosniff',
   'referrer-policy': 'no-referrer',
-  'content-security-policy': "default-src 'none'; style-src 'unsafe-inline'; form-action 'self' https: http://localhost:* http://127.0.0.1:* cursor: vscode: vscode-insiders:; frame-ancestors 'none'; base-uri 'none'",
+  'content-security-policy': `default-src 'none'; style-src 'unsafe-inline';${nonce ? ` script-src 'nonce-${nonce}';` : ''} form-action 'self' https: http://localhost:* http://127.0.0.1:* cursor: vscode: vscode-insiders:; frame-ancestors 'none'; base-uri 'none'`,
 });

@@ -43,6 +43,15 @@ Details: [docs/architecture.md](docs/architecture.md).
    ```
    Details and API-key setup: [docs/connect.md](docs/connect.md).
 
+## The local web panel
+
+Double-click `start-local.cmd` (or `node gateway/dist/index.js local`): the panel opens at `http://127.0.0.1:8787/admin`, listening on this computer only. Persian (default) and English.
+
+* **Dashboard**: connect sites with a pairing code, set per-site level ceilings, create API keys, see connected apps.
+* **Workbench**: run any tool action by hand from generated forms, as a chosen level, with previews, confirmations and results. Covers every task, including `site.transfer`.
+* **Connect AI**: ready-to-copy commands for Claude Code, Claude Desktop (stdio, no server needed), Cursor and remote clients, filled in for your install.
+* **Activity**: everything the AI and you did.
+
 ## What the AI can do
 
 | Tool | Covers |
@@ -58,8 +67,8 @@ Details: [docs/architecture.md](docs/architecture.md).
 | `users`, `options` | Users and roles (admin), site options with secret redaction |
 | `rest` | Discover and call **any** REST route (WooCommerce, forms, custom) with levels derived from route and method |
 | `shop`, `forms` | WooCommerce products/stock/coupons/orders; CF7, Gravity, WPForms, Fluent Forms |
-| `files` | Browse/read/write/delete files in themes, plugins, mu-plugins, uploads (admin, confirmed, PHP syntax-checked, undoable) |
-| `transfer` | Portable export/import of posts, terms, menus, media and design. **`site.transfer`** copies content between two connected sites inside the gateway (drafts by default, images fetched, links rewritten, resumable); **`site.transfer_files`** copies theme/plugin folders |
+| `files` | Browse/read/write/delete files in themes, plugins, mu-plugins, uploads, and read the WordPress core folder (`core`; only `.htaccess`/`robots.txt` writable; `wp-config.php` stays closed because it holds database passwords). Admin, confirmed, PHP syntax-checked, undoable |
+| `transfer` | Portable export/import of posts, terms, menus, media and design. **`site.transfer`** copies content between two connected sites inside the gateway (drafts by default, images fetched including page-builder JSON, links rewritten, resumable; also users and plugin settings for admin); **`site.transfer_files`** copies theme/plugin folders |
 | `activity` | What happened (gateway + site), and **undo** by revision |
 
 Full list: [docs/TOOLS.md](docs/TOOLS.md). The AI also receives `instructions` at connect time, guide **resources**, ready **prompts** (build a site, SEO audit, maintenance, publish a post, redesign a page) and can read the activity log.
@@ -82,7 +91,7 @@ Read [docs/security.md](docs/security.md) for the full model and honest limits.
 ## Development
 
 ```bash
-npm test            # gateway (116 tests) + plugin checks (94) in one go
+npm test            # gateway (123 tests) + plugin checks (108) in one go
 npm run docs        # regenerate docs/TOOLS.md from spec/ops.json
 ```
 

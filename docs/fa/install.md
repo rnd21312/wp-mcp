@@ -55,6 +55,10 @@ gateway را اجرا کنید. در لاگ یک **توکن راه‌انداز�
 
 دستورهای CLI (همان پوشه‌ی داده): `wp-mcp add-site <url> <code>`، `wp-mcp create-key --name n --level draft`، `wp-mcp sites`، `wp-mcp set-password` (از `WPMCP_NEW_PASSWORD` می‌خواند)، `wp-mcp stdio`.
 
+### پنل محلی (بدون سرور و دامنه)
+
+`start-local.cmd` (ویندوز) یا `node gateway/dist/index.js local` پنل را روی `127.0.0.1:8787` اجرا و باز می‌کند. برای اتصال سایت‌ها، اجرای عملیات در میز کار و گرفتن دستورهایی که Claude Code یا Claude Desktop (stdio) را به همین پوشه‌ی داده وصل می‌کنند.
+
 ## ۲. افزونه (روی هر سایت وردپرس)
 
 پیش‌نیاز: وردپرس ۶.۲+، PHP 8.1+، و سایتی که از gateway با HTTPS در دسترس باشد.
