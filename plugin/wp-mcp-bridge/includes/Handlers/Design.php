@@ -276,7 +276,7 @@ final class Design {
     /* ------------------------------------------------------------------- menus */
 
     /** @return array<int, array<string, mixed>> */
-    private static function tree( int $menu_id ): array {
+    public static function tree( int $menu_id ): array {
         $items = wp_get_nav_menu_items( $menu_id ) ?: array();
         $nodes = array();
         foreach ( $items as $i ) {
@@ -362,7 +362,7 @@ final class Design {
      * @param array<int, string> $locations Theme locations.
      * @return array<string, mixed>
      */
-    private static function build_menu( string $name, array $items, array $locations ): array {
+    public static function build_menu( string $name, array $items, array $locations ): array {
         $menu = self::menu_obj( $name );
         if ( $menu ) {
             foreach ( wp_get_nav_menu_items( $menu->term_id ) ?: array() as $old ) {

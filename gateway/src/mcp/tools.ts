@@ -6,6 +6,7 @@ import { atLeast, LEVEL_HELP, minLevel, type Level } from '../levels.ts';
 import { checkArgs, OPS, opsOf, paramSchema, signature, TOOLS, type OpSpec } from '../registry.ts';
 import type { SiteRow } from '../store.ts';
 import { SiteError } from '../wpclient.ts';
+import { runTransfer } from './transfer.ts';
 
 export interface ToolDef {
   name: string;
@@ -127,7 +128,7 @@ export async function callTool(app: App, principal: Principal, toolName: string,
   const checked = checkArgs(op, input.args ?? {});
   if (checked.errors.length) return fail('bad_arguments', checked.errors.join(' '), { signature: signature(op) });
 
-  if (op.local) return runLocal(app, principal, op, checked.args, input, log);
+  if (op.local) return await runLocal(app, principal, op, checked.args, input, log);
 
   /* which site */
   const accessible = accessibleSites(app, principal);
@@ -245,8 +246,12 @@ export async function callTool(app: App, principal: Principal, toolName: string,
 
 type Logger = (site: string, op: string, level: string, status: string, summary: string, revision?: number) => void;
 
-function runLocal(app: App, principal: Principal, op: OpSpec, args: Record<string, unknown>, input: Input, log: Logger): ToolResult {
+async function runLocal(app: App, principal: Principal, op: OpSpec, args: Record<string, unknown>, input: Input, log: Logger): Promise<ToolResult> {
   switch (op.id) {
+    case 'site.transfer':
+    case 'site.transfer_files':
+      return runTransfer(app, principal, op, args, input as Record<string, unknown>, { text, fail, log });
+
     case 'site.sites':
       return text({ ok: true, you: { name: principal.name, level: principal.level }, sites: siteList(app, principal), hint: 'Pass the site name in every call. Names are unique.' });
 

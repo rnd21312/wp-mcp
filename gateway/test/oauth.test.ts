@@ -80,7 +80,7 @@ describe('OAuth 2.1 with PKCE', () => {
     expect(tokens.scope).toBe('live');
     const list = await rpc(env, tokens.access_token, 'tools/list');
     expect(list.status).toBe(200);
-    expect(list.body.result.tools).toHaveLength(14);
+    expect(list.body.result.tools).toHaveLength(16);
     const r = await tool(env, tokens.access_token, 'content', { site: 'alpha', action: 'list' });
     expect(r.data.site).toBe('alpha');
   });

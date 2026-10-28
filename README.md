@@ -1,6 +1,6 @@
 # WP MCP
 
-**Let an AI run your WordPress sites, from zero to production, over MCP only.** No visual editor, no plugin UI to learn: the AI gets 14 well-described tools (117 site actions) for design, SEO, maintenance, plugins, content, shop and forms, with permission levels, two-step confirmation, undo and an activity log.
+**Let an AI run your WordPress sites, from zero to production, over MCP only.** No visual editor, no plugin UI to learn: the AI gets 16 well-described tools (123 site actions) for design, SEO, maintenance, plugins, content, shop and forms, with permission levels, two-step confirmation, undo and an activity log.
 
 🇮🇷 [راهنمای فارسی](README.fa.md)
 
@@ -58,6 +58,8 @@ Details: [docs/architecture.md](docs/architecture.md).
 | `users`, `options` | Users and roles (admin), site options with secret redaction |
 | `rest` | Discover and call **any** REST route (WooCommerce, forms, custom) with levels derived from route and method |
 | `shop`, `forms` | WooCommerce products/stock/coupons/orders; CF7, Gravity, WPForms, Fluent Forms |
+| `files` | Browse/read/write/delete files in themes, plugins, mu-plugins, uploads (admin, confirmed, PHP syntax-checked, undoable) |
+| `transfer` | Portable export/import of posts, terms, menus, media and design. **`site.transfer`** copies content between two connected sites inside the gateway (drafts by default, images fetched, links rewritten, resumable); **`site.transfer_files`** copies theme/plugin folders |
 | `activity` | What happened (gateway + site), and **undo** by revision |
 
 Full list: [docs/TOOLS.md](docs/TOOLS.md). The AI also receives `instructions` at connect time, guide **resources**, ready **prompts** (build a site, SEO audit, maintenance, publish a post, redesign a page) and can read the activity log.
@@ -80,7 +82,7 @@ Read [docs/security.md](docs/security.md) for the full model and honest limits.
 ## Development
 
 ```bash
-npm test            # gateway (109 tests) + plugin checks (94) in one go
+npm test            # gateway (116 tests) + plugin checks (94) in one go
 npm run docs        # regenerate docs/TOOLS.md from spec/ops.json
 ```
 

@@ -268,6 +268,9 @@ final class Revisions {
             case 'file':
                 return Handlers\Design::restore_file( $target, (array) $before );
 
+            case 'xfile':
+                return Handlers\Files::restore( (array) $before );
+
             case 'menu':
                 return Handlers\Design::restore_menu( $target, $before );
 

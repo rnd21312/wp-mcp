@@ -291,3 +291,86 @@ describe('fair rate limits', () => {
     await env.stop();
   });
 });
+
+describe('moving content and files between sites', () => {
+  let env: Env;
+  const page = (n: number) => ({ old_id: n, type: 'page', status: 'publish', title: `Page ${n}`, slug: `page-${n}`, content: '<p>x</p>' });
+  beforeAll(async () => {
+    env = await createEnv(['src', 'dst']);
+    env.sites.src.answers['transfer.export'] = (args) => {
+      const p = Number(args.page ?? 1);
+      if (args.kind === 'posts') return { kind: 'posts', home_url: env.sites.src.url, page: p, total: 25, pages: 3, items: [page(p * 10), page(p * 10 + 1)] };
+      return { kind: args.kind, home_url: env.sites.src.url, page: 1, total: 4, pages: 1, items: [{ taxonomy: 'category', name: 'News', slug: 'news' }] };
+    };
+    env.sites.dst.answers['transfer.import'] = (args) => ({ kind: args.kind, created: (args.items as any[]).map((i) => ({ old_id: i.old_id, id: 1000 + (i.old_id ?? 0) })), skipped: [], failed: [], id_map: { posts: Object.fromEntries((args.items as any[]).map((i) => [String(i.old_id), 1000 + (i.old_id ?? 0)])), media: {}, urls: {} } });
+    env.sites.src.answers['files.list'] = () => ({ files: [{ path: 'style.css', bytes: 10 }, { path: 'functions.php', bytes: 20 }] });
+    env.sites.src.answers['files.read'] = (args) => (args.path === 'style.css' ? { encoding: 'utf8', content: 'body{}', truncated: false } : { encoding: 'utf8', content: '<?php // ok', truncated: false });
+  });
+  afterAll(() => env.stop());
+
+  it('copies terms and pages as drafts, page by page, and returns an id map to continue', async () => {
+    const k = key(env, 'draft');
+    const r = await tool(env, k, 'site', { action: 'transfer', args: { from: 'src', to: 'dst', kinds: ['terms', 'posts'], pages: 2 } });
+    expect(r.isError).toBe(false);
+    expect(r.data.report.posts.created).toBe(4);
+    expect(r.data.report.terms.created).toBe(1);
+    expect(r.data.next).toMatchObject({ kind: 'posts', page: 3 });
+    expect(r.data.id_map.posts['10']).toBe(1010);
+    const imports = env.sites.dst.executed('transfer.import');
+    expect(imports.every((c) => c.args.overwrite === false && c.args.publish === false)).toBe(true);
+    expect(imports[1].args.source_url).toBe(env.sites.src.url);
+    const rest = await tool(env, k, 'site', { action: 'transfer', args: { from: 'src', to: 'dst', kinds: ['posts'], page: 3, pages: 2, id_map: r.data.id_map } });
+    expect(rest.data.done).toBe(true);
+    expect(rest.data.report.posts.created).toBe(2);
+    expect(env.sites.dst.executed('transfer.import').at(-1)!.args.id_map).toMatchObject({ posts: { '10': 1010 } });
+  });
+
+  it('never sends imported content through the AI', async () => {
+    const r = await tool(env, key(env, 'draft'), 'site', { action: 'transfer', args: { from: 'src', to: 'dst', kinds: ['posts'], pages: 1 } });
+    expect(JSON.stringify(r.data)).not.toContain('<p>x</p>');
+  });
+
+  it('dry run only counts', async () => {
+    const before = env.sites.dst.executed('transfer.import').length;
+    const r = await tool(env, key(env, 'draft'), 'site', { action: 'transfer', args: { from: 'src', to: 'dst', kinds: ['posts', 'terms'] }, dry_run: true });
+    expect(r.data.would_copy).toEqual({ posts: 25, terms: 4 });
+    expect(env.sites.dst.executed('transfer.import')).toHaveLength(before);
+  });
+
+  it('checks levels on both ends and refuses the same site', async () => {
+    const r = await tool(env, key(env, 'read'), 'site', { action: 'transfer', args: { from: 'src', to: 'dst' } });
+    expect(r.data.error.code).toBe('level_too_low');
+    const live = key(env, 'draft');
+    expect((await tool(env, live, 'site', { action: 'transfer', args: { from: 'src', to: 'dst', kinds: ['menus'] } })).data.error.code).toBe('level_too_low');
+    expect((await tool(env, live, 'site', { action: 'transfer', args: { from: 'src', to: 'src' } })).data.error.code).toBe('same_site');
+    expect((await tool(env, live, 'site', { action: 'transfer', args: { from: 'src', to: 'nope' } })).data.error.code).toBe('unknown_site');
+  });
+
+  it('overwrite and publish need an explicit confirmation bound to the exact request', async () => {
+    const k = key(env, 'live');
+    const args = { from: 'src', to: 'dst', kinds: ['posts'], overwrite: true, pages: 1 };
+    const before = env.sites.dst.executed('transfer.import').length;
+    const first = await tool(env, k, 'site', { action: 'transfer', args });
+    expect(first.data.needs_confirmation).toBe(true);
+    expect(first.data.preview.effect).toMatch(/REPLACED/);
+    expect(env.sites.dst.executed('transfer.import')).toHaveLength(before);
+    expect((await tool(env, k, 'site', { action: 'transfer', args: { ...args, publish: true }, confirm_token: first.data.confirm_token })).data.error.code).toBe('bad_confirm_token');
+    const done = await tool(env, k, 'site', { action: 'transfer', args, confirm_token: first.data.confirm_token });
+    expect(done.data.report.posts.created).toBe(2);
+    expect(env.sites.dst.executed('transfer.import').at(-1)!.args.overwrite).toBe(true);
+  });
+
+  it('copies files only with admin on both sites and a confirmation', async () => {
+    const live = key(env, 'live');
+    expect((await tool(env, live, 'site', { action: 'transfer_files', args: { from: 'src', to: 'dst', root: 'themes/kid' } })).data.error.code).toBe('level_too_low');
+    const k = key(env, 'admin');
+    const args = { from: 'src', to: 'dst', root: 'themes/kid' };
+    const first = await tool(env, k, 'site', { action: 'transfer_files', args });
+    expect(first.data.needs_confirmation).toBe(true);
+    expect(first.data.preview.files).toBe(2);
+    expect(env.sites.dst.executed('files.write')).toHaveLength(0);
+    const done = await tool(env, k, 'site', { action: 'transfer_files', args, confirm_token: first.data.confirm_token });
+    expect(done.data.copied).toBe(2);
+    expect(env.sites.dst.executed('files.write').map((c) => c.args.path).sort()).toEqual(['functions.php', 'style.css']);
+  });
+});

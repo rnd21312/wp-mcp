@@ -144,11 +144,12 @@ final class Media {
     }
 
     /**
-     * @param array<string, mixed> $a Arguments.
+     * Downloads a public https file and stores it in the library (shared by media.import_url and transfers).
+     *
+     * @param array<string, mixed> $a title, alt, filename, attach_to.
      * @return array<string, mixed>
      */
-    public static function op_import_url( array $a, Context $c ): array {
-        $url = (string) $a['url'];
+    public static function import_from_url( string $url, array $a, Context $c ): array {
         if ( null !== ( $problem = Policy::url_problem( $url ) ) ) {
             throw new BridgeError( 'blocked_url', $problem, 400 );
         }
@@ -163,6 +164,14 @@ final class Media {
         $name = (string) ( $a['filename'] ?? basename( (string) wp_parse_url( $url, PHP_URL_PATH ) ) );
 
         return self::store( (string) wp_remote_retrieve_body( $res ), '' !== $name ? $name : 'download', $a, $c );
+    }
+
+    /**
+     * @param array<string, mixed> $a Arguments.
+     * @return array<string, mixed>
+     */
+    public static function op_import_url( array $a, Context $c ): array {
+        return self::import_from_url( (string) $a['url'], $a, $c );
     }
 
     /**

@@ -55,6 +55,8 @@ final class Spec {
             'rest'     => 'RestCall',
             'shop'     => 'Shop',
             'forms'    => 'Forms',
+            'files'    => 'Files',
+            'transfer' => 'Transfer',
             'activity' => 'ActivityOps',
         );
 

@@ -1,6 +1,6 @@
 # Tools reference
 
-Generated from `spec/ops.json` (117 site actions + gateway actions). Every tool is called as `{site, action, args, dry_run?, confirm_token?, idempotency_key?}`.
+Generated from `spec/ops.json` (123 site actions + gateway actions). Every tool is called as `{site, action, args, dry_run?, confirm_token?, idempotency_key?}`.
 
 Levels: **read** < **draft** < **live** < **admin**. `A>B` means the action starts at A and the site raises it to B from the real target (for example editing a published page). **confirm** = two-step: the first call returns a preview and a `confirm_token`, nothing changes until it is repeated with the token. **site content** = the result contains text written on the website (treated as untrusted).
 
@@ -8,6 +8,8 @@ Levels: **read** < **draft** < **live** < **admin**. `A>B` means the action star
 
 | Action | Level | Arguments (* required) | What it does |
 |---|---|---|---|
+| `transfer` | draft>live | `from*, to*, kinds, post_type, ids, page, pages, id_map, overwrite, publish` | Copy content between two sites through the gateway (resumable, drafts by default). *(gateway)* |
+| `transfer_files` | admin | `from*, to*, root*, path, skip_existing` | Copy files between two sites (confirm). *(gateway)* |
 | `sites` | read |  | Every site you can use: name, URL, status, your effective level. *(gateway)* |
 | `whoami` | read |  | Who you are connected as: level, sites, rate limits. *(gateway)* |
 | `describe` | read | `tool*, action` | Full parameter schema of one action (or all actions of one tool). *(gateway)* |
@@ -185,6 +187,22 @@ Levels: **read** < **draft** < **live** < **admin**. `A>B` means the action star
 | `get` | live | `id*, provider` | Form definition (fields and mail settings, without secrets). *(site content)* |
 | `save` | live | `id, title, form, mail_to, mail_subject, mail_body` | Create or update a Contact Form 7 form (other providers: use rest.call). *(write)* |
 | `entries` | admin | `id*, provider, page, per_page` | Submitted entries (personal data). *(site content)* |
+
+## files: Files in wp-content
+
+| Action | Level | Arguments (* required) | What it does |
+|---|---|---|---|
+| `list` | admin | `root*, path, depth` | List files under a root: themes/<slug>, plugins/<slug>, mu-plugins, uploads[/sub]. |
+| `read` | admin | `root*, path*, offset` | Read a file: text as text, other types as base64 (2 MB max). *(site content)* |
+| `write` | admin | `root*, path*, content, data_base64` | Create or replace a file. Text types in themes/plugins/mu-plugins, media types in uploads. PHP is syntax-checked and the front page probed; previous content is kept for undo. *(confirm, write)* |
+| `delete` | admin | `root*, path*` | Delete a file permanently. *(confirm, write)* |
+
+## transfer: Export and import content
+
+| Action | Level | Arguments (* required) | What it does |
+|---|---|---|---|
+| `export` | draft | `kind*, post_type, status, ids, page, per_page` | Export a page of content as portable JSON: posts (with meta, terms, SEO, builder data), terms, menus, media index or design settings. *(site content)* |
+| `import` | draft>live | `kind*, items*, id_map, source_url, overwrite, publish` | Import items made by transfer.export. Creates drafts by default and skips slugs that already exist. *(confirm if risky, write)* |
 
 ## activity: Activity and undo
 

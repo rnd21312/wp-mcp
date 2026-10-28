@@ -2014,6 +2014,130 @@
    "escalates": null
   },
   {
+   "id": "files.list",
+   "tool": "files",
+   "action": "list",
+   "level": "admin",
+   "summary": "List files under a root: themes/<slug>, plugins/<slug>, mu-plugins, uploads[/sub].",
+   "params": {
+    "root": "string|e.g. themes/twentytwentyfive, plugins/akismet, mu-plugins, uploads/2026",
+    "path": "string|Subfolder inside the root",
+    "depth": "int|1-4 (default 2)"
+   },
+   "required": [
+    "root"
+   ],
+   "write": false,
+   "confirm": false,
+   "untrusted": false,
+   "escalates": null
+  },
+  {
+   "id": "files.read",
+   "tool": "files",
+   "action": "read",
+   "level": "admin",
+   "summary": "Read a file: text as text, other types as base64 (2 MB max).",
+   "params": {
+    "root": "string|See files.list",
+    "path": "string|File path inside the root",
+    "offset": "int|Byte offset"
+   },
+   "required": [
+    "root",
+    "path"
+   ],
+   "write": false,
+   "confirm": false,
+   "untrusted": true,
+   "escalates": null
+  },
+  {
+   "id": "files.write",
+   "tool": "files",
+   "action": "write",
+   "level": "admin",
+   "summary": "Create or replace a file. Text types in themes/plugins/mu-plugins, media types in uploads. PHP is syntax-checked and the front page probed; previous content is kept for undo.",
+   "params": {
+    "root": "string|See files.list",
+    "path": "string|File path inside the root",
+    "content": "string|Text content",
+    "data_base64": "string|Binary content (instead of content)"
+   },
+   "required": [
+    "root",
+    "path"
+   ],
+   "write": true,
+   "confirm": true,
+   "untrusted": false,
+   "escalates": null
+  },
+  {
+   "id": "files.delete",
+   "tool": "files",
+   "action": "delete",
+   "level": "admin",
+   "summary": "Delete a file permanently.",
+   "params": {
+    "root": "string|See files.list",
+    "path": "string|File path inside the root"
+   },
+   "required": [
+    "root",
+    "path"
+   ],
+   "write": true,
+   "confirm": true,
+   "untrusted": false,
+   "escalates": null
+  },
+  {
+   "id": "transfer.export",
+   "tool": "transfer",
+   "action": "export",
+   "level": "draft",
+   "summary": "Export a page of content as portable JSON: posts (with meta, terms, SEO, builder data), terms, menus, media index or design settings.",
+   "params": {
+    "kind": "enum:posts,terms,menus,media,design|What to export",
+    "post_type": "string|For posts and media (default page)",
+    "status": "string|publish (default); other statuses need draft level",
+    "ids": "array|Only these post IDs",
+    "page": "int|Page number",
+    "per_page": "int|Default 10, max 25"
+   },
+   "required": [
+    "kind"
+   ],
+   "write": false,
+   "confirm": false,
+   "untrusted": true,
+   "escalates": null
+  },
+  {
+   "id": "transfer.import",
+   "tool": "transfer",
+   "action": "import",
+   "level": "draft",
+   "summary": "Import items made by transfer.export. Creates drafts by default and skips slugs that already exist.",
+   "params": {
+    "kind": "enum:posts,terms,menus,media,design|What is imported",
+    "items": "array|Items from transfer.export",
+    "id_map": "object|{posts:{old:new}, media:{old:new}} from earlier imports",
+    "source_url": "string|Home URL of the source site (its links are rewritten and its uploads fetched over https)",
+    "overwrite": "bool|Replace content of existing slugs",
+    "publish": "bool|Keep the source status instead of draft (live level)"
+   },
+   "required": [
+    "kind",
+    "items"
+   ],
+   "write": true,
+   "confirm": "maybe",
+   "untrusted": false,
+   "escalates": "live"
+  },
+  {
    "id": "activity.list",
    "tool": "activity",
    "action": "list",

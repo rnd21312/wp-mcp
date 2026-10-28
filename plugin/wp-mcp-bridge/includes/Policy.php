@@ -237,6 +237,33 @@ final class Policy {
         return in_array( $ext, array( 'php', 'css', 'js', 'json', 'html', 'txt', 'svg', 'md', 'twig' ), true );
     }
 
+    /** Meta that travels with exported content: normal meta plus the builders' and SEO plugins' private keys. */
+    public static function transfer_meta_ok( string $key ): bool {
+        if ( self::is_secret_key( $key ) || '_thumbnail_id' === $key ) {
+            return false;
+        }
+        if ( self::meta_allowed( $key ) ) {
+            return true;
+        }
+
+        return 1 === preg_match( '/^_(elementor_|wpb_|et_pb_|fl_builder|fusion|yoast_wpseo_|aioseo_|seopress_|wpm_|oembed_)/', $key ) || 1 === preg_match( '/^(rank_math_|_wp_page_template$)/', $key );
+    }
+
+    /** A file path inside a files root. Text types are allowed everywhere; media types only matter for uploads. */
+    public static function files_path_ok( string $relative, bool $uploads ): bool {
+        if ( '' === $relative || strlen( $relative ) > 240 || str_contains( $relative, "\0" ) || str_contains( $relative, '\\' ) ) {
+            return false;
+        }
+        if ( str_starts_with( $relative, '/' ) || preg_match( '#(^|/)\.\.?(/|$)#', $relative ) || preg_match( '#(^|/)\.#', $relative ) || str_contains( $relative, 'wpmcp-backups' ) ) {
+            return false;
+        }
+        $ext  = strtolower( pathinfo( $relative, PATHINFO_EXTENSION ) );
+        $text = array( 'php', 'css', 'js', 'json', 'html', 'htm', 'txt', 'svg', 'md', 'twig', 'xml', 'po', 'pot', 'mo', 'ini', 'yml', 'yaml', 'map' );
+        $media = array( 'jpg', 'jpeg', 'png', 'gif', 'webp', 'avif', 'ico', 'woff', 'woff2', 'ttf', 'otf', 'eot', 'mp4', 'webm', 'mp3', 'ogg', 'pdf', 'zip' );
+
+        return in_array( $ext, $text, true ) && ( ! $uploads || 'php' !== $ext ) || in_array( $ext, $media, true ) && ( $uploads || 'zip' !== $ext );
+    }
+
     public static function level_for_status( string $status ): string {
         return in_array( $status, array( 'draft', 'pending', 'auto-draft', 'private', 'trash' ), true ) ? 'draft' : 'live';
     }

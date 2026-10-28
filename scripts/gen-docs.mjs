@@ -8,10 +8,10 @@ const spec = JSON.parse(readFileSync(join(root, 'spec', 'ops.json'), 'utf8'));
 
 const titles = {
   site: 'Site overview and connections', content: 'Posts, pages, terms, comments', design: 'Design: templates, CSS, tokens, menus, themes', media: 'Media library', seo: 'SEO',
-  inspect: 'Inspect rendered pages', maintain: 'Maintenance', plugins: 'Plugins', users: 'Users', options: 'Site options', rest: 'Generic REST layer', shop: 'WooCommerce', forms: 'Forms', activity: 'Activity and undo',
+  inspect: 'Inspect rendered pages', maintain: 'Maintenance', plugins: 'Plugins', users: 'Users', options: 'Site options', rest: 'Generic REST layer', shop: 'WooCommerce', forms: 'Forms', files: 'Files in wp-content', transfer: 'Export and import content', activity: 'Activity and undo',
 };
 const local = {
-  site: [['sites', 'read', 'Every site you can use: name, URL, status, your effective level.', ''], ['whoami', 'read', 'Who you are connected as: level, sites, rate limits.', ''], ['describe', 'read', 'Full parameter schema of one action (or all actions of one tool).', 'tool*, action']],
+  site: [['transfer', 'draft>live', 'Copy content between two sites through the gateway (resumable, drafts by default).', 'from*, to*, kinds, post_type, ids, page, pages, id_map, overwrite, publish'], ['transfer_files', 'admin', 'Copy files between two sites (confirm).', 'from*, to*, root*, path, skip_existing'], ['sites', 'read', 'Every site you can use: name, URL, status, your effective level.', ''], ['whoami', 'read', 'Who you are connected as: level, sites, rate limits.', ''], ['describe', 'read', 'Full parameter schema of one action (or all actions of one tool).', 'tool*, action']],
   activity: [['log', 'read', 'Gateway log of calls made by AI clients.', 'limit, mine']],
 };
 

@@ -162,6 +162,16 @@ op('forms.get', 'live', 'Form definition (fields and mail settings, without secr
 op('forms.save', 'live', 'Create or update a Contact Form 7 form (other providers: use rest.call).', { id: 'int|', title: 'string|', form: 'string|CF7 form markup', mail_to: 'string|Recipient', mail_subject: 'string|', mail_body: 'string|' }, { w: 1 });
 op('forms.entries', 'admin', 'Submitted entries (personal data).', { 'id*': 'any|Form ID', provider: 'string|', ...PAGE }, { u: 1 });
 
+/* files (wp-content) */
+op('files.list', 'admin', 'List files under a root: themes/<slug>, plugins/<slug>, mu-plugins, uploads[/sub].', { 'root*': 'string|e.g. themes/twentytwentyfive, plugins/akismet, mu-plugins, uploads/2026', path: 'string|Subfolder inside the root', depth: 'int|1-4 (default 2)' });
+op('files.read', 'admin', 'Read a file: text as text, other types as base64 (2 MB max).', { 'root*': 'string|See files.list', 'path*': 'string|File path inside the root', offset: 'int|Byte offset' }, { u: 1 });
+op('files.write', 'admin', 'Create or replace a file. Text types in themes/plugins/mu-plugins, media types in uploads. PHP is syntax-checked and the front page probed; previous content is kept for undo.', { 'root*': 'string|See files.list', 'path*': 'string|File path inside the root', content: 'string|Text content', data_base64: 'string|Binary content (instead of content)' }, { w: 1, c: 1 });
+op('files.delete', 'admin', 'Delete a file permanently.', { 'root*': 'string|See files.list', 'path*': 'string|File path inside the root' }, { w: 1, c: 1 });
+
+/* transfer (building blocks; site.transfer in the gateway chains them between two sites) */
+op('transfer.export', 'draft', 'Export a page of content as portable JSON: posts (with meta, terms, SEO, builder data), terms, menus, media index or design settings.', { 'kind*': 'enum:posts,terms,menus,media,design|What to export', post_type: 'string|For posts and media (default page)', status: 'string|publish (default); other statuses need draft level', ids: 'array|Only these post IDs', page: 'int|Page number', per_page: 'int|Default 10, max 25' }, { u: 1 });
+op('transfer.import', 'draft', 'Import items made by transfer.export. Creates drafts by default and skips slugs that already exist.', { 'kind*': 'enum:posts,terms,menus,media,design|What is imported', 'items*': 'array|Items from transfer.export', id_map: 'object|{posts:{old:new}, media:{old:new}} from earlier imports', source_url: 'string|Home URL of the source site (its links are rewritten and its uploads fetched over https)', overwrite: 'bool|Replace content of existing slugs', publish: 'bool|Keep the source status instead of draft (live level)' }, { w: 1, e: 'live', c: 'maybe' });
+
 /* activity */
 op('activity.list', 'read', 'What the bridge did on this site: operation, who, when, result, revision ID.', { op: 'string|Filter by operation', status: 'enum:ok,error,denied|', since: 'string|ISO date', ...PAGE });
 op('activity.revisions', 'draft', 'Undoable changes with before/after summary.', { target: 'string|post, option, file, redirect, css…', id: 'any|Target ID', ...PAGE });
