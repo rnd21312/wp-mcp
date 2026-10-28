@@ -98,10 +98,12 @@ Claude.ai / Claude Code / Cursor / هر کلاینت MCP
 ## توسعه
 
 ```bash
-npm test            # تست gateway (۱۳۰ تست) و افزونه (۱۰۸ بررسی)
+npm test            # تست gateway (۱۳۴ تست) و افزونه (۱۰۸ بررسی)
 npm run docs        # ساخت دوباره docs/TOOLS.md از spec/ops.json
 ```
 
 `spec/build-spec.mjs` تنها منبع حقیقت برای همه‌ی عملیات است (سطح، آرگومان‌ها، تأیید). `scripts/sync-spec.mjs` فایل `ops.json` را به gateway و افزونه کپی می‌کند و یک تست در صورت ناهماهنگی شکست می‌خورد.
+
+نقشه‌ی راه نسخه‌ی بعد (ساخت هر سایت از صفر): [docs/fa/roadmap.md](docs/fa/roadmap.md)
 
 مجوز: MIT

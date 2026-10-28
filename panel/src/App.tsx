@@ -1,4 +1,4 @@
-import { ActivityIcon, ArrowLeftRightIcon, BrushIcon, CodeIcon, FileTextIcon, GlobeIcon, ImageIcon, KeyRoundIcon, LayoutDashboardIcon, MoonIcon, PlugIcon, PlugZapIcon, SearchCheckIcon, ShoppingBagIcon, SunIcon, TerminalSquareIcon, WrenchIcon, type LucideIcon } from 'lucide-react';
+import { ActivityIcon, ArrowLeftRightIcon, BrushIcon, MousePointerClickIcon, ScanSearchIcon, CodeIcon, FileTextIcon, GlobeIcon, ImageIcon, KeyRoundIcon, LayoutDashboardIcon, MoonIcon, PlugIcon, PlugZapIcon, SearchCheckIcon, ShoppingBagIcon, SunIcon, TerminalSquareIcon, WrenchIcon, type LucideIcon } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { useCallback, useEffect, useState, type ReactElement } from 'react';
 import { Pick } from '@/components/bits';
@@ -18,6 +18,8 @@ import { Developer, Transfer } from '@/pages/Dev';
 import { MediaPage } from '@/pages/Media';
 import { Overview } from '@/pages/Overview';
 import { Seo } from '@/pages/Seo';
+import { Inspector } from '@/pages/Inspector';
+import { Visual } from '@/pages/Visual';
 import { Shop } from '@/pages/Shop';
 import { Sites } from '@/pages/Sites';
 import { Workbench } from '@/pages/Workbench';
@@ -50,7 +52,9 @@ function Shell({ state, spec, reload }: { state: State; spec: ToolSpec[]; reload
       { path: '/content', label: t('Content', 'محتوا'), icon: FileTextIcon },
       { path: '/media', label: t('Media', 'رسانه'), icon: ImageIcon },
       { path: '/shop', label: t('Shop', 'فروشگاه'), icon: ShoppingBagIcon, hide: overview ? !overview.woocommerce : false },
+      { path: '/visual', label: t('Visual editor', 'ویرایشگر بصری'), icon: MousePointerClickIcon },
       { path: '/seo', label: t('SEO', 'سئو'), icon: SearchCheckIcon },
+      { path: '/inspector', label: t('URL Inspector', 'بازرس URL'), icon: ScanSearchIcon },
       { path: '/design', label: t('Design', 'طراحی'), icon: BrushIcon },
     ] },
     { title: t('Care', 'نگهداری'), items: [
@@ -81,6 +85,8 @@ function Shell({ state, spec, reload }: { state: State; spec: ToolSpec[]; reload
   else if (path === '/content/edit') page = siteOnly(<ContentEditor key={`${site?.name}${location.hash}`} query={query} go={go} />);
   else if (path === '/media') page = siteOnly(<MediaPage key={site?.name} />);
   else if (path === '/shop') page = siteOnly(<Shop key={site?.name} />);
+  else if (path === '/visual') page = siteOnly(<Visual key={site?.name} />);
+  else if (path === '/inspector') page = <Inspector key={site?.name} />;
   else if (path === '/seo') page = siteOnly(<Seo key={site?.name} />);
   else if (path === '/design') page = siteOnly(<Design key={site?.name} />);
   else if (path === '/maintenance') page = siteOnly(<Maintenance key={site?.name} />);
@@ -122,7 +128,7 @@ function Shell({ state, spec, reload }: { state: State; spec: ToolSpec[]; reload
             <Button variant="outline" size="icon-sm" aria-label="theme" onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}>{resolvedTheme === 'dark' ? <SunIcon /> : <MoonIcon />}</Button>
           </div>
         </header>
-        <main className="p-4 md:p-8"><div className="mx-auto max-w-6xl">{page}</div></main>
+        <main className="p-4 md:p-8"><div className={path === '/visual' ? '' : 'mx-auto max-w-6xl'}>{page}</div></main>
       </div>
       <Toaster position="top-center" />
     </div>

@@ -55,6 +55,8 @@ A site switcher sits on top; everything below works on the selected site, for or
 * **Content**: pages, posts and custom types: list, search, filter, edit (title, slug, status, content, categories, tags, featured image, SEO snippet with live Google-style preview and rendered preview), publish, trash. Every change shows an **Undo** button.
 * **Media**: grid, multi-upload, alt text and title, delete.
 * **Shop** (WooCommerce): products with inline price and stock, edit, create.
+* **Visual editor**: your page in a frame, device widths, click any element like the browser inspector: DOM tree, box size, selector suggestions, live style editing (color, spacing, size, border, layout) per desktop/tablet/mobile, text and alt editing written back into the page, SEO overlay (heading levels, images without alt). Styles are saved as clean CSS in a named section.
+* **URL Inspector**: Search-Console style inspection of any public URL (the gateway fetches it like a crawler): indexing, redirect chain, snippet previews (Google desktop/mobile, social), headings, links with broken-link check, structured data validation, images, keyword analysis, speed and technical headers, a scored list of fixes.
 * **SEO**: per-page title/description/noindex/canonical, one-click page audit with score, robots.txt, sitemap, redirects.
 * **Design**: identity, color pickers and fonts (design tokens), menu builder, header/footer templates, named CSS sections.
 * **Maintenance**: health, updates (with backup first), database backups and restore, cache, maintenance mode, database cleanup, error log.
@@ -106,10 +108,12 @@ Read [docs/security.md](docs/security.md) for the full model and honest limits.
 ## Development
 
 ```bash
-npm test            # gateway (130 tests) + plugin checks (108) in one go
+npm test            # gateway (134 tests) + plugin checks (108) in one go
 npm run docs        # regenerate docs/TOOLS.md from spec/ops.json
 ```
 
 `spec/build-spec.mjs` is the single source of truth for every action (level, arguments, confirmation). `scripts/sync-spec.mjs` copies the generated `ops.json` to the gateway and the plugin; a test fails if the copies drift.
+
+Plan for the next version (build any site from zero): [docs/roadmap.md](docs/roadmap.md).
 
 License: MIT.

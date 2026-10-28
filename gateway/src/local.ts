@@ -8,6 +8,7 @@ import { callTool } from './mcp/tools.ts';
 import { OPS, TOOLS } from './registry.ts';
 import { addSite, testSite } from './siteadmin.ts';
 import { parseScope } from './store.ts';
+import { safeRequest, SsrfError } from './ssrf.ts';
 import { SiteError } from './wpclient.ts';
 
 /**
@@ -27,7 +28,7 @@ const SECURITY: Record<string, string> = {
   'x-frame-options': 'DENY',
   'x-content-type-options': 'nosniff',
   'referrer-policy': 'no-referrer',
-  'content-security-policy': "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
+  'content-security-policy': "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https:; img-src 'self' data: https: http:; font-src 'self' data: https:; media-src https:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
 };
 
 const json = (status: number, body: unknown): Reply => ({ status, json: body, headers: { 'cache-control': 'no-store', ...SECURITY } });
@@ -85,6 +86,62 @@ function state(app: App) {
   };
 }
 
+const UA = 'Mozilla/5.0 (compatible; WP-MCP-Inspector/0.1; +local)';
+const MAX_HOPS = 6;
+
+/** Fetches a public URL like a crawler: follows redirects by hand (each hop is checked), caps the size. */
+async function fetchChain(app: App, start: string): Promise<Record<string, unknown>> {
+  const policy = { allowPrivate: app.config.allowPrivateSites, allowHttp: true };
+  const chain: { url: string; status: number; location?: string }[] = [];
+  let url = start;
+  const t0 = Date.now();
+  for (let hop = 0; hop <= MAX_HOPS; hop++) {
+    const res = await safeRequest(url, policy, { headers: { 'user-agent': UA, accept: 'text/html,application/xhtml+xml,*/*;q=0.8', 'accept-language': 'fa,en;q=0.8' }, maxBytes: 3 * 1024 * 1024, timeoutMs: 20000 });
+    const location = typeof res.headers.location === 'string' ? new URL(res.headers.location, url).href : undefined;
+    chain.push({ url, status: res.status, location });
+    if (res.status >= 300 && res.status < 400 && location) {
+      url = location;
+      continue;
+    }
+    const type = String(res.headers['content-type'] ?? '');
+    const pick = (k: string): string => String(res.headers[k] ?? '');
+    return {
+      ok: true,
+      chain,
+      final: {
+        url,
+        status: res.status,
+        ms: Date.now() - t0,
+        bytes: res.body.length,
+        type,
+        headers: { 'x-robots-tag': pick('x-robots-tag'), 'cache-control': pick('cache-control'), 'content-encoding': pick('content-encoding'), server: pick('server'), link: pick('link'), 'last-modified': pick('last-modified') },
+        html: /html|xml/i.test(type) ? res.body.toString('utf8') : '',
+      },
+    };
+  }
+
+  return { ok: false, error: { code: 'too_many_redirects', message: `More than ${MAX_HOPS} redirects.` }, chain };
+}
+
+/** Status of many links (HEAD, falling back to GET), a few at a time. */
+async function checkLinks(app: App, urls: string[]): Promise<Record<string, number | string>> {
+  const policy = { allowPrivate: app.config.allowPrivateSites, allowHttp: true };
+  const out: Record<string, number | string> = {};
+  const queue = [...new Set(urls)].slice(0, 80);
+  const one = async (u: string): Promise<void> => {
+    try {
+      let r = await safeRequest(u, policy, { method: 'HEAD', headers: { 'user-agent': UA }, maxBytes: 200000, timeoutMs: 10000 });
+      if (r.status === 405 || r.status === 403 || r.status === 501) r = await safeRequest(u, policy, { headers: { 'user-agent': UA }, maxBytes: 500000, timeoutMs: 10000 });
+      out[u] = r.status;
+    } catch (error) {
+      out[u] = error instanceof SsrfError ? 'blocked' : (error as Error).message.slice(0, 40);
+    }
+  };
+  await Promise.all(Array.from({ length: 6 }, async () => { for (let u = queue.shift(); u; u = queue.shift()) await one(u); }));
+
+  return out;
+}
+
 async function api(app: App, req: LocalReq): Promise<Reply> {
   const { path, method, body, query } = req;
   const route = path.replace('/admin/api/', '');
@@ -95,6 +152,15 @@ async function api(app: App, req: LocalReq): Promise<Reply> {
     if (method !== 'POST') return json(404, { error: 'not_found' });
 
     switch (route) {
+      case 'inspect/fetch': {
+        try {
+          return json(200, await fetchChain(app, String(body.url ?? '')));
+        } catch (error) {
+          return json(200, { ok: false, error: { code: error instanceof SsrfError ? 'blocked' : 'fetch_failed', message: error instanceof Error ? error.message : 'Failed' } });
+        }
+      }
+      case 'inspect/links':
+        return json(200, { ok: true, statuses: await checkLinks(app, Array.isArray(body.urls) ? body.urls.map(String) : []) });
       case 'sites/add': {
         const site = await addSite(app, { url: String(body.url ?? ''), code: String(body.code ?? ''), name: String(body.name ?? ''), maxLevel: isLevel(body.max_level) ? body.max_level : 'admin' });
         return json(200, { ok: true, site: toSite(site) });
