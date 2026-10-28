@@ -115,6 +115,6 @@ npm run docs        # regenerate docs/TOOLS.md from spec/ops.json
 
 `spec/build-spec.mjs` is the single source of truth for every action (level, arguments, confirmation). `scripts/sync-spec.mjs` copies the generated `ops.json` to the gateway and the plugin; a test fails if the copies drift.
 
-Plan for the next version (build any site from zero): [docs/roadmap.md](docs/roadmap.md).
+Version 2 (build any site from zero): the **Host Agent** you upload to any PHP 8.1+ hosting is described in [docs/agent.md](docs/agent.md); plan and milestones: [docs/roadmap.md](docs/roadmap.md), [docs/v2-plan.md](docs/v2-plan.md).
 
 License: MIT.

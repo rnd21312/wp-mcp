@@ -1,4 +1,4 @@
-import { ActivityIcon, ArrowLeftRightIcon, BotIcon, BrushIcon, MousePointerClickIcon, ScanSearchIcon, CodeIcon, FileTextIcon, GlobeIcon, ImageIcon, KeyRoundIcon, LayoutDashboardIcon, MoonIcon, PlugIcon, PlugZapIcon, SearchCheckIcon, ShoppingBagIcon, SunIcon, TerminalSquareIcon, WrenchIcon, type LucideIcon } from 'lucide-react';
+import { FolderGit2Icon, ServerIcon, ActivityIcon, ArrowLeftRightIcon, BotIcon, BrushIcon, MousePointerClickIcon, ScanSearchIcon, CodeIcon, FileTextIcon, GlobeIcon, ImageIcon, KeyRoundIcon, LayoutDashboardIcon, MoonIcon, PlugIcon, PlugZapIcon, SearchCheckIcon, ShoppingBagIcon, SunIcon, TerminalSquareIcon, WrenchIcon, type LucideIcon } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { useCallback, useEffect, useState, type ReactElement } from 'react';
 import { Pick } from '@/components/bits';
@@ -23,6 +23,8 @@ import { Inspector } from '@/pages/Inspector';
 import { CodeEditor } from '@/pages/Editor';
 import { Shop } from '@/pages/Shop';
 import { Sites } from '@/pages/Sites';
+import { Hosts } from '@/pages/Hosts';
+import { Projects } from '@/pages/Projects';
 import { Workbench } from '@/pages/Workbench';
 import { NeedSite } from '@/components/common';
 
@@ -48,6 +50,10 @@ function Shell({ state, spec, reload }: { state: State; spec: ToolSpec[]; reload
   const [path, query, go] = useHash();
 
   const groups: { title: string; items: NavItem[] }[] = [
+    { title: t('Build & publish', 'ساخت و انتشار'), items: [
+      { path: '/projects', label: t('Projects', 'پروژه‌ها'), icon: FolderGit2Icon },
+      { path: '/hosts', label: t('Hosts', 'هاست‌ها'), icon: ServerIcon },
+    ] },
     { title: t('Manage', 'مدیریت'), items: [
       { path: '/', label: t('Overview', 'نمای کلی'), icon: LayoutDashboardIcon },
       { path: '/ai', label: t('AI assistant', 'دستیار هوش مصنوعی'), icon: BotIcon },
@@ -78,7 +84,9 @@ function Shell({ state, spec, reload }: { state: State; spec: ToolSpec[]; reload
 
   const siteOnly = (el: ReactElement): ReactElement => <NeedSite>{el}</NeedSite>;
   let page: ReactElement = <Overview state={state} go={go} />;
-  if (path === '/sites') page = <Sites state={state} reload={reload} />;
+  if (path === '/hosts') page = <Hosts />;
+  else if (path === '/projects') page = <Projects />;
+  else if (path === '/sites') page = <Sites state={state} reload={reload} />;
   else if (path === '/connect') page = <Connect state={state} />;
   else if (path === '/access') page = <Access state={state} reload={reload} />;
   else if (path === '/activity') page = <ActivityPage />;

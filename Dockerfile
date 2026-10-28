@@ -3,6 +3,7 @@ WORKDIR /app
 COPY spec ./spec
 COPY scripts ./scripts
 COPY plugin/wp-mcp-bridge ./plugin/wp-mcp-bridge
+COPY agent/wpm-agent ./agent/wpm-agent
 COPY gateway/package.json gateway/package-lock.json ./gateway/
 COPY panel/package.json panel/package-lock.json ./panel/
 RUN cd gateway && npm ci && cd ../panel && npm ci

@@ -30,7 +30,7 @@ First run: wizard (requirements → setup code → username/password → optiona
 
 ## Milestones
 
-* **M1 Host Agent MVP** (this stage): everything above, static and SPA deploys, tests (PHP unit, `php -S` end-to-end through the real Studio client).
+* **M1 Host Agent MVP** (DONE, see [agent.md](agent.md)): everything above, static and SPA deploys, tests (PHP unit, `php -S` end-to-end through the real Studio client).
 * **M2 WordPress provisioning**: DB creation via cPanel UAPI / DirectAdmin / Plesk, else the agent's own MySQL/MariaDB/SQLite provisioning, else credentials prompt; download core, config, install, activate and auto-pair the bridge.
 * **M3 Templates + local builds** (Vite React/Vue/Svelte, Astro, Next/Nuxt static export).
 * **M4 Node targets / SSR** (cPanel Node app, Passenger, VPS with systemd through an approved allow-listed path).

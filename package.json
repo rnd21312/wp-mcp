@@ -12,6 +12,7 @@
     "local": "node gateway/dist/index.js local",
     "test": "npm --prefix gateway test",
     "package:plugin": "node scripts/sync-spec.mjs && node scripts/package-plugin.mjs",
-    "test:php": "php plugin/tests/run.php"
+    "test:php": "php plugin/tests/run.php && php agent/tests/run.php",
+    "package:agent": "node scripts/package-agent.mjs"
   }
 }

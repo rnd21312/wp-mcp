@@ -104,6 +104,6 @@ npm run docs        # ساخت دوباره docs/TOOLS.md از spec/ops.json
 
 `spec/build-spec.mjs` تنها منبع حقیقت برای همه‌ی عملیات است (سطح، آرگومان‌ها، تأیید). `scripts/sync-spec.mjs` فایل `ops.json` را به gateway و افزونه کپی می‌کند و یک تست در صورت ناهماهنگی شکست می‌خورد.
 
-نقشه‌ی راه نسخه‌ی بعد (ساخت هر سایت از صفر): [docs/fa/roadmap.md](docs/fa/roadmap.md)
+نسخه‌ی ۲ (ساخت هر سایت از صفر): **ایجنت هاست** که روی هر هاست PHP 8.1+ آپلود می‌کنید: [docs/fa/agent.md](docs/fa/agent.md)؛ نقشه‌ی راه: [docs/fa/roadmap.md](docs/fa/roadmap.md)
 
 مجوز: MIT

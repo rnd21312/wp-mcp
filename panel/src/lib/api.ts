@@ -53,6 +53,33 @@ export interface ToolSpec {
   actions: ActionSpec[];
 }
 
+export interface HostInfo {
+  name: string;
+  url: string;
+  level: string;
+  status: 'ok' | 'error' | 'new';
+  last_ok: number;
+  last_error: string;
+  agent_version: string;
+  caps: any;
+}
+
+export interface ProjectInfo {
+  name: string;
+  kind: string;
+  host: string;
+  site: string;
+  publish: string;
+  last_deploy: number;
+  last_release: string;
+}
+
+export interface Studio {
+  hosts: HostInfo[];
+  projects: ProjectInfo[];
+  templates: { id: string; label: string }[];
+}
+
 async function call<T>(path: string, body?: unknown): Promise<T> {
   const res = await fetch(`/admin/api/${path}`, {
     method: body === undefined ? 'GET' : 'POST',
@@ -68,6 +95,7 @@ async function call<T>(path: string, body?: unknown): Promise<T> {
 export const api = {
   state: () => call<State>('state'),
   spec: () => call<ToolSpec[]>('spec'),
+  studio: () => call<Studio>('studio'),
   activity: (limit = 100) => call<{ entries: Activity[] }>(`activity?limit=${limit}`),
   post: <T = { ok: boolean; error?: { message: string } }>(path: string, body: unknown = {}) => call<T>(path, body),
 };
