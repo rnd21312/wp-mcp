@@ -720,6 +720,66 @@ section('Node.js sites: deploy, env, restart signal, server script', function ()
     check($sh === '', 'generated script passes bash -n' . ($sh !== '' ? ': ' . $sh : ''));
 });
 
+section('hosted panel: WordPress creation', function () {
+    [$agent, $root, $web] = newAgent();
+    $auth = installAgent($agent);
+    $sites = new Sites($agent);
+    $panel = new Panel($agent, $auth, $sites);
+    // the bridge ships inside the agent zip
+    mkdir($agent->agentDir . '/bridge/wp-mcp-bridge', 0777, true);
+    file_put_contents($agent->agentDir . '/bridge/wp-mcp-bridge/wp-mcp-bridge.php', '<?php // bridge');
+    $login = $auth->login(req('POST', '/login'), 'owner', 'correct horse battery');
+    [$n, $v] = explode('=', explode(';', $login['cookie'])[0], 2);
+    $csrf = $auth->session(req('GET', '/', '', [], [], [], [$n => $v]))['csrf'];
+    $call = fn (string $m, string $route, array $post = []) => $panel->handle(req($m, $route, '', [], [], $post + ['csrf' => $csrf], [$n => $v]));
+
+    $dash = $call('GET', '/');
+    check(str_contains($dash->body, 'New WordPress site') && str_contains($dash->body, 'r=%2Fwordpress'), 'dashboard links to the WordPress form');
+    check(!str_contains($dash->body, '<option value="wordpress">'), 'WordPress is not in the plain site-type list');
+    $form = $call('GET', '/wordpress');
+    check($form->status === 200 && str_contains($form->body, 'name="db_method"') && str_contains($form->body, 'cPanel'), 'form renders');
+
+    [$coreZip, $coreSha] = fakeCore();
+    Net::$transport = function (string $m, string $url) use ($coreZip, $coreSha) {
+        return $url === Wp::CORE_SHA1 ? [200, $coreSha . "  latest.zip\n"] : ($url === Wp::CORE_URL ? [200, $coreZip] : [404, '']);
+    };
+    // a database failure leaves nothing behind
+    Db::$override = function () { throw new ApiError('db_connect', 'Cannot connect to the database: wrong password'); };
+    $bad = $call('POST', '/wordpress', ['name' => 'My Blog', 'db_method' => 'manual', 'db_host' => 'localhost', 'db_name' => 'x', 'db_user' => 'y']);
+    check($bad->status === 200 && str_contains($bad->body, 'wrong password'), 'database error is shown');
+    check(!isset($sites->all()['my-blog']) && !is_dir($web . '/my-blog'), 'no half-made site after a failure');
+
+    Db::$override = fn (array $spec) => ['host' => 'localhost', 'name' => 'wpdb', 'user' => 'wpuser', 'pass' => 'S3cr3t'];
+    $ok = $call('POST', '/wordpress', ['name' => 'My Blog', 'db_method' => 'cpanel', 'panel_user' => 'alice', 'panel_secret' => 'TOK']);
+    same($ok->status, 303, 'created and redirected to the site page');
+    check(is_file($web . '/my-blog/wp-settings.php') && is_file($web . '/my-blog/wp-config.php'), 'WordPress files written');
+    check(is_file($web . '/my-blog/wp-content/plugins/wp-mcp-bridge/wp-mcp-bridge.php'), 'bridge copied from the agent');
+    same($sites->all()['my-blog']['kind'], 'wordpress', 'site recorded as WordPress');
+    $page = $call('GET', '/site?id=my-blog');
+    $page = $panel->handle(new Request('GET', '/site', ['id' => 'my-blog'], [], [], '', ['REMOTE_ADDR' => '203.0.113.9', 'HTTPS' => 'on', 'HTTP_HOST' => 'host.test', 'SCRIPT_NAME' => '/wpm-agent/index.php'], [], [$n => $v]));
+    check(str_contains($page->body, 'https://host.test/my-blog/wp-admin/install.php'), 'link to the WordPress installer');
+    check(!str_contains($page->body, 'S3cr3t') && !str_contains($page->body, 'TOK'), 'no secrets on the page');
+    check(!str_contains($page->body, 'name="zip"'), 'no release upload for a live WordPress site');
+
+    // step 2: activate the bridge after the installer
+    $pdo = new PDO('sqlite::memory:');
+    $pdo->exec('CREATE TABLE wpx_users (ID INTEGER PRIMARY KEY, user_login TEXT)');
+    $pdo->exec('CREATE TABLE wpx_options (option_id INTEGER PRIMARY KEY, option_name TEXT UNIQUE, option_value TEXT, autoload TEXT)');
+    $pdo->exec("INSERT INTO wpx_users (ID, user_login) VALUES (1, 'siteadmin')");
+    Wp::$pdoFactory = fn () => [$pdo, 'wpx_'];
+    $early = $call('POST', '/wordpress/finish', ['id' => 'my-blog', 'admin_user' => 'nobody']);
+    check(str_contains($early->body, 'class="msg bad"'), 'unknown admin is refused');
+    $done = $call('POST', '/wordpress/finish', ['id' => 'my-blog', 'admin_user' => 'siteadmin']);
+    check((bool) preg_match('/WPMP-[A-Z2-9]{4}-[A-Z2-9]{4}-[A-Z2-9]{4}-[A-Z2-9]{4}/', $done->body), 'pairing code shown');
+    check(str_contains((string) Wp::option($pdo, 'wpx_', 'active_plugins'), 'wp-mcp-bridge'), 'bridge activated');
+    $fa = $panel->handle(req('GET', '/wordpress', '', ['accept-language' => 'fa-IR'], [], [], [$n => $v]));
+    check(str_contains($fa->body, 'سایت وردپرس جدید') && str_contains($fa->body, 'dir="rtl"'), 'Persian form');
+
+    Net::$transport = null;
+    Db::$override = null;
+    Wp::$pdoFactory = null;
+});
+
 section('host self-test', function () {
     [$agent, $root, $web] = newAgent();
     installAgent($agent);

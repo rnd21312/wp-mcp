@@ -19,11 +19,23 @@ const walk = (dir) => {
 };
 walk(src);
 
+// The WordPress bridge travels inside the agent so the panel can install it without any download.
+const bridgeRoot = join(root, 'plugin', 'wp-mcp-bridge');
+const bridgeFiles = [];
+const walkBridge = (dir) => {
+  for (const name of readdirSync(dir).sort()) {
+    const full = join(dir, name);
+    statSync(full).isDirectory() ? walkBridge(full) : bridgeFiles.push(full);
+  }
+};
+walkBridge(bridgeRoot);
+const all = [...files.map((file) => ({ file, name: 'wpm-agent/' + relative(src, file).split(sep).join('/') })), ...bridgeFiles.map((file) => ({ file, name: 'wpm-agent/bridge/wp-mcp-bridge/' + relative(bridgeRoot, file).split(sep).join('/') }))];
+
 const parts = [];
 const central = [];
 let offset = 0;
-for (const file of files) {
-  const name = Buffer.from('wpm-agent/' + relative(src, file).split(sep).join('/'));
+for (const { file, name: entryName } of all) {
+  const name = Buffer.from(entryName);
   const data = readFileSync(file);
   const packed = deflateRawSync(data);
   const crc = crc32(data) >>> 0;
@@ -54,12 +66,12 @@ for (const file of files) {
 const dir = Buffer.concat(central);
 const end = Buffer.alloc(22);
 end.writeUInt32LE(0x06054b50, 0);
-end.writeUInt16LE(files.length, 8);
-end.writeUInt16LE(files.length, 10);
+end.writeUInt16LE(all.length, 8);
+end.writeUInt16LE(all.length, 10);
 end.writeUInt32LE(dir.length, 12);
 end.writeUInt32LE(offset, 16);
 
 mkdirSync(join(root, 'dist'), { recursive: true });
 const out = join(root, 'dist', 'wpm-agent.zip');
 writeFileSync(out, Buffer.concat([...parts, dir, end]));
-console.log(`${out}: ${files.length} files`);
+console.log(`${out}: ${all.length} files`);

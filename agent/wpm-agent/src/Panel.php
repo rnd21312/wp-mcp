@@ -31,6 +31,32 @@ final class Panel
         'Site type' => 'نوع سایت', 'Mode' => 'روش', 'Public URL (optional)' => 'نشانی عمومی (اختیاری)', 'Empty = web root' => 'خالی = ریشه وب', 'Also delete the files from the host' => 'فایل‌ها را هم از هاست پاک کن',
         'No releases yet.' => 'هنوز نسخه‌ای منتشر نشده.', 'No sites yet. Create the first one.' => 'هنوز سایتی نیست. اولین را بسازید.', 'Open site' => 'باز کردن سایت', 'Studio connected sites can also be created from the Studio.' => 'سایت را از خود Studio هم می‌توان ساخت.',
         'Setup finished. Enable two-factor authentication on the Security page.' => 'نصب تمام شد. تأیید دو مرحله‌ای را در صفحه‌ی امنیت فعال کنید.', 'Session expired. Sign in again.' => 'نشست منقضی شد. دوباره وارد شوید.',
+        'New WordPress site' => 'سایت وردپرس جدید',
+        'Site name' => 'نام سایت',
+        'Folder (default: site name)' => 'پوشه (پیش‌فرض: نام سایت)',
+        'Database' => 'دیتابیس',
+        'cPanel (API token)' => 'cPanel (توکن API)',
+        'DirectAdmin (Login Key)' => 'DirectAdmin (Login Key)',
+        'MySQL admin (VPS)' => 'مدیر MySQL (VPS)',
+        'I have the details' => 'مشخصات را دارم',
+        'Panel address' => 'نشانی پنل',
+        'Panel username' => 'نام کاربری پنل',
+        'API token / Login Key' => 'توکن API / Login Key',
+        'MySQL host' => 'میزبان MySQL',
+        'root password' => 'گذرواژه‌ی root',
+        'Database name' => 'نام دیتابیس',
+        'Database user' => 'کاربر دیتابیس',
+        'Database password' => 'گذرواژه‌ی دیتابیس',
+        'Fill only the fields of the method you chose. Panel and database secrets are used once and not stored.' => 'فقط فیلدهای روش انتخابی را پر کنید. اطلاعات پنل و دیتابیس یک بار استفاده می‌شود و ذخیره نمی‌شود.',
+        'Install WordPress' => 'نصب وردپرس',
+        'WordPress files and database are ready.' => 'فایل‌های وردپرس و دیتابیس آماده است.',
+        'Step 1: open the WordPress installer and create your admin account.' => 'قدم ۱: نصب‌کننده‌ی وردپرس را باز کنید و حساب مدیر بسازید.',
+        'Open the WordPress installer' => 'باز کردن نصب‌کننده‌ی وردپرس',
+        'Step 2 (optional, for the Studio): when the installer is done, enter the admin username to activate the bridge and get a pairing code.' => 'قدم ۲ (اختیاری، برای Studio): بعد از اتمام نصب‌کننده، نام کاربری مدیر را بزنید تا بریج فعال شود و کد جفت‌سازی بگیرید.',
+        'Admin username' => 'نام کاربری مدیر',
+        'Activate the bridge' => 'فعال‌سازی بریج',
+        'Pairing code for the Studio (valid 15 minutes). Enter it with the site address in Studio → Sites:' => 'کد جفت‌سازی برای Studio (۱۵ دقیقه معتبر). همراه نشانی سایت در Studio ← سایت‌ها وارد کنید:',
+        'WordPress site' => 'سایت وردپرس',
         'Read only' => 'فقط خواندن', 'Read and deploy' => 'خواندن و انتشار', 'Full control (create sites)' => 'کنترل کامل (ساخت سایت)',
     ];
 
@@ -102,6 +128,8 @@ final class Panel
             '/logout' => $this->logout($req),
             '/sites/create' => $this->createSite($req, $session),
             '/site' => $this->site($req, $session, ''),
+            '/wordpress' => $this->wordpress($req, $session),
+            '/wordpress/finish' => $this->wpFinish($req, $session),
             '/site/deploy' => $this->deploy($req, $session),
             '/site/rollback' => $this->rollback($req, $session),
             '/site/delete' => $this->deleteSite($req, $session),
@@ -135,7 +163,7 @@ final class Panel
                 . '<form method="post" action="' . $this->url($req, '/logout') . '"><input type="hidden" name="csrf" value="' . $this->e($session['csrf']) . '"><button class="link">' . $this->e($this->t('Sign out')) . '</button></form></nav>';
         }
         $other = $rtl ? 'en' : 'fa';
-        $css = 'body{font:15px/1.6 system-ui,Segoe UI,Tahoma,sans-serif;margin:0;background:#f6f7f9;color:#1b1f24}main{max-width:880px;margin:0 auto;padding:20px}header{background:#111827;color:#fff}header div{max-width:880px;margin:0 auto;padding:12px 20px;display:flex;gap:16px;align-items:center;justify-content:space-between;flex-wrap:wrap}header a{color:#cbd5e1;text-decoration:none;margin-inline-end:14px}nav{display:flex;align-items:center;gap:6px;flex-wrap:wrap}.card{background:#fff;border:1px solid #e3e6ea;border-radius:10px;padding:16px;margin:14px 0}h1{font-size:20px}h2{font-size:16px;margin:0 0 10px}label{display:block;margin:10px 0 4px;font-weight:600}input,select{width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid #c9ced6;border-radius:8px;font:inherit}input[type=checkbox]{width:auto}button{padding:9px 16px;border:0;border-radius:8px;background:#2563eb;color:#fff;font:inherit;cursor:pointer;margin-top:12px}button.danger{background:#dc2626}button.link{background:none;color:#cbd5e1;padding:0;margin:0}table{width:100%;border-collapse:collapse}td,th{padding:7px 8px;border-bottom:1px solid #eceef1;text-align:start;vertical-align:top}.msg{padding:10px 12px;border-radius:8px;margin:10px 0}.ok{background:#e8f6ec;color:#14532d}.bad{background:#fdecec;color:#7f1d1d}.warn{background:#fff6e0;color:#7a4b00}code{background:#eef0f3;padding:2px 6px;border-radius:5px;direction:ltr;unicode-bidi:embed;word-break:break-all}.big{font-size:20px;letter-spacing:1px}.row{display:grid;grid-template-columns:1fr 1fr;gap:12px}@media(max-width:640px){.row{grid-template-columns:1fr}}';
+        $css = 'body{font:15px/1.6 system-ui,Segoe UI,Tahoma,sans-serif;margin:0;background:#f6f7f9;color:#1b1f24}main{max-width:880px;margin:0 auto;padding:20px}header{background:#111827;color:#fff}header div{max-width:880px;margin:0 auto;padding:12px 20px;display:flex;gap:16px;align-items:center;justify-content:space-between;flex-wrap:wrap}header a{color:#cbd5e1;text-decoration:none;margin-inline-end:14px}nav{display:flex;align-items:center;gap:6px;flex-wrap:wrap}.card{background:#fff;border:1px solid #e3e6ea;border-radius:10px;padding:16px;margin:14px 0}h1{font-size:20px}h2{font-size:16px;margin:0 0 10px}label{display:block;margin:10px 0 4px;font-weight:600}input,select{width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid #c9ced6;border-radius:8px;font:inherit}input[type=checkbox]{width:auto}button{padding:9px 16px;border:0;border-radius:8px;background:#2563eb;color:#fff;font:inherit;cursor:pointer;margin-top:12px}button.danger{background:#dc2626}button.link{background:none;color:#cbd5e1;padding:0;margin:0}table{width:100%;border-collapse:collapse}td,th{padding:7px 8px;border-bottom:1px solid #eceef1;text-align:start;vertical-align:top}.msg{padding:10px 12px;border-radius:8px;margin:10px 0}.ok{background:#e8f6ec;color:#14532d}.bad{background:#fdecec;color:#7f1d1d}.warn{background:#fff6e0;color:#7a4b00}code{background:#eef0f3;padding:2px 6px;border-radius:5px;direction:ltr;unicode-bidi:embed;word-break:break-all}.big{font-size:20px;letter-spacing:1px}a.btn{display:inline-block;padding:9px 16px;border-radius:8px;background:#2563eb;color:#fff;text-decoration:none}.row{display:grid;grid-template-columns:1fr 1fr;gap:12px}@media(max-width:640px){.row{grid-template-columns:1fr}}';
 
         return '<!doctype html><html lang="' . $this->lang . '" dir="' . ($rtl ? 'rtl' : 'ltr') . '"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>' . $this->e($title) . ' · WPM Host Agent</title><style>' . $css . '</style></head><body><header><div><strong>WPM Host Agent</strong>' . $nav . '<a href="' . $this->url($req, $req->route, ['lang' => $other] + array_diff_key($req->query, ['r' => 1, 'lang' => 1])) . '">' . ($rtl ? 'English' : 'فارسی') . '</a></div></header><main>' . $body . '</main></body></html>';
     }
@@ -276,6 +304,7 @@ final class Panel
                 '<div class="row"><div>' . $this->field('Name', 'name', 'text', '', 'required') . '</div><div><label>' . $this->e($this->t('Site type')) . '</label><select name="kind">' . $kinds . '</select></div></div>'
                 . '<div class="row"><div>' . $this->field('Folder', 'folder', 'text', '', 'placeholder="' . $this->e($this->t('Empty = web root')) . '" style="direction:ltr"') . '</div><div>' . $this->field('Public URL (optional)', 'url', 'text', '', 'style="direction:ltr"') . '</div></div>'
                 . '<small>' . $this->e(implode(' · ', $roots)) . '</small>', 'Create') . '</div>'
+            . '<div class="card"><h2>' . $this->e($this->t('New WordPress site')) . '</h2><p><a class="btn" href="' . $this->url($req, '/wordpress') . '">' . $this->e($this->t('New WordPress site')) . '</a></p></div>'
             . '<div class="card"><h2>' . $this->e($this->t('Connect the Studio')) . '</h2>' . $this->form($req, $session, '/connect',
                 '<label>' . $this->e($this->t('Level')) . '</label><select name="level"><option value="admin">' . $this->e($this->t('Full control (create sites)')) . '</option><option value="deploy">' . $this->e($this->t('Read and deploy')) . '</option><option value="read">' . $this->e($this->t('Read only')) . '</option></select>', 'Make a pairing code') . '</div>';
 
@@ -304,6 +333,9 @@ final class Panel
             $rows .= '<tr><td><code>' . $this->e($r['id']) . '</code>' . ($live ? ' ✓' : '') . '</td><td>' . $this->e($this->when((int) $r['created'])) . '</td><td>' . (int) $r['files'] . '</td><td>' . $this->e($r['note']) . '</td><td>'
                 . ($live ? '' : $this->form($req, $session, '/site/rollback', '<input type="hidden" name="id" value="' . $this->e($id) . '"><input type="hidden" name="release" value="' . $this->e($r['id']) . '">', 'Rollback')) . '</td></tr>';
         }
+        if ($site['kind'] === 'wordpress') {
+            return $this->wpSite($req, $session, $site, $flash, $kind);
+        }
         $created = isset($req->query['created']) ? $this->msg($this->e($this->t('Site created.'))) : '';
         $body = $created . $this->msg($flash, $kind) . '<p><a href="' . $this->url($req, '/') . '">← ' . $this->e($this->t('Back')) . '</a></p><h1>' . $this->e($site['name']) . '</h1>'
             . '<p><code>' . $this->e($site['target']) . '</code> · ' . $this->e($site['mode']) . ' · ' . $this->e($this->t(Sites::KINDS[$site['kind']] ?? $site['kind'])) . ($site['url'] !== '' ? ' · <a href="' . $this->e($site['url']) . '" rel="noopener noreferrer">' . $this->e($this->t('Open site')) . '</a>' : '') . '</p>'
@@ -315,7 +347,103 @@ final class Panel
         return Response::html($this->layout($req, $site['name'], $body, $session));
     }
 
+    private function siteUrl(Request $req, array $site): string
+    {
+        if (($site['url'] ?? '') !== '') {
+            return rtrim((string) $site['url'], '/') . '/';
+        }
+        $root = Fs::norm($this->agent->docRoot);
+        $target = Fs::norm($site['target']);
+        $rel = $target === $root ? '' : (str_starts_with($target, $root . '/') ? substr($target, strlen($root)) : '');
+
+        return ($req->isSecure() ? 'https' : 'http') . '://' . $req->host() . $rel . '/';
+    }
+
+    private function wpSite(Request $req, array $session, array $site, string $flash, string $kind, string $extra = ''): Response
+    {
+        $url = $this->siteUrl($req, $site);
+        $body = $this->msg($flash, $kind) . '<p><a href="' . $this->url($req, '/') . '">← ' . $this->e($this->t('Back')) . '</a></p><h1>' . $this->e($site['name']) . '</h1>'
+            . '<p><code>' . $this->e($site['target']) . '</code> · ' . $this->e($this->t('WordPress site')) . '</p>' . $extra
+            . '<div class="card"><p>' . $this->e($this->t('WordPress files and database are ready.')) . '</p><p>' . $this->e($this->t('Step 1: open the WordPress installer and create your admin account.')) . '</p>'
+            . '<p><a class="btn" href="' . $this->e($url) . 'wp-admin/install.php" rel="noopener noreferrer">' . $this->e($this->t('Open the WordPress installer')) . '</a></p></div>'
+            . '<div class="card"><p>' . $this->e($this->t('Step 2 (optional, for the Studio): when the installer is done, enter the admin username to activate the bridge and get a pairing code.')) . '</p>'
+            . $this->form($req, $session, '/wordpress/finish', '<input type="hidden" name="id" value="' . $this->e($site['id']) . '">' . $this->field('Admin username', 'admin_user', 'text', '', 'required style="direction:ltr"'), 'Activate the bridge') . '</div>'
+            . '<div class="card"><h2>' . $this->e($this->t('Delete')) . '</h2>' . $this->form($req, $session, '/site/delete', '<input type="hidden" name="id" value="' . $this->e($site['id']) . '"><label><input type="checkbox" name="purge" value="1"> ' . $this->e($this->t('Also delete the files from the host')) . '</label>', 'Delete', true) . '</div>';
+
+        return Response::html($this->layout($req, $site['name'], $body, $session));
+    }
+
+    private function wordpress(Request $req, array $session): Response
+    {
+        $error = '';
+        if ($req->method === 'POST') {
+            $name = trim($req->post('name'));
+            $id = '';
+            try {
+                $folder = trim($req->post('folder')) !== '' ? trim($req->post('folder')) : Util::slug($name);
+                $site = $this->sites->create(['name' => $name, 'kind' => 'wordpress', 'folder' => $folder], (string) $session['user']);
+                $id = $site['id'];
+                $bridge = $this->agent->agentDir . '/bridge/wp-mcp-bridge';
+                (new Wp($this->agent, $this->sites))->install($site, $this->dbSpec($req), null, (string) $session['user'], is_dir($bridge) ? $bridge : null);
+
+                return Response::redirect($this->url($req, '/site', ['id' => $id, 'created' => '1']));
+            } catch (ApiError $e) {
+                if ($id !== '') {
+                    try {
+                        $this->sites->delete($id, false, (string) $session['user']);
+                    } catch (ApiError) {
+                        // the slot stays; nothing was written
+                    }
+                }
+                $error = $e->getMessage();
+            }
+        }
+        $sel = $req->post('db_method', 'cpanel');
+        $opt = fn (string $v, string $label) => '<option value="' . $v . '"' . ($sel === $v ? ' selected' : '') . '>' . $this->e($this->t($label)) . '</option>';
+        $host = $req->host();
+        $inner = $this->field('Site name', 'name', 'text', $req->post('name'), 'required')
+            . $this->field('Folder (default: site name)', 'folder', 'text', $req->post('folder'), 'style="direction:ltr"')
+            . '<label>' . $this->e($this->t('Database')) . '</label><select name="db_method">' . $opt('cpanel', 'cPanel (API token)') . $opt('directadmin', 'DirectAdmin (Login Key)') . $opt('mysql_root', 'MySQL admin (VPS)') . $opt('manual', 'I have the details') . '</select>'
+            . '<small>' . $this->e($this->t('Fill only the fields of the method you chose. Panel and database secrets are used once and not stored.')) . '</small>'
+            . '<div class="row"><div>' . $this->field('Panel address', 'panel_url', 'text', $req->post('panel_url'), 'placeholder="https://' . $this->e($host) . ':2083" style="direction:ltr"') . '</div><div>' . $this->field('Panel username', 'panel_user', 'text', $req->post('panel_user'), 'style="direction:ltr"') . '</div></div>'
+            . $this->field('API token / Login Key', 'panel_secret', 'password', '', 'autocomplete="off"')
+            . '<div class="row"><div>' . $this->field('MySQL host', 'db_host', 'text', $req->post('db_host', 'localhost'), 'style="direction:ltr"') . '</div><div>' . $this->field('root password', 'root_pass', 'password', '', 'autocomplete="off"') . '</div></div>'
+            . '<div class="row"><div>' . $this->field('Database name', 'db_name', 'text', $req->post('db_name'), 'style="direction:ltr"') . '</div><div>' . $this->field('Database user', 'db_user', 'text', $req->post('db_user'), 'style="direction:ltr"') . '</div></div>'
+            . $this->field('Database password', 'db_pass', 'password', '', 'autocomplete="off"');
+        $body = '<p><a href="' . $this->url($req, '/') . '">← ' . $this->e($this->t('Back')) . '</a></p><h1>' . $this->e($this->t('New WordPress site')) . '</h1>' . $this->msg($this->e($error), 'bad')
+            . '<div class="card">' . $this->form($req, $session, '/wordpress', $inner, 'Install WordPress') . '</div>';
+
+        return Response::html($this->layout($req, 'WordPress', $body, $session));
+    }
+
+    /** @return array<string,mixed> */
+    private function dbSpec(Request $req): array
+    {
+        $panelHost = 'https://' . preg_replace('/:\d+$/', '', $req->host());
+
+        return match ($req->post('db_method')) {
+            'cpanel' => ['method' => 'cpanel', 'url' => $req->post('panel_url') ?: $panelHost . ':2083', 'user' => $req->post('panel_user'), 'token' => $req->post('panel_secret')],
+            'directadmin' => ['method' => 'directadmin', 'url' => $req->post('panel_url') ?: $panelHost . ':2222', 'user' => $req->post('panel_user'), 'key' => $req->post('panel_secret')],
+            'mysql_root' => ['method' => 'mysql_root', 'host' => $req->post('db_host', 'localhost'), 'root_pass' => $req->post('root_pass')],
+            default => ['method' => 'manual', 'host' => $req->post('db_host', 'localhost'), 'name' => $req->post('db_name'), 'user' => $req->post('db_user'), 'pass' => $req->post('db_pass')],
+        };
+    }
+
+    private function wpFinish(Request $req, array $session): Response
+    {
+        $site = $this->sites->get($req->post('id'));
+        try {
+            $r = (new Wp($this->agent, $this->sites))->finish($site, $req->post('admin_user'), 'admin', (string) $session['user']);
+        } catch (ApiError $e) {
+            return $this->wpSite($req, $session, $site, $this->e($e->getMessage()), 'bad');
+        }
+        $extra = '<div class="msg ok">' . $this->e($this->t('Pairing code for the Studio (valid 15 minutes). Enter it with the site address in Studio → Sites:')) . '<br><br><code class="big">' . $this->e($r['pairing_code']) . '</code><br><br><code>' . $this->e(rtrim($this->siteUrl($req, $site), '/')) . '</code></div>';
+
+        return $this->wpSite($req, $session, $site, '', 'ok', $extra);
+    }
+
     private function deploy(Request $req, array $session): Response
+
     {
         $id = $req->post('id');
         $file = $req->files['zip'] ?? null;

@@ -105,6 +105,17 @@ export function buildAgentZip(setupCode = newSetupCode()): { zip: Buffer; setupC
     }
   };
   walk(root);
+  const plugin = [resolve(here, 'plugin'), resolve(here, '..', '..', 'plugin', 'wp-mcp-bridge'), resolve(here, '..', 'plugin', 'wp-mcp-bridge')].find((d) => existsSync(join(d, 'wp-mcp-bridge.php')));
+  if (plugin) {
+    const walkPlugin = (dir: string): void => {
+      for (const name of readdirSync(dir).sort()) {
+        const full = join(dir, name);
+        if (readdirSyncSafe(full)) walkPlugin(full);
+        else entries.push({ name: `wpm-agent/bridge/wp-mcp-bridge/${relative(plugin, full).split(sep).join('/')}`, data: readFileSync(full) });
+      }
+    };
+    walkPlugin(plugin);
+  }
   entries.push({ name: 'wpm-agent/wpm-setup.php', data: Buffer.from(`<?php\ndefined('WPM_AGENT') || exit;\nreturn '${setupCode}';\n`) });
   entries.push({ name: 'wpm-agent/README.txt', data: Buffer.from(AGENT_README) });
 

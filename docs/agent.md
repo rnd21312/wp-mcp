@@ -55,6 +55,10 @@ Honest limits: the signing secret must be stored on the host to verify requests,
 
 ## New WordPress site (M2)
 
+**From the agent panel (no Studio needed):** dashboard → **New WordPress site**. Pick the database method, fill only its fields, press Install. The agent downloads and verifies WordPress, writes `wp-config.php`, and copies the bridge plugin that ships inside the agent zip. Then open the WordPress installer link, create your admin account, and (optional, for the Studio) enter the admin username on the site page to activate the bridge and get a pairing code. If the database step fails nothing is written.
+
+**From the Studio:** the flow below does the same and also runs the WordPress installer for you.
+
 **Hosts → New WordPress site.** The Studio creates the site slot, then the agent: (1) makes the database, (2) downloads the official `latest.zip` and verifies it against wordpress.org's published SHA-1, (3) unpacks it, writes `wp-config.php` with fresh salts and a random table prefix, (4) copies the bridge plugin. The Studio then runs WordPress's own web installer over HTTP, the agent activates the bridge and issues it a pairing code, and the Studio pairs automatically. You get the admin address, username and a generated password once; the Studio never stores that password.
 
 Database, in order of preference (you pick in the dialog):

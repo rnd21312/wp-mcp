@@ -15,6 +15,9 @@ final class Wp
     public const CORE_SHA1 = 'https://wordpress.org/latest.zip.sha1';
     public const BRIDGE = 'wp-mcp-bridge/wp-mcp-bridge.php';
 
+    /** Test seam: returns [PDO, prefix] instead of reading wp-config.php. */
+    public static $pdoFactory = null;
+
     public function __construct(private Agent $agent, private Sites $sites)
     {
     }
@@ -24,7 +27,7 @@ final class Wp
      * @param array<string,mixed> $dbSpec see Db::provision
      * @return array<string,mixed>
      */
-    public function install(array $site, array $dbSpec, ?string $bridgeZip, string $actor): array
+    public function install(array $site, array $dbSpec, ?string $bridgeZip, string $actor, ?string $bridgeDir = null): array
     {
         if ($site['kind'] !== 'wordpress') {
             throw new ApiError('not_wordpress', 'This site is not a WordPress site.');
@@ -61,6 +64,9 @@ final class Wp
                 $dest = $target . '/wp-content/plugins/wp-mcp-bridge';
                 Fs::mkdir($dest);
                 Zip::extract($bridgeZip, $dest, 20 * 1048576);
+            } elseif ($bridgeDir !== null && is_file($bridgeDir . '/wp-mcp-bridge.php')) {
+                Fs::copyTree($bridgeDir, $target . '/wp-content/plugins/wp-mcp-bridge');
+                $bridgeZip = $bridgeDir;
             }
         } catch (\Throwable $e) {
             $this->clear($target, (string) $site['root']);
@@ -143,6 +149,9 @@ final class Wp
     /** @return array<string,mixed> */
     public function finish(array $site, string $adminUser, string $ceiling, string $actor, ?\PDO $pdo = null, ?string $prefix = null): array
     {
+        if ($pdo === null && self::$pdoFactory !== null) {
+            [$pdo, $prefix] = (self::$pdoFactory)($site);
+        }
         if ($pdo === null) {
             $cfgFile = $site['target'] . '/wp-config.php';
             $cfg = self::parseConfig((string) @file_get_contents($cfgFile));

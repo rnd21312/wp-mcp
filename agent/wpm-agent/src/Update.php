@@ -46,10 +46,10 @@ final class Update
         Fs::mkdir($stage, 0700);
         try {
             $info = Zip::extract($zipPath, $stage, 30 * 1048576, static function (string $rel): ?string {
-                $ok = $rel === 'index.php' || $rel === '.htaccess' || $rel === 'README.txt' || (bool) preg_match('#^src/[A-Za-z0-9]+\.php$#', $rel);
+                $ok = $rel === 'index.php' || $rel === '.htaccess' || $rel === 'README.txt' || (bool) preg_match('#^src/[A-Za-z0-9]+\.php$#', $rel) || (bool) preg_match('#^bridge/wp-mcp-bridge/[A-Za-z0-9._/-]+$#', $rel);
 
                 return $ok ? null : 'The update contains a file that is not part of the agent: ' . $rel;
-            }, 200);
+            }, 600);
             foreach (['index.php', 'src/Agent.php', 'src/Update.php'] as $must) {
                 if (!isset($info['manifest'][$must])) {
                     throw new ApiError('bad_update', 'The update is incomplete (' . $must . ' is missing).', 422);
@@ -98,6 +98,11 @@ final class Update
         foreach (glob($dir . '/src/*.php') ?: [] as $f) {
             $out[] = 'src/' . basename($f);
         }
+        if (is_dir($dir . '/bridge/wp-mcp-bridge')) {
+            foreach (array_keys(Fs::manifest($dir . '/bridge/wp-mcp-bridge')) as $rel) {
+                $out[] = 'bridge/wp-mcp-bridge/' . $rel;
+            }
+        }
 
         return $out;
     }
@@ -108,6 +113,7 @@ final class Update
         usort($files, static fn ($a, $b) => (int) ($a === 'index.php') <=> (int) ($b === 'index.php'));
         Fs::mkdir($to . '/src');
         foreach ($files as $rel) {
+            Fs::mkdir(dirname($to . '/' . $rel));
             $tmp = $to . '/' . $rel . '.wpm-new';
             if (!copy($from . '/' . $rel, $tmp)) {
                 throw new \RuntimeException('cannot write ' . $rel);
@@ -125,7 +131,7 @@ final class Update
             }
         }
         foreach (array_diff($previous, $files) as $rel) {
-            if (str_starts_with($rel, 'src/')) {
+            if (str_starts_with($rel, 'src/') || str_starts_with($rel, 'bridge/')) {
                 @unlink($to . '/' . $rel);
             }
         }
