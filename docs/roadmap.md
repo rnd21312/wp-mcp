@@ -80,3 +80,7 @@ New MCP tools and panel flows on top of the current ones:
 3. Who uses it: agencies building for clients, or end users building their own site?
 4. Should the Studio stay a local app, or also be offered as a hosted service later?
 5. Open source, paid, or both? This affects the template marketplace and updates.
+
+## Decisions (answers to the questions above)
+
+Hosts: all kinds, adapt by detection. Sites: any kind. Users: everyone. Studio local + one-zip Host Agent. License: MIT (open source). The agent creates databases. See [v2-plan.md](v2-plan.md) for the implementation plan and status.
