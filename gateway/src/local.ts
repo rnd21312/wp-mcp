@@ -6,6 +6,7 @@ import type { App, Reply } from './context.ts';
 import { isLevel, LEVELS } from './levels.ts';
 import { callTool } from './mcp/tools.ts';
 import { OPS, TOOLS } from './registry.ts';
+import { previewInfo } from './preview.ts';
 import { addSite, testSite } from './siteadmin.ts';
 import { parseScope } from './store.ts';
 import { safeRequest, SsrfError } from './ssrf.ts';
@@ -28,7 +29,7 @@ const SECURITY: Record<string, string> = {
   'x-frame-options': 'DENY',
   'x-content-type-options': 'nosniff',
   'referrer-policy': 'no-referrer',
-  'content-security-policy': "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https:; img-src 'self' data: https: http:; font-src 'self' data: https:; media-src https:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
+  'content-security-policy': "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https:; img-src 'self' data: https: http:; font-src 'self' data: https:; media-src https:; connect-src 'self'; frame-src http://127.0.0.1:* http://localhost:*; worker-src 'self' blob:; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
 };
 
 const json = (status: number, body: unknown): Reply => ({ status, json: body, headers: { 'cache-control': 'no-store', ...SECURITY } });
@@ -79,6 +80,7 @@ function state(app: App) {
     publicUrl: app.config.publicUrl,
     dataDir: app.config.dataDir,
     entry: ENTRY,
+    preview: previewInfo(app),
     sites: app.store.sites().map(toSite),
     keys: app.store.keys().filter((k) => !k.revoked).map((k) => ({ id: k.id, name: k.name, prefix: k.prefix, level: k.level, sites: parseScope(k.sites), created: k.created, last_used: k.last_used, expires: k.expires })),
     clients,

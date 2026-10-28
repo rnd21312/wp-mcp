@@ -29,6 +29,7 @@ export interface State {
   publicUrl: string;
   dataDir: string;
   entry: string;
+  preview: { base: string; token: string };
   sites: Site[];
   keys: { id: string; name: string; prefix: string; level: string; sites: string[] | '*'; created: number; last_used: number; expires: number }[];
   clients: { id: string; name: string; level: string; sites: string[] | '*'; last_used: number }[];

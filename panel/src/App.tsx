@@ -19,7 +19,7 @@ import { MediaPage } from '@/pages/Media';
 import { Overview } from '@/pages/Overview';
 import { Seo } from '@/pages/Seo';
 import { Inspector } from '@/pages/Inspector';
-import { Visual } from '@/pages/Visual';
+import { CodeEditor } from '@/pages/Editor';
 import { Shop } from '@/pages/Shop';
 import { Sites } from '@/pages/Sites';
 import { Workbench } from '@/pages/Workbench';
@@ -52,7 +52,7 @@ function Shell({ state, spec, reload }: { state: State; spec: ToolSpec[]; reload
       { path: '/content', label: t('Content', 'محتوا'), icon: FileTextIcon },
       { path: '/media', label: t('Media', 'رسانه'), icon: ImageIcon },
       { path: '/shop', label: t('Shop', 'فروشگاه'), icon: ShoppingBagIcon, hide: overview ? !overview.woocommerce : false },
-      { path: '/visual', label: t('Visual editor', 'ویرایشگر بصری'), icon: MousePointerClickIcon },
+      { path: '/editor', label: t('Code & visual editor', 'ویرایشگر کد و بصری'), icon: MousePointerClickIcon },
       { path: '/seo', label: t('SEO', 'سئو'), icon: SearchCheckIcon },
       { path: '/inspector', label: t('URL Inspector', 'بازرس URL'), icon: ScanSearchIcon },
       { path: '/design', label: t('Design', 'طراحی'), icon: BrushIcon },
@@ -85,7 +85,7 @@ function Shell({ state, spec, reload }: { state: State; spec: ToolSpec[]; reload
   else if (path === '/content/edit') page = siteOnly(<ContentEditor key={`${site?.name}${location.hash}`} query={query} go={go} />);
   else if (path === '/media') page = siteOnly(<MediaPage key={site?.name} />);
   else if (path === '/shop') page = siteOnly(<Shop key={site?.name} />);
-  else if (path === '/visual') page = siteOnly(<Visual key={site?.name} />);
+  else if (path === '/editor') page = siteOnly(<CodeEditor key={site?.name} go={go} />);
   else if (path === '/inspector') page = <Inspector key={site?.name} />;
   else if (path === '/seo') page = siteOnly(<Seo key={site?.name} />);
   else if (path === '/design') page = siteOnly(<Design key={site?.name} />);
@@ -93,6 +93,8 @@ function Shell({ state, spec, reload }: { state: State; spec: ToolSpec[]; reload
   else if (path === '/plugins') page = siteOnly(<Plugins key={site?.name} />);
   else if (path === '/dev') page = siteOnly(<Developer key={site?.name} go={go} />);
   else if (path === '/transfer') page = <Transfer />;
+
+  if (path === '/editor' && site) return <><CodeEditor key={site.name} go={go} /><Toaster position="top-center" /></>;
 
   const active = (p: string): boolean => (p === '/' ? path === '/' : path === p || path.startsWith(`${p}/`));
 

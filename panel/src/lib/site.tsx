@@ -20,6 +20,8 @@ interface RunOpts {
   silent?: boolean;
   /** Do not offer undo after a write. */
   quiet?: boolean;
+  /** The person pressed Save themselves: confirm without asking again. */
+  auto?: boolean;
   site?: string;
 }
 
@@ -73,7 +75,7 @@ export function SiteProvider({ state, reload, children }: { state: State; reload
       const send = (token?: string) => api.post<any>('run', { site: target, tool, action, args, level: lv, dry_run: !!opts.dry, confirm_token: token });
       let r = await send();
       if (r.needs_confirmation) {
-        const ok = await new Promise<boolean>((resolve) => setPending({ preview: r.preview, action: r.action, resolve }));
+        const ok = opts.auto ? true : await new Promise<boolean>((resolve) => setPending({ preview: r.preview, action: r.action, resolve }));
         setPending(null);
         if (!ok) return { ok: false, cancelled: true };
         r = await send(r.confirm_token);
