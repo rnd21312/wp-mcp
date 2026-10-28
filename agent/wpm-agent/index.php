@@ -11,7 +11,7 @@ if (PHP_VERSION_ID < 80100) {
 }
 
 define('WPM_AGENT', true);
-foreach (['Util', 'ApiError', 'Store', 'Fs', 'Zip', 'Security', 'Http', 'Caps', 'Agent', 'Auth', 'Net', 'Db', 'Sites', 'Wp', 'Api', 'Panel'] as $part) {
+foreach (['Util', 'ApiError', 'Store', 'Fs', 'Zip', 'Security', 'Http', 'Caps', 'Agent', 'Auth', 'Net', 'Db', 'NodeApp', 'Sites', 'Wp', 'Api', 'Panel'] as $part) {
     require __DIR__ . '/src/' . $part . '.php';
 }
 

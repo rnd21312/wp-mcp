@@ -266,7 +266,7 @@ final class Panel
         }
         $roots = $this->agent->roots();
         $kinds = '';
-        foreach (array_intersect_key(Sites::KINDS, array_flip(Sites::DEPLOYABLE)) as $k => $label) {
+        foreach (array_intersect_key(Sites::KINDS, array_flip(["static", "spa"])) as $k => $label) {
             $kinds .= '<option value="' . $k . '">' . $this->e($this->t($label)) . '</option>';
         }
         $welcome = isset($req->query['welcome']) ? $this->msg($this->e($this->t('Setup finished. Enable two-factor authentication on the Security page.'))) : '';

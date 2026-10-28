@@ -112,6 +112,27 @@ final class Agent
         return array_values(array_unique($roots));
     }
 
+    /** Adds a folder sites may live in. Only inside the account's home (the folder above the web root). */
+    public function addRoot(string $path, string $actor): string
+    {
+        $real = realpath($path);
+        $home = Fs::norm(dirname($this->docRoot));
+        if ($real === false || !is_dir($real) || !is_writable($real)) {
+            throw new ApiError('bad_root', 'That folder does not exist or is not writable.');
+        }
+        $norm = Fs::norm($real);
+        if ($norm === $home || !str_starts_with($norm . '/', $home . '/') || Fs::within($this->agentDir, $norm) || Fs::within($this->dataDir, $norm) || Fs::within($norm, $this->agentDir) && $norm !== Fs::norm($this->docRoot)) {
+            throw new ApiError('bad_root', 'Allowed locations must be folders inside this hosting account (' . $home . '), outside the agent folders.');
+        }
+        $this->updateConfig(static function (array $c) use ($norm) {
+            $c['roots'] = array_values(array_unique(array_merge((array) ($c['roots'] ?? []), [$norm])));
+            return $c;
+        });
+        $this->audit($actor, 'root.add', $norm);
+
+        return $norm;
+    }
+
     public function maxUploadBytes(): int
     {
         return (int) (($this->config['max_upload_mb'] ?? 256) * 1048576);

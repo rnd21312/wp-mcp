@@ -158,6 +158,17 @@ final class Api
                 $this->need($conn, 'deploy');
                 $this->allowedSite($conn, (string) ($in['site'] ?? ''));
                 return $this->sites->rollback((string) $in['site'], isset($in['release']) ? (string) $in['release'] : null, $actor);
+            case 'sites.env':
+                $this->need($conn, 'admin');
+                $this->allowedSite($conn, (string) ($in['site'] ?? ''));
+                return $this->sites->setEnv((string) $in['site'], (array) ($in['env'] ?? []), $actor);
+            case 'node.script':
+                $this->need($conn, 'admin');
+                $this->allowedSite($conn, (string) ($in['site'] ?? ''));
+                return ['script' => $this->sites->nodeScript((string) $in['site'], (string) ($in['domain'] ?? ''), (string) ($in['user'] ?? ''), !empty($in['install_db']))];
+            case 'roots.add':
+                $this->need($conn, 'admin');
+                return ['root' => $this->agent->addRoot((string) ($in['path'] ?? ''), $actor), 'roots' => $this->agent->roots()];
             case 'db.test':
                 $this->need($conn, 'admin');
                 $db = Db::provision(['method' => 'manual'] + $in);

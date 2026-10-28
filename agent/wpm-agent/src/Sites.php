@@ -8,9 +8,9 @@ defined('WPM_AGENT') || exit;
 /** Site records, uploads, deploys, atomic switch and rollback. */
 final class Sites
 {
-    public const KINDS = ['static' => 'Static site (HTML/CSS/JS)', 'spa' => 'Single-page app (React, Vue, Svelte, ...)', 'wordpress' => 'WordPress'];
+    public const KINDS = ['static' => 'Static site (HTML/CSS/JS)', 'spa' => 'Single-page app (React, Vue, Svelte, ...)', 'node' => 'Node.js app', 'wordpress' => 'WordPress'];
     /** Kinds published as releases (WordPress is a live install instead). */
-    public const DEPLOYABLE = ['static', 'spa'];
+    public const DEPLOYABLE = ['static', 'spa', 'node'];
     private const BLOCKED_EXT = '/\.(php\d?|phtml|pht|phps|phar|cgi|pl|py|sh|bash|asp|aspx|jsp|exe|dll)$/i';
     private const BLOCKED_NAME = '/^(\.htaccess|\.htpasswd|\.user\.ini|web\.config|\.env.*|php\.ini)$/i';
 
@@ -41,7 +41,7 @@ final class Sites
         return [
             'id' => $site['id'], 'name' => $site['name'], 'kind' => $site['kind'], 'mode' => $site['mode'], 'folder' => $site['folder'], 'url' => $site['url'] ?? '',
             'current' => $rel['current'] ?? null, 'releases' => count($rel['releases'] ?? []), 'created' => $site['created'],
-        ];
+        ] + (isset($site['node']) ? ['node' => $site['node'] + ['env_keys' => array_keys($this->agent->store->read('env-' . $site['id']))], 'warnings' => $site['warnings'] ?? []] : []);
     }
 
     /** @param array<string,mixed> $in name, kind, root (optional index or path), folder, mode, url */
@@ -78,7 +78,8 @@ final class Sites
         }
 
         $mode = $kind === 'wordpress' ? 'sync' : $this->chooseMode((string) ($in['mode'] ?? 'auto'), $target, $root);
-        $site = ['id' => $id, 'name' => $name, 'kind' => $kind, 'root' => $root, 'folder' => $folder, 'target' => $target, 'mode' => $mode, 'url' => substr((string) ($in['url'] ?? ''), 0, 200), 'created' => Util::now()];
+        $extra = $kind === 'node' ? $this->nodeSettings($in, $root, $target) : [];
+        $site = ['id' => $id, 'name' => $name, 'kind' => $kind, 'root' => $root, 'folder' => $folder, 'target' => $target, 'mode' => $mode, 'url' => substr((string) ($in['url'] ?? ''), 0, 200), 'created' => Util::now()] + $extra;
 
         $this->agent->store->update('sites', function (array $all, &$out) use ($site, $id) {
             if (isset($all[$id])) {
@@ -96,6 +97,33 @@ final class Sites
         $this->agent->audit($actor, 'site.create', $id . ' (' . $kind . ', ' . $mode . ') -> ' . $target);
 
         return $site;
+    }
+
+    /** @return array<string,mixed> */
+    private function nodeSettings(array $in, string $root, string $target): array
+    {
+        $startup = Fs::cleanRel((string) ($in['startup'] ?? 'server.js'));
+        if ($startup === null || !preg_match('#^[A-Za-z0-9._/-]+\.(c|m)?js$#', $startup)) {
+            throw new ApiError('bad_startup', 'The startup file must be a .js, .mjs or .cjs path such as server.js.');
+        }
+        $port = (int) ($in['port'] ?? random_int(20000, 29999));
+        if ($port < 1024 || $port > 65535) {
+            throw new ApiError('bad_port', 'The port must be between 1024 and 65535.');
+        }
+        $docroot = null;
+        if (!empty($in['docroot'])) {
+            $rel = Fs::cleanRel((string) $in['docroot']);
+            $docroot = $rel === null ? null : Fs::norm($this->agent->docRoot) . '/' . $rel;
+            if ($docroot === null || !Fs::within($this->agent->docRoot, $docroot) || Fs::within($this->agent->agentDir, $docroot) || Fs::within($this->agent->dataDir, $docroot)) {
+                throw new ApiError('bad_docroot', 'The public folder is not valid.');
+            }
+        }
+        $warnings = [];
+        if (Fs::within($this->agent->docRoot, $target)) {
+            $warnings[] = 'The app folder is inside the web root, so its source files can be downloaded if the Node app is not running. Prefer a folder outside public_html.';
+        }
+
+        return ['node' => ['startup' => $startup, 'port' => $port, 'docroot' => $docroot], 'warnings' => $warnings];
     }
 
     private function chooseMode(string $want, string $target, string $root): string
@@ -150,7 +178,7 @@ final class Sites
             }
             Fs::rrmdir($this->siteDir($site['id']));
             foreach (glob($this->agent->dataDir . '/*' . $site['id'] . '*.json.php') ?: [] as $f) {
-                if (preg_match('/^(rel|man)-' . preg_quote($site['id'], '/') . '(-|\.)/', basename($f))) {
+                if (preg_match('/^(rel|man|env)-' . preg_quote($site['id'], '/') . '(-|\.)/', basename($f))) {
                     @unlink($f);
                 }
             }
@@ -318,17 +346,78 @@ final class Sites
     /** Why a file may not be part of a site of this kind, or null. */
     private function policy(array $site): callable
     {
-        return static function (string $rel): ?string {
+        $node = $site['kind'] === 'node';
+
+        return static function (string $rel) use ($node): ?string {
             $segments = explode('/', $rel);
             $base = end($segments);
             if (in_array('.git', $segments, true)) {
                 return 'The archive contains a .git folder. Remove it before deploying.';
             }
-            if (preg_match(self::BLOCKED_NAME, $base) || preg_match(self::BLOCKED_EXT, $base)) {
+            // Node packages legitimately ship scripts (.sh, .py); what stays out is PHP, server configuration and secrets.
+            $blockedName = $node ? '/^(\.htaccess|\.htpasswd|\.user\.ini|web\.config|php\.ini|\.env|\.env\.(local|production|development))$/i' : self::BLOCKED_NAME;
+            $blockedExt = $node ? '/\.(php\d?|phtml|pht|phps|phar)$/i' : self::BLOCKED_EXT;
+            if (preg_match($blockedName, $base) || preg_match($blockedExt, $base)) {
                 return 'Files like "' . $base . '" are not allowed in a static site (executable or server configuration file).';
             }
             return null;
         };
+    }
+
+    // ---- node ---------------------------------------------------------------------------------------------------
+
+    /** Env file, Passenger config in the public folder, and a restart signal. Runs after every switch. */
+    private function afterNodeSwitch(array $site): void
+    {
+        if ($site['kind'] !== 'node') {
+            return;
+        }
+        $env = $this->agent->store->read('env-' . $site['id']);
+        $dir = $this->siteDir($site['id']);
+        Fs::mkdir($dir, 0700);
+        file_put_contents($dir . '/env', NodeApp::envFile($env));
+        @chmod($dir . '/env', 0600);
+        $docroot = $site['node']['docroot'] ?? null;
+        if ($docroot) {
+            Fs::mkdir($docroot);
+            $file = $docroot . '/.htaccess';
+            $old = is_file($file) ? (string) file_get_contents($file) : '';
+            if ($old !== '' && !str_contains($old, '# Managed by the WPM Host Agent')) {
+                Fs::mkdir($dir . '/backups', 0700);
+                copy($file, $dir . '/backups/htaccess-' . Util::now());
+            }
+            file_put_contents($file, NodeApp::htaccess($site, $env));
+        }
+        NodeApp::restart($site, $dir);
+    }
+
+    /** @param array<string,mixed> $env */
+    public function setEnv(string $siteId, array $env, string $actor): array
+    {
+        $site = $this->get($siteId);
+        if ($site['kind'] !== 'node') {
+            throw new ApiError('not_node', 'Environment variables apply to Node.js sites.');
+        }
+        $clean = NodeApp::cleanEnv($env);
+        $this->agent->store->write('env-' . $siteId, $clean);
+        $this->afterNodeSwitch($site);
+        $this->agent->audit($actor, 'site.env', $siteId . ': ' . implode(',', array_keys($clean)));
+
+        return ['keys' => array_keys($clean)];
+    }
+
+    public function nodeScript(string $siteId, string $domain, string $runUser, bool $installDb): string
+    {
+        $site = $this->get($siteId);
+        if ($site['kind'] !== 'node') {
+            throw new ApiError('not_node', 'This is not a Node.js site.');
+        }
+        if ($runUser === '') {
+            $info = function_exists('posix_geteuid') && function_exists('posix_getpwuid') ? posix_getpwuid(posix_geteuid()) : false;
+            $runUser = is_array($info) ? (string) $info['name'] : 'www-data';
+        }
+
+        return NodeApp::vpsScript($site, $domain, $runUser, $this->siteDir($siteId), $installDb);
     }
 
     /** @return array<string,mixed> the new release */
@@ -359,9 +448,16 @@ final class Sites
         $rdir = $this->releaseDir($id, $rid);
         Fs::mkdir($rdir, 0700);
         try {
-            $info = Zip::extract($blob, $rdir, $this->agent->maxUploadBytes() * 4, $this->policy($site));
+            $info = Zip::extract($blob, $rdir, $this->agent->maxUploadBytes() * 4, $this->policy($site), $site['kind'] === 'node' ? 150000 : 60000);
             if ($info['files'] === 0) {
                 throw new ApiError('empty_release', 'The archive has no files.');
+            }
+            if ($site['kind'] === 'node') {
+                if (!isset($info['manifest'][$site['node']['startup']])) {
+                    throw new ApiError('no_startup', 'The archive has no ' . $site['node']['startup'] . ' at its top level. That is the file the host starts.');
+                }
+                @mkdir($rdir . '/tmp', 0755, true);
+                file_put_contents($rdir . '/tmp/restart.txt', (string) Util::now());
             }
             if ($site['kind'] === 'spa') {
                 if (!isset($info['manifest']['index.html'])) {
@@ -384,6 +480,7 @@ final class Sites
 
         try {
             $this->switchTo($site, $rid, $info['manifest'], $oldMan, $prev !== null);
+            $this->afterNodeSwitch($site);
         } catch (\Throwable $e) {
             Fs::rrmdir($rdir);
             @unlink($this->agent->store->path('man-' . $id . '-' . $rid));
@@ -424,6 +521,7 @@ final class Sites
                 throw new ApiError('already_current', 'That release is already live.', 409);
             }
             $this->switchTo($site, $to, $this->manifest($id, $to), $current ? $this->manifest($id, $current) : [], $current !== null);
+            $this->afterNodeSwitch($site);
             $rel['previous'] = $current;
             $rel['current'] = $to;
             $this->agent->store->write('rel-' . $id, $rel);

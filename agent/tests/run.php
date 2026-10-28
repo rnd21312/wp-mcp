@@ -8,7 +8,7 @@ declare(strict_types=1);
 error_reporting(E_ALL);
 define('WPM_AGENT', true);
 $src = dirname(__DIR__) . '/wpm-agent/src/';
-foreach (['Util', 'ApiError', 'Store', 'Fs', 'Zip', 'Security', 'Http', 'Caps', 'Agent', 'Auth', 'Net', 'Db', 'Sites', 'Wp', 'Api', 'Panel'] as $f) {
+foreach (['Util', 'ApiError', 'Store', 'Fs', 'Zip', 'Security', 'Http', 'Caps', 'Agent', 'Auth', 'Net', 'Db', 'NodeApp', 'Sites', 'Wp', 'Api', 'Panel'] as $f) {
     require $src . $f . '.php';
 }
 
@@ -499,6 +499,7 @@ section('capabilities', function () {
 
 use WPM\Agent\Db;
 use WPM\Agent\Net;
+use WPM\Agent\NodeApp;
 use WPM\Agent\Wp;
 
 section('database provisioning through hosting-panel APIs (mocked transport)', function () {
@@ -631,6 +632,91 @@ section('WordPress provisioning: core, config, bridge, finish', function () {
     throwsCode(fn () => $wp->install($busy, ['method' => 'manual'], null, 't'), 'target_not_empty', 'will not install over other files');
     Net::$transport = null;
     Db::$override = null;
+});
+
+section('Node.js sites: deploy, env, restart signal, server script', function () {
+    [$agent, $root, $web] = newAgent();
+    installAgent($agent);
+    $sites = new Sites($agent);
+    // an allowed location outside the web root, inside the "home"
+    mkdir($root . '/nodeapps');
+    $added = $agent->addRoot($root . '/nodeapps', 't');
+    check(in_array($added, $agent->roots(), true), 'extra location allowed');
+    foreach ([$root, '/', sys_get_temp_dir() . '/definitely-missing', $root . '/wpm-agent-data'] as $bad) {
+        try {
+            $agent->addRoot($bad, 't');
+            check(false, 'root ' . $bad . ' must be refused');
+        } catch (ApiError $e) {
+            check($e->errorCode === 'bad_root', 'root refused: ' . basename($bad));
+        }
+    }
+    $site = $sites->create(['name' => 'Shop App', 'kind' => 'node', 'root' => $added, 'folder' => 'shop', 'mode' => 'sync', 'docroot' => 'shop-public', 'startup' => 'server.js', 'port' => 24001], 't');
+    same($site['node']['startup'], 'server.js', 'node settings stored');
+    foreach ([['startup' => '../x.js'], ['startup' => 'run.sh'], ['port' => 80], ['port' => 70000]] as $badIn) {
+        throwsCode(fn () => $sites->create(array_merge(['name' => 'N' . random_int(1, 99999), 'kind' => 'node', 'root' => $added, 'folder' => 'n' . random_int(1, 99999)], $badIn), 't'), isset($badIn['port']) ? 'bad_port' : 'bad_startup', 'node input ' . json_encode($badIn));
+    }
+    $inWeb = $sites->create(['name' => 'Exposed', 'kind' => 'node', 'folder' => 'exposed', 'mode' => 'sync'], 't');
+    check(count($inWeb['warnings']) === 1, 'warns when the app folder is inside the web root');
+
+    throwsCode(fn () => deployZip($sites, 'shop-app', ['package.json' => '{}']), 'no_startup', 'startup file must be in the archive');
+    foreach (['index.php', 'x/y.phtml', '.htaccess', '.env', 'web.config', 'a/.git/config'] as $badName) {
+        throwsCode(fn () => deployZip($sites, 'shop-app', ['server.js' => 'x', $badName => 'bad']), 'zip_rejected', 'node rejects ' . $badName);
+    }
+    $r1 = deployZip($sites, 'shop-app', ['server.js' => 'console.log(1)', 'node_modules/dep/install.sh' => '#!/bin/sh', 'node_modules/dep/index.js' => 'm', '.env.example' => 'A=1']);
+    check(is_file($added . '/shop/server.js') && is_file($added . '/shop/node_modules/dep/install.sh'), 'files synced, including scripts that packages ship');
+    check(is_file($added . '/shop/tmp/restart.txt'), 'Passenger restart marker');
+    check(is_file($agent->dataDir . '/sites/shop-app/restart.txt'), 'systemd restart marker');
+    $ht = file_get_contents($web . '/shop-public/.htaccess');
+    check(str_contains($ht, 'PassengerAppType node') && str_contains($ht, 'PassengerAppRoot "' . $added . '/shop"') && str_contains($ht, 'PassengerStartupFile "server.js"'), 'Passenger config in the public folder');
+
+    // env: stored privately, rendered, dangerous keys refused
+    $res = $sites->setEnv('shop-app', ['DATABASE_URL' => 'mysql://u:p"w$@h/db', 'SECRET' => "a\\b"], 't');
+    same($res['keys'], ['DATABASE_URL', 'SECRET'], 'env keys');
+    $envFile = file_get_contents($agent->dataDir . '/sites/shop-app/env');
+    check(str_contains($envFile, 'DATABASE_URL="mysql://u:p\\"w\\$@h/db"'), 'env file escapes quote and dollar');
+    check(str_contains(file_get_contents($web . '/shop-public/.htaccess'), 'SetEnv SECRET "a\\\\b"'), 'SetEnv escapes backslash');
+    check(!str_contains(json_encode($sites->view($sites->get('shop-app'))), 'mysql://'), 'view never shows env values');
+    check(in_array('DATABASE_URL', $sites->view($sites->get('shop-app'))['node']['env_keys'], true), 'view lists env keys');
+    foreach (['NODE_OPTIONS', 'LD_PRELOAD', 'PATH', 'node_options'] as $k) {
+        throwsCode(fn () => $sites->setEnv('shop-app', [$k => 'x'], 't'), 'env_forbidden', 'forbidden env ' . $k);
+    }
+    throwsCode(fn () => $sites->setEnv('shop-app', ['1BAD' => 'x'], 't'), 'env_bad_name', 'bad env name');
+    throwsCode(fn () => $sites->setEnv('shop-app', ['A' => "x\ny"], 't'), 'env_bad_value', 'newline in env value');
+    $sites->create(['name' => 'Plain', 'kind' => 'static', 'folder' => 'plain', 'mode' => 'sync'], 't');
+    throwsCode(fn () => $sites->setEnv('plain', ['A' => '1'], 't'), 'not_node', 'static sites have no env');
+
+    // second deploy, rollback, restart signal moves
+    $before = (string) file_get_contents($agent->dataDir . '/sites/shop-app/restart.txt');
+    Util::$now = time() + 5;
+    $r2 = deployZip($sites, 'shop-app', ['server.js' => 'console.log(2)']);
+    Util::$now = null;
+    check(!file_exists($added . '/shop/node_modules'), 'files of the old release are removed');
+    same(file_get_contents($agent->dataDir . '/sites/shop-app/restart.txt') !== $before, true, 'restart marker refreshed');
+    $sites->rollback('shop-app', null, 't');
+    same(file_get_contents($added . '/shop/server.js'), 'console.log(1)', 'rollback restores the app');
+
+    // the server script (built from a Linux-style description so it also runs on this Windows machine)
+    $linux = ['id' => 'shop-app', 'name' => 'Shop App', 'target' => '/home/u/nodeapps/shop', 'node' => ['startup' => 'server.js', 'port' => 24001, 'docroot' => null]];
+    $dd = '/home/u/wpm-agent-data';
+    $gen = fn (string $d, string $u, bool $db) => NodeApp::vpsScript($linux, $d, $u, $dd . '/sites/shop-app', $db);
+    $script = $gen('shop.example.com', 'appuser', true);
+    foreach (['set -euo pipefail', 'User=appuser', 'Environment=PORT=24001', 'server_name shop.example.com;', 'proxy_pass http://127.0.0.1:24001;', 'PathChanged=' . $dd . '/sites/shop-app/restart.txt', 'EnvironmentFile=-' . $dd . '/sites/shop-app/env', 'mariadb-server', 'WorkingDirectory=/home/u/nodeapps/shop'] as $needle) {
+        check(str_contains($script, $needle), 'script contains: ' . $needle);
+    }
+    check(str_contains($script, '$host') && !str_contains($script, '\\$host'), 'nginx variables are literal in the script');
+    check(!str_contains($gen('shop.example.com', 'appuser', false), 'mariadb-server'), 'database is optional');
+    foreach (['evil.com; rm -rf /', 'a b.com', 'localhost', "x.com\nroot", '$(id).com'] as $badDomain) {
+        throwsCode(fn () => $gen($badDomain, 'appuser', false), 'bad_domain', 'domain ' . json_encode($badDomain));
+    }
+    throwsCode(fn () => $gen('a.example.com', 'root; reboot', false), 'bad_user', 'user name checked');
+    throwsCode(fn () => $sites->nodeScript('plain', 'a.example.com', 'u', false), 'not_node', 'script only for node sites');
+    $evil = $linux;
+    $evil['target'] = '/home/u/app dir; rm -rf /';
+    throwsCode(fn () => NodeApp::vpsScript($evil, 'a.example.com', 'u', $dd . '/sites/x', false), 'bad_path', 'unsafe paths are refused');
+    check(str_starts_with($script, "#!/usr/bin/env bash\n"), 'script has a shebang');
+    $lintFile = tap($script);
+    $sh = trim((string) @shell_exec('bash -n ' . escapeshellarg($lintFile) . ' 2>&1'));
+    check($sh === '', 'generated script passes bash -n' . ($sh !== '' ? ': ' . $sh : ''));
 });
 
 function tap(string $content): string
