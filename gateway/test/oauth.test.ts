@@ -94,6 +94,15 @@ describe('OAuth 2.1 with PKCE', () => {
     expect(html).toContain('Looks Like Claude');
   });
 
+  it('offers a Persian, right-to-left consent page that still shows the domain', async () => {
+    const cookie = await login(env);
+    const clientId = await register(env, 'https://app.example.org/cb', 'App');
+    const html = await (await fetch(authorizeUrl(env, clientId, pkce().challenge, { lang: 'fa' }, 'https://app.example.org/cb'), { headers: { cookie } })).text();
+    expect(html).toContain('dir="rtl"');
+    expect(html).toContain('<div class="domain">app.example.org</div>');
+    expect(html).toContain('سطح دسترسی');
+  });
+
   it('requires an owner session to authorize', async () => {
     const clientId = await register(env);
     const res = await fetch(authorizeUrl(env, clientId, pkce().challenge), { redirect: 'manual' });

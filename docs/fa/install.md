@@ -59,7 +59,7 @@ gateway را اجرا کنید. در لاگ یک **توکن راه‌انداز�
 
 پیش‌نیاز: وردپرس ۶.۲+، PHP 8.1+، و سایتی که از gateway با HTTPS در دسترس باشد.
 
-۱. پوشه‌ی `plugin/wp-mcp-bridge` را zip کنید:
+۱. با `node scripts/package-plugin.mjs` فایل آپلود را بسازید (`dist/wp-mcp-bridge.zip`، بدون نیاز به ابزار zip)، یا خودتان پوشه‌ی `plugin/wp-mcp-bridge` را zip کنید:
    ```bash
    cd plugin && zip -r ../wp-mcp-bridge.zip wp-mcp-bridge
    ```

@@ -134,8 +134,8 @@ async function route(app: App, req: http.IncomingMessage, res: http.ServerRespon
       if ('reply' in checked) return send(res, checked.reply);
       if (!session) return send(res, loginRedirect(`${path}${url.search}`));
       const remembered = silentGrant(app, checked.params.client_id);
-      if (remembered && url.searchParams.get('prompt') !== 'consent') return send(res, issueCode(app, checked.params, remembered.level, remembered.sites));
-      return send(res, consentPage(app, checked.params, checked.clientName, session));
+      if (remembered && url.searchParams.get('prompt') !== 'consent' && !url.searchParams.has('lang')) return send(res, issueCode(app, checked.params, remembered.level, remembered.sites));
+      return send(res, consentPage(app, checked.params, checked.clientName, session, url.searchParams.get('lang') === 'fa' ? 'fa' : 'en'));
     }
     if (method === 'POST') {
       const form = parseForm(await readBody(req, SMALL_LIMIT), type);

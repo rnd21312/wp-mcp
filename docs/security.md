@@ -38,7 +38,7 @@ What `read` cannot see, on purpose: drafts and private posts, users (only public
 
 * Authorization code + **PKCE S256 only**, public clients only, single-use codes (60 s).
 * Dynamic registration is allowed (Claude.ai needs it) but constrained: 1–5 redirect URIs that must be `https`, loopback `http` (desktop tools) or an editor scheme; no fragments, credentials, `javascript:`/`data:`; max 200 registrations; 10 per hour per address; unused registrations are purged after a day.
-* The consent page requires an owner session, shows the self-declared app name with a "not verified" note, the **redirect domain in large type**, level choices (no pre-selected `admin`) and site checkboxes, and has CSRF protection.
+* The consent page (English or Persian, `&lang=fa`) requires an owner session, shows the self-declared app name with a "not verified" note, the **redirect domain in large type**, level choices (no pre-selected `admin`) and site checkboxes, and has CSRF protection.
 * Access token 1 h; refresh token 180 days sliding, rotating, reuse of an old token after the 10-minute retry window revokes the chain. Tokens are stored as SHA-256 hashes only. The owner's *current* grant is consulted on every call, so lowering a level or disconnecting an app is immediate.
 * Token endpoint is rate limited per client; failed bearer attempts are throttled per address.
 

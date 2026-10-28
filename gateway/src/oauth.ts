@@ -151,33 +151,54 @@ const requestedLevel = (scope: string): Level => {
   return minLevel(asked, 'live'); // admin is never pre-selected: the owner must choose it deliberately.
 };
 
-export function consentPage(app: App, params: AuthorizeParams, clientName: string, session: Session): Reply {
+const FA = {
+  title: 'به این برنامه اجازه می‌دهید سایت‌های وردپرس شما را مدیریت کند؟',
+  intro: 'برنامه‌ی زیر درخواست اتصال به gateway شما را داده است.',
+  app: 'نام برنامه (توسط خود برنامه اعلام شده و تأیید نشده است)',
+  after: 'پس از تأیید، نتیجه‌ی ورود به این آدرس فرستاده می‌شود',
+  warn: 'فقط اگر خودتان این اتصال را شروع کرده‌اید و آدرس بالا را می‌شناسید تأیید کنید.',
+  level: 'سطح دسترسی',
+  sites: 'سایت‌ها',
+  approve: 'تأیید',
+  deny: 'رد',
+  none: 'هنوز سایتی وصل نشده است. ابتدا در پنل مدیریت یک سایت اضافه کنید.',
+  levels: {
+    read: 'فقط خواندن داده‌ی منتشرشده و غیرحساس. بدون کاربران، سفارش‌ها، تنظیمات و پیش‌نویس‌ها.',
+    draft: 'همه‌ی read + پیش‌نویس و محتوای خصوصی، آپلود و نوشتن پیش‌نویس. چیزی عمومی نمی‌شود.',
+    live: 'همه‌ی draft + انتشار و ویرایش صفحات زنده، منو، CSS، سئو، ریدایرکت، محصولات و کش.',
+    admin: 'همه‌چیز: افزونه‌ها، به‌روزرسانی، کاربران، گزینه‌ها، دیتابیس، فایل‌های پوسته، بکاپ. عملیات مخرب باز هم تأیید می‌خواهد.',
+  } as Record<Level, string>,
+};
+
+export function consentPage(app: App, params: AuthorizeParams, clientName: string, session: Session, lang = 'en'): Reply {
+  const fa = lang === 'fa';
   const sites = app.store.sites();
   const wanted = requestedLevel(params.scope);
   const hidden = (['client_id', 'redirect_uri', 'response_type', 'code_challenge', 'code_challenge_method', 'state', 'scope'] as const).map((k) => `<input type="hidden" name="${k}" value="${esc(params[k])}">`).join('');
   const levels = LEVELS.map(
-    (l) => `<label class="radio"><input type="radio" name="level" value="${l}" ${l === wanted ? 'checked' : ''}> <b>${l}</b>: ${esc(LEVEL_HELP[l])}</label>`,
+    (l) => `<label class="radio"><input type="radio" name="level" value="${l}" ${l === wanted ? 'checked' : ''}> <b>${l}</b>: ${esc(fa ? FA.levels[l] : LEVEL_HELP[l])}</label>`,
   ).join('');
   const siteBoxes = sites.length
     ? sites.map((s) => `<label class="radio"><input type="checkbox" name="sites" value="${esc(s.name)}" checked> <b>${esc(s.name)}</b> <span class="muted">${esc(s.url)}</span></label>`).join('')
-    : '<p class="warn">No sites are connected yet. Add one in the admin panel first.</p>';
+    : `<p class="warn">${fa ? FA.none : 'No sites are connected yet. Add one in the admin panel first.'}</p>`;
   const body = `
-<h1>Allow this app to manage your WordPress sites?</h1>
-<p class="muted">The app below asked to connect to your WP MCP gateway.</p>
+<h1>${fa ? FA.title : 'Allow this app to manage your WordPress sites?'}</h1>
+<p class="muted">${fa ? FA.intro : 'The app below asked to connect to your WP MCP gateway.'}</p>
 <div class="card">
-  <div class="muted">App name (chosen by the app itself, not verified)</div><div><b>${esc(clientName)}</b></div>
-  <div class="muted" style="margin-top:10px">After you approve, the sign-in result is sent to</div>
+  <div class="muted">${fa ? FA.app : 'App name (chosen by the app itself, not verified)'}</div><div><b>${esc(clientName)}</b></div>
+  <div class="muted" style="margin-top:10px">${fa ? FA.after : 'After you approve, the sign-in result is sent to'}</div>
   <div class="domain">${esc(hostOf(params.redirect_uri))}</div>
   <div class="muted mono">${esc(params.redirect_uri)}</div>
 </div>
-<div class="warn">Only approve if you started this connection and recognise the address above.</div>
+<div class="warn">${fa ? FA.warn : 'Only approve if you started this connection and recognise the address above.'}</div>
 <form method="post" action="/authorize">
   ${hidden}<input type="hidden" name="_csrf" value="${esc(csrfToken(app, session))}">
-  <h2>Permission level</h2>${levels}
-  <h2>Sites</h2>${siteBoxes}
-  <div class="row" style="margin-top:18px"><button name="decision" value="approve">Approve</button><button class="secondary" name="decision" value="deny">Deny</button></div>
-</form>`;
-  return { status: 200, headers: securityHeaders(), html: page('Authorize app', body) };
+  <h2>${fa ? FA.level : 'Permission level'}</h2>${levels}
+  <h2>${fa ? FA.sites : 'Sites'}</h2>${siteBoxes}
+  <div class="row" style="margin-top:18px"><button name="decision" value="approve">${fa ? FA.approve : 'Approve'}</button><button class="secondary" name="decision" value="deny">${fa ? FA.deny : 'Deny'}</button></div>
+</form>
+<p class="muted"><a href="${esc(`/authorize?${new URLSearchParams({ ...Object.fromEntries(Object.entries(params)), prompt: 'consent', lang: fa ? 'en' : 'fa' })}`)}">${fa ? 'English' : 'فارسی'}</a></p>`;
+  return { status: 200, headers: securityHeaders(), html: page('Authorize app', body, '', lang) };
 }
 
 /** Issues a code for an already-approved grant, or null when the owner has to decide. */

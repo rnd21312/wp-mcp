@@ -59,7 +59,7 @@ CLI helpers (same data folder): `wp-mcp add-site <url> <code>`, `wp-mcp create-k
 
 Requirements: WordPress 6.2+, PHP 8.1+, the site reachable over HTTPS from the gateway.
 
-1. Zip the folder `plugin/wp-mcp-bridge`:
+1. Build the upload file with `node scripts/package-plugin.mjs` (creates `dist/wp-mcp-bridge.zip`, no zip tool needed), or zip the folder `plugin/wp-mcp-bridge` yourself:
    ```bash
    cd plugin && zip -r ../wp-mcp-bridge.zip wp-mcp-bridge
    ```

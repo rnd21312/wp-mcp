@@ -16,8 +16,8 @@ label{display:block;margin:10px 0 4px;font-weight:600}.muted{color:var(--muted)}
 .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.radio{display:block;font-weight:400;margin:6px 0}nav a{margin-right:14px}
 `;
 
-export function page(title: string, body: string, nav = ''): string {
-  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>${esc(title)}</title><style>${CSS}</style></head><body><main>${nav}${body}</main></body></html>`;
+export function page(title: string, body: string, nav = '', lang = 'en'): string {
+  return `<!doctype html><html lang="${lang}" dir="${lang === 'fa' ? 'rtl' : 'ltr'}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>${esc(title)}</title><style>${CSS}</style></head><body><main>${nav}${body}</main></body></html>`;
 }
 
 export const securityHeaders = (): Record<string, string> => ({
