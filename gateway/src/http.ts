@@ -152,7 +152,7 @@ async function route(app: App, req: http.IncomingMessage, res: http.ServerRespon
     let body: Record<string, any> = {};
     if (method === 'POST') {
       try {
-        body = JSON.parse((await readBody(req, SMALL_LIMIT)).toString('utf8') || '{}');
+        body = JSON.parse((await readBody(req, MCP_LIMIT)).toString('utf8') || '{}');
       } catch {
         return send(res, json(400, { error: 'bad_json' }));
       }

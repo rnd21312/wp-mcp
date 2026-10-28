@@ -43,7 +43,7 @@ final class Maintain {
                     $fn = $test['test'];
                     $r  = is_string( $fn ) && method_exists( $health, 'get_test_' . $fn ) ? $health->{'get_test_' . $fn}() : ( is_callable( $fn ) ? $fn() : null );
                     if ( is_array( $r ) && 'good' !== ( $r['status'] ?? '' ) ) {
-                        $tests[] = array( 'test' => $r['label'] ?? $test['label'], 'status' => $r['status'], 'detail' => wp_trim_words( wp_strip_all_tags( (string) ( $r['description'] ?? '' ) ), 40 ) );
+                        $tests[] = array( 'test' => wp_specialchars_decode( (string) ( $r['label'] ?? $test['label'] ), ENT_QUOTES ), 'status' => $r['status'], 'detail' => wp_specialchars_decode( wp_trim_words( wp_strip_all_tags( (string) ( $r['description'] ?? '' ) ), 40 ), ENT_QUOTES ) );
                     }
                 } catch ( \Throwable $e ) {
                     continue;

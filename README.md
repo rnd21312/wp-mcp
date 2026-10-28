@@ -49,11 +49,21 @@ Double-click `start-local.cmd` (or `node gateway/dist/index.js local`): the pane
 
 No password and no token: it only answers on this computer (loopback host, same-origin, custom header; see docs/security.md). Built with React, Tailwind and **shadcn/ui**, dark/light, RTL.
 
-* **Overview**: health of every site, quick actions (site health, SEO audit, updates, copy content), recent activity.
-* **Sites**: connect with a pairing code, per-site level ceilings, test, remove.
-* **Workbench**: run any tool action by hand from generated forms, as a chosen level, with previews, confirmations and results. Covers every task, including `site.transfer`.
-* **Connect AI**: copy buttons for Claude Code, Claude Desktop (stdio, no server needed), Cursor and remote clients, filled in for your install.
-* **Access** (API keys, OAuth apps) and **Activity**.
+A site switcher sits on top; everything below works on the selected site, for ordinary users and developers alike:
+
+* **Overview**: health of every site, quick actions, recent activity.
+* **Content**: pages, posts and custom types: list, search, filter, edit (title, slug, status, content, categories, tags, featured image, SEO snippet with live Google-style preview and rendered preview), publish, trash. Every change shows an **Undo** button.
+* **Media**: grid, multi-upload, alt text and title, delete.
+* **Shop** (WooCommerce): products with inline price and stock, edit, create.
+* **SEO**: per-page title/description/noindex/canonical, one-click page audit with score, robots.txt, sitemap, redirects.
+* **Design**: identity, color pickers and fonts (design tokens), menu builder, header/footer templates, named CSS sections.
+* **Maintenance**: health, updates (with backup first), database backups and restore, cache, maintenance mode, database cleanup, error log.
+* **Plugins**: switch on/off, update, delete, search WordPress.org and install.
+* **Copy between sites**: wizard with progress, drafts by default.
+* **Developer**: theme file editor (syntax-checked, auto-revert), REST API explorer, and the **Workbench** for every raw action.
+* **Sites**, **Connect AI** (copy buttons for Claude Code, Claude Desktop, Cursor, remote), **Access** (API keys, OAuth apps), **Activity**.
+
+Destructive steps open a confirmation dialog with the preview first.
 
 First time: `npm run setup` (installs and builds server and panel), then `start-local.cmd` or `npm run local`.
 
