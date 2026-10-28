@@ -72,12 +72,14 @@ export interface ProjectInfo {
   publish: string;
   last_deploy: number;
   last_release: string;
+  framework: string;
+  has_build: boolean;
 }
 
 export interface Studio {
   hosts: HostInfo[];
   projects: ProjectInfo[];
-  templates: { id: string; label: string }[];
+  templates: { id: string; label: string; build: boolean; note: string }[];
 }
 
 async function call<T>(path: string, body?: unknown): Promise<T> {

@@ -1,13 +1,15 @@
 import { AgentError, type RemoteSite, type Release } from './agentclient.ts';
 import type { App, Reply } from './context.ts';
 import { addHost, buildAgentZip, hostView, needHost, testHost } from './hosts.ts';
+import { buildStatus, hasBuildScript, startBuild } from './build.ts';
 import * as projects from './projects.ts';
+import { FRAMEWORKS } from './templates.ts';
 import { createWordPress, type DbSpec } from './wordpress.ts';
 import { ProjectError } from './projects.ts';
 
 const json = (status: number, body: unknown): Reply => ({ status, json: body, headers: { 'cache-control': 'no-store' } });
 
-const projectView = (p: ReturnType<App['store']['projects']>[number]) => ({ name: p.name, kind: p.kind, host: p.host, site: p.site, publish: p.publish, last_deploy: p.last_deploy, last_release: p.last_release });
+const projectView = (app: App, p: ReturnType<App['store']['projects']>[number]) => ({ name: p.name, kind: p.kind, host: p.host, site: p.site, publish: p.publish, last_deploy: p.last_deploy, last_release: p.last_release, framework: projects.projectFramework(app, p.name), has_build: hasBuildScript(projects.projectDir(app, p.name)) });
 
 /**
  * Studio v2 endpoints of the local panel: Host Agents (connect, sites, releases, rollback) and projects (files, deploy).
@@ -16,7 +18,7 @@ const projectView = (p: ReturnType<App['store']['projects']>[number]) => ({ name
 export async function studioApi(app: App, method: string, route: string, body: Record<string, any>): Promise<Reply | null> {
   try {
     if (method === 'GET' && route === 'studio') {
-      return json(200, { hosts: app.store.hosts().map(hostView), projects: app.store.projects().map(projectView), templates: Object.entries(projects.TEMPLATES).map(([id, t]) => ({ id, label: t.label })) });
+      return json(200, { hosts: app.store.hosts().map(hostView), projects: app.store.projects().map((p) => projectView(app, p)), templates: [...Object.entries(projects.TEMPLATES).map(([id, t]) => ({ id, label: t.label, build: false, note: '' })), ...Object.entries(FRAMEWORKS).map(([id, t]) => ({ id, label: t.label, build: true, note: t.note }))] });
     }
     if (method !== 'POST') return null;
     const str = (key: string): string => String(body[key] ?? '');
@@ -65,7 +67,13 @@ export async function studioApi(app: App, method: string, route: string, body: R
         return json(200, { ok: true, site: { name: r.site.name, url: r.site.url }, url: r.url, admin_user: r.admin_user, admin_password: r.admin_password, wp_version: r.wp_version });
       }
       case 'projects/create':
-        return json(200, { ok: true, project: projectView(projects.createProject(app, { name: str('name'), kind: str('kind') || 'static', template: str('template') || 'landing', title: str('title'), rtl: !!body.rtl })) });
+        return json(200, { ok: true, project: projectView(app, projects.createProject(app, { name: str('name'), kind: str('kind') || 'static', template: str('template') || 'landing', title: str('title'), rtl: !!body.rtl })) });
+      case 'projects/build': {
+        const job = startBuild(app, str('project'));
+        return json(200, { ok: true, job });
+      }
+      case 'projects/build-status':
+        return json(200, { ok: true, job: buildStatus(str('project')) });
       case 'projects/remove':
         projects.removeProject(app, str('name'), !!body.delete_files);
         return json(200, { ok: true });

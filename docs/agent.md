@@ -70,6 +70,12 @@ Panel tokens and database passwords travel once over the signed channel and are 
 
 Not done yet: Plesk API, SQLite for WordPress, installing MySQL on a bare VPS (an approved, allow-listed path is planned for M4), and `localhost`-less setups where the web installer cannot be reached from your computer (you are told to open `wp-admin/install.php` yourself; files and database are ready).
 
+## Frameworks and local builds (M3)
+
+**Projects → New project** offers templates for React, Vue and Svelte (Vite), Astro and Next.js (static export), next to plain HTML. Nothing is installed at creation. **Build now** runs `npm install` and `npm run build` in the project folder on your computer (Node.js required; the Studio finds npm next to its own Node, no shell involved), shows the live log, and checks that the output has an `index.html`. **Publish** then sends only the output folder (`dist/` or `out/`) as a release. All five templates were built for real with npm while developing.
+
+Notes: Vite templates use relative asset paths, so they work in a sub-folder. Astro needs `base` and Next needs `basePath` for a sub-folder. Next.js is static export only; server rendering arrives with Node targets in M4. The only commands the Studio ever runs are those two npm calls, started by a click; the project's own scripts and dependencies do execute during a build, so build only projects you trust.
+
 ## Status
 
 Milestone M1 (this document): installer, auth, signed API, chunked upload, releases, atomic switch, rollback, static and SPA deploy. Symlink mode is covered by unit tests only on hosts that allow symlinks (not on the Windows development machine); sync mode is covered end to end. Next: WordPress provisioning (database creation through cPanel/DirectAdmin/Plesk APIs or the agent itself), see [v2-plan.md](v2-plan.md).

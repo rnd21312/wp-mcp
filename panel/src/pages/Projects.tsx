@@ -1,4 +1,4 @@
-import { FilePlusIcon, FolderPlusIcon, RocketIcon, SaveIcon, Trash2Icon } from 'lucide-react';
+import { FilePlusIcon, FolderPlusIcon, HammerIcon, RocketIcon, SaveIcon, Trash2Icon } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { Empty, PageTitle, Pick } from '@/components/bits';
@@ -25,6 +25,27 @@ function Workspace({ project, hosts, onDeployed }: { project: ProjectInfo; hosts
   const [folder, setFolder] = useState(project.name);
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
+  const [job, setJob] = useState<{ status: string; step: string; log: string; error: string; output: { dir: string; files: number } | null } | null>(null);
+
+  useEffect(() => {
+    // pick up a build that is already running (or just finished) when the project is opened
+    void api.post<any>('projects/build-status', { project: project.name }).then((r) => r.ok && r.job && setJob(r.job));
+  }, [project.name]);
+
+  useEffect(() => {
+    if (job?.status !== 'running') return;
+    const id = setInterval(async () => {
+      const r = await api.post<any>('projects/build-status', { project: project.name });
+      if (r.ok && r.job) setJob(r.job);
+    }, 1000);
+    return () => clearInterval(id);
+  }, [job?.status, project.name]);
+
+  const build = async (): Promise<void> => {
+    if (dirty) await save();
+    const r = await api.post<any>('projects/build', { project: project.name });
+    r.ok ? setJob(r.job) : toast.error(r.error?.message ?? 'error');
+  };
 
   const load = useCallback(async () => {
     const r = await api.post<{ ok: boolean; files: FileInfo[] }>('projects/files', { project: project.name });
@@ -99,6 +120,21 @@ function Workspace({ project, hosts, onDeployed }: { project: ProjectInfo; hosts
           </>
         ) : <Empty>{t('Choose a file to edit.', 'یک فایل برای ویرایش انتخاب کنید.')}</Empty>}
 
+        {project.has_build && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2"><HammerIcon className="size-4" /> {t('Build', 'ساخت (Build)')}</CardTitle>
+              <CardDescription>{t('Runs npm install and npm run build on this computer (needs Node.js). Scripts in the project itself run, so only build projects you trust.', 'روی همین کامپیوتر npm install و npm run build را اجرا می‌کند (نیازمند Node.js). اسکریپت‌های خود پروژه اجرا می‌شوند؛ فقط پروژه‌های مورد اعتماد را بسازید.')}</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <Button variant="outline" disabled={job?.status === 'running'} onClick={build}><HammerIcon /> {job?.status === 'running' ? (job.step === 'install' ? t('Installing packages…', 'نصب بسته‌ها…') : t('Building…', 'در حال ساخت…')) : t('Build now', 'همین حالا بساز')}</Button>
+              {job && job.status === 'ok' && <p className="text-sm text-green-600">{t(`Built: ${job.output?.files} files in ${job.output?.dir}/. Publish below.`, `ساخته شد: ${job.output?.files} فایل در ${job.output?.dir}/. پایین منتشر کنید.`)}</p>}
+              {job && job.status === 'failed' && <p className="text-sm text-destructive">{job.error}</p>}
+              {job && job.log && <pre dir="ltr" className="max-h-64 overflow-auto rounded-lg bg-muted p-3 text-xs whitespace-pre-wrap">{job.log}</pre>}
+            </CardContent>
+          </Card>
+        )}
+
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2"><RocketIcon className="size-4" /> {t('Publish', 'انتشار')}</CardTitle>
@@ -129,6 +165,7 @@ export function Projects() {
 
   if (!data) return <Loading />;
   const project = data.projects.find((p) => p.name === selected);
+  const tpl = data.templates.find((x) => x.id === form.template);
 
   const create = async (): Promise<void> => {
     const r = await api.post('projects/create', form);
@@ -166,14 +203,14 @@ export function Projects() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{t('New project', 'پروژه‌ی جدید')}</DialogTitle>
-            <DialogDescription>{t('React, Vue, Next and other builders arrive in the next milestone; for now publish plain HTML/CSS/JS or the build folder of any tool.', 'React، Vue، Next و ... در مرحله‌ی بعد می‌آیند؛ فعلاً HTML/CSS/JS ساده یا خروجی ساخت هر ابزار را منتشر کنید.')}</DialogDescription>
+            <DialogDescription>{t('Plain HTML, or a framework project that is built on this computer and published as static files.', 'HTML ساده، یا پروژه‌ی فریم‌ورک که روی همین کامپیوتر ساخته و به‌صورت فایل ایستا منتشر می‌شود.')}</DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
             <Field label={t('Name', 'نام')} hint="a-z 0-9 -"><Input dir="ltr" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></Field>
             <Field label={t('Title shown on the page', 'عنوان صفحه')}><Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} /></Field>
             <div className="grid grid-cols-2 gap-3">
-              <Field label={t('Type', 'نوع')}><Pick value={form.kind} onChange={(kind) => setForm({ ...form, kind })} options={[{ value: 'static', label: t('Static site', 'سایت ایستا') }, { value: 'spa', label: 'SPA (React/Vue/…)' }]} /></Field>
-              <Field label={t('Template', 'قالب')}><Pick value={form.template} onChange={(template) => setForm({ ...form, template })} options={data.templates.map((x) => ({ value: x.id, label: x.label }))} /></Field>
+              <Field label={t('Template', 'قالب')}><Pick value={form.template} onChange={(template) => setForm({ ...form, template })} options={data.templates.map((x) => ({ value: x.id, label: x.label + (x.build ? ' ⚙' : '') }))} /></Field>
+              <Field label={t('Type', 'نوع')}>{tpl?.build ? <p className="pt-2 text-xs text-muted-foreground">{tpl.note}</p> : <Pick value={form.kind} onChange={(kind) => setForm({ ...form, kind })} options={[{ value: 'static', label: t('Static site', 'سایت ایستا') }, { value: 'spa', label: 'SPA (React/Vue/…)' }]} />}</Field>
             </div>
             <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.rtl} onChange={(e) => setForm({ ...form, rtl: e.target.checked })} /> {t('Right-to-left (Persian, Arabic)', 'راست‌به‌چپ (فارسی، عربی)')}</label>
           </div>

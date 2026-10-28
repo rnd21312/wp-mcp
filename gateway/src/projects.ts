@@ -4,12 +4,22 @@ import { AgentError, type Release } from './agentclient.ts';
 import type { App } from './context.ts';
 import { needHost } from './hosts.ts';
 import type { ProjectRow } from './store.ts';
+import { FRAMEWORKS } from './templates.ts';
 import { zipDirectory } from './zip.ts';
 
 export const PROJECT_NAME = /^[a-z0-9][a-z0-9-]{1,39}$/;
 export const PROJECT_KINDS = ['static', 'spa'] as const;
 export type ProjectKind = (typeof PROJECT_KINDS)[number];
 const TEXT_LIMIT = 2 * 1024 * 1024;
+const META = '.wpm-project.json';
+
+export const projectFramework = (app: App, name: string): string => {
+  try {
+    return String((JSON.parse(readFileSync(join(projectDir(app, name), META), 'utf8')) as { framework?: string }).framework ?? '');
+  } catch {
+    return '';
+  }
+};
 
 export const projectDir = (app: App, name: string): string => join(app.config.dataDir, 'projects', name);
 
@@ -97,14 +107,21 @@ export function createProject(app: App, input: { name: string; kind?: string; te
   const name = input.name.trim().toLowerCase();
   if (!PROJECT_NAME.test(name)) throw new ProjectError('bad_name', 'Project names are 2-40 characters: a-z, 0-9 and dash.');
   if (app.store.project(name)) throw new ProjectError('name_taken', `A project named "${name}" already exists.`);
-  const kind = (input.kind ?? 'static') as ProjectKind;
-  if (!PROJECT_KINDS.includes(kind)) throw new ProjectError('bad_kind', `Project type must be one of: ${PROJECT_KINDS.join(', ')}.`);
-  const template = TEMPLATES[input.template ?? 'landing'];
+  const wanted = input.template ?? 'landing';
+  const framework = FRAMEWORKS[wanted];
+  const template = framework ?? TEMPLATES[wanted];
   if (!template) throw new ProjectError('bad_template', 'Unknown template.');
+  const kind = (framework ? framework.kind : input.kind ?? 'static') as ProjectKind;
+  if (!PROJECT_KINDS.includes(kind)) throw new ProjectError('bad_kind', `Project type must be one of: ${PROJECT_KINDS.join(', ')}.`);
   const dir = projectDir(app, name);
   mkdirSync(dir, { recursive: true });
-  for (const [file, content] of Object.entries(template.files(input.title?.trim() || name, !!input.rtl))) writeFileSync(join(dir, file), content);
-  app.store.addProject({ name, kind, publish: '.' });
+  for (const [file, content] of Object.entries(template.files(input.title?.trim() || name, !!input.rtl))) {
+    const target = join(dir, file);
+    mkdirSync(dirname(target), { recursive: true });
+    writeFileSync(target, content);
+  }
+  if (framework) writeFileSync(join(dir, META), JSON.stringify({ framework: framework.framework, kind, publish: framework.publish }, null, 2));
+  app.store.addProject({ name, kind, publish: framework ? framework.publish : '.' });
 
   return app.store.project(name)!;
 }
