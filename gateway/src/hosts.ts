@@ -136,8 +136,8 @@ const AGENT_README = `WPM Host Agent
 1. Upload this folder (wpm-agent) to your hosting, next to your site files (for example inside public_html).
    Easiest: upload wpm-agent.zip in your hosting file manager and click Extract.
 2. Open https://YOUR-DOMAIN/wpm-agent/ in a browser.
-3. Enter the setup code from the Studio, choose a username and a strong password. Done.
-4. In the agent panel press "Make a pairing code" and enter it in the Studio (Hosts page).
+3. Enter the setup code from the Studio (only that). Every new zip has its own code; uploading a new zip over an old agent starts setup again.
+4. The agent shows its address and a one-time connection code. Enter both in the Studio (Hosts page → Connect a host).
 
 Needs PHP 8.1 or newer. Use HTTPS. The agent never runs shell commands and only writes inside the folders you let it manage.
 Open source (MIT).

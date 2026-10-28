@@ -186,8 +186,8 @@ export function Hosts() {
           <p className="font-medium">{t('Start here', 'از اینجا شروع کنید')}</p>
           <ol className="mx-auto mt-2 max-w-md list-decimal space-y-1 text-start text-sm ps-5">
             <li>{t('Press “Download agent” and upload the zip to your host (File Manager → Upload → Extract).', 'روی «دانلود ایجنت» بزنید و زیپ را روی هاست آپلود کنید (فایل‌منیجر ← آپلود ← Extract).')}</li>
-            <li>{t('Open the agent address in your browser, enter the setup code, choose a username and password.', 'نشانی ایجنت را در مرورگر باز کنید، کد نصب را بزنید و نام کاربری و گذرواژه بسازید.')}</li>
-            <li>{t('In the agent press “Make a pairing code”, then “Connect a host” here.', 'در ایجنت «ساخت کد اتصال» را بزنید، سپس اینجا «اتصال هاست».')}</li>
+            <li>{t('Open the agent address in your browser and enter the setup code (nothing else). Every new zip has its own code.', 'نشانی ایجنت را در مرورگر باز کنید و فقط کد نصب را بزنید (چیز دیگری لازم نیست). هر زیپ جدید کد خودش را دارد.')}</li>
+            <li>{t('The agent shows its address and a one-time connection code. Enter both under “Connect a host” here.', 'ایجنت نشانی خودش و یک کد اتصال یک‌بارمصرف نشان می‌دهد. هر دو را اینجا در «اتصال هاست» وارد کنید.')}</li>
           </ol>
         </Empty>
       ) : (

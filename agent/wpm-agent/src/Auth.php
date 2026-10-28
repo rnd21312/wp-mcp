@@ -117,6 +117,72 @@ final class Auth
         return null;
     }
 
+    /**
+     * True on a fresh agent, and also on an installed one when a zip with a NEW setup code was uploaded over it
+     * (only someone who can write files on the host can do that, so it counts as proof of ownership).
+     */
+    public function setupPending(): bool
+    {
+        if (!$this->agent->installed()) {
+            return true;
+        }
+        $file = $this->agent->agentDir . '/wpm-setup.php';
+        if (!is_file($file)) {
+            return false;
+        }
+        $v = include $file;
+        if (!is_string($v) || strlen($v) < 12) {
+            return false;
+        }
+
+        return !hash_equals((string) ($this->agent->config()['setup_used'] ?? ''), hash('sha256', $v));
+    }
+
+    /**
+     * One-field setup: the setup code alone. Creates the agent (no password to remember, the Studio is the way in),
+     * drops every old session and connection when it replaces an earlier install, and returns a one-time pairing code.
+     *
+     * @return array{error:?string,code?:string,expires?:int}
+     */
+    public function quickInstall(Request $req, string $token, bool $allowHttp): array
+    {
+        $key = 'setup:' . $req->ip();
+        if (Security::lockedFor($this->agent->store, $key) > 0) {
+            return ['error' => 'locked'];
+        }
+        if (!$this->setupPending()) {
+            return ['error' => 'already_installed'];
+        }
+        $expected = $this->setupToken();
+        if (!hash_equals($expected, strtoupper(trim($token)))) {
+            Security::fail($this->agent->store, $key);
+            return ['error' => 'bad_setup_code'];
+        }
+        if (!$req->isSecure() && !$req->isLoopback() && !$allowHttp) {
+            return ['error' => 'https_required'];
+        }
+        $used = hash('sha256', $expected);
+        $allow = $allowHttp && !$req->isSecure();
+        $this->agent->store->update('config', static function (array $c) use ($used, $allow) {
+            $base = ['version' => 1, 'roots' => [], 'keep_releases' => 5, 'max_upload_mb' => 256];
+
+            return array_merge($base, $c, [
+                'installed_at' => Util::now(), 'allow_http' => $allow, 'setup_used' => $used,
+                'admin' => ['user' => 'studio', 'hash' => self::hash(Util::random(24)), 'totp' => null, 'last_totp_step' => 0],
+            ]);
+        });
+        foreach (['sessions', 'connections', 'pairing'] as $name) {
+            $this->agent->store->write($name, []);
+        }
+        $this->agent->setConfig($this->agent->store->read('config'));
+        @unlink($this->agent->agentDir . '/wpm-setup.php');
+        @unlink($this->agent->store->path('setup'));
+        $this->agent->audit('studio', 'setup', 'agent installed', $req->ip());
+        $p = $this->createPairing('admin', 'setup', 1800);
+
+        return ['error' => null, 'code' => $p['code'], 'expires' => $p['expires']];
+    }
+
     // ---- login / sessions ---------------------------------------------------------------------------------------
 
     /** @return array{error:?string,cookie:?string,stage:?string,wait:int} */
@@ -289,20 +355,20 @@ final class Auth
     // ---- connections (Studio) -----------------------------------------------------------------------------------
 
     /** One-time pairing code, valid ten minutes. */
-    public function createPairing(string $level, string $actor): array
+    public function createPairing(string $level, string $actor, int $ttl = 600): array
     {
         if (!isset(self::LEVELS[$level])) {
             $level = 'admin';
         }
         $code = Util::friendlyCode('WPMA');
-        $this->agent->store->update('pairing', static function (array $all) use ($code, $level) {
+        $this->agent->store->update('pairing', static function (array $all) use ($code, $level, $ttl) {
             $all = array_values(array_filter($all, static fn ($r) => $r['expires'] > Util::now()));
-            $all[] = ['hash' => hash('sha256', $code), 'level' => $level, 'expires' => Util::now() + 600];
+            $all[] = ['hash' => hash('sha256', $code), 'level' => $level, 'expires' => Util::now() + $ttl];
             return $all;
         });
         $this->agent->audit($actor, 'pairing.code', 'level ' . $level);
 
-        return ['code' => $code, 'expires' => Util::now() + 600, 'level' => $level];
+        return ['code' => $code, 'expires' => Util::now() + $ttl, 'level' => $level];
     }
 
     /** @return array{key_id:string,secret:string,level:string} */

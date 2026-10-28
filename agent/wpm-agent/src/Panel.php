@@ -32,6 +32,9 @@ final class Panel
         'No releases yet.' => 'هنوز نسخه‌ای منتشر نشده.', 'No sites yet. Create the first one.' => 'هنوز سایتی نیست. اولین را بسازید.', 'Open site' => 'باز کردن سایت', 'Studio connected sites can also be created from the Studio.' => 'سایت را از خود Studio هم می‌توان ساخت.',
         'Setup finished. Enable two-factor authentication on the Security page.' => 'نصب تمام شد. تأیید دو مرحله‌ای را در صفحه‌ی امنیت فعال کنید.', 'Session expired. Sign in again.' => 'نشست منقضی شد. دوباره وارد شوید.',
         'New WordPress site' => 'سایت وردپرس جدید',
+        'Continue' => 'ادامه', 'Agent ready' => 'ایجنت آماده است', 'Address' => 'نشانی', 'Connection code' => 'کد اتصال',
+        'Open the Studio → Hosts → Connect a host and enter these two values. The code works once and for 30 minutes.' => 'در Studio به هاست‌ها ← اتصال هاست بروید و این دو مقدار را وارد کنید. کد فقط یک بار و ۳۰ دقیقه معتبر است.',
+        'Do not refresh this page: the code is not shown again. If it expires, upload a new agent zip from the Studio.' => 'این صفحه را رفرش نکنید: کد دوباره نمایش داده نمی‌شود. اگر منقضی شد، زیپ جدید ایجنت را از Studio بگیرید و آپلود کنید.',
         'Site name' => 'نام سایت',
         'Folder (default: site name)' => 'پوشه (پیش‌فرض: نام سایت)',
         'Database' => 'دیتابیس',
@@ -84,7 +87,7 @@ final class Panel
         $route = $req->route;
         $res = null;
         try {
-            if (!$this->agent->installed()) {
+            if ($this->auth->setupPending()) {
                 $res = $route === '/setup' ? $this->setup($req) : Response::redirect($this->url($req, '/setup'));
             } else {
                 $res = $this->routed($req, $route);
@@ -194,14 +197,23 @@ final class Panel
     {
         $error = '';
         if ($req->method === 'POST') {
-            $err = $this->auth->install($req, $req->post('username'), $req->post('password'), $req->post('confirm'), $req->post('setup_code'), $req->post('allow_http') === '1');
-            if ($err === null) {
-                $login = $this->auth->login($req, $req->post('username'), $req->post('password'));
-                $res = Response::redirect($this->url($req, '/', ['welcome' => '1']));
-                if ($login['cookie']) {
-                    $res->cookies[] = $login['cookie'];
+            if ($req->post('username') !== '' && !$this->agent->installed()) {
+                // Optional, for people who want a panel login of their own: not on the form, accepted when posted.
+                $err = $this->auth->install($req, $req->post('username'), $req->post('password'), $req->post('confirm'), $req->post('setup_code'), $req->post('allow_http') === '1');
+                if ($err === null) {
+                    $login = $this->auth->login($req, $req->post('username'), $req->post('password'));
+                    $res = Response::redirect($this->url($req, '/', ['welcome' => '1']));
+                    if ($login['cookie']) {
+                        $res->cookies[] = $login['cookie'];
+                    }
+                    return $res;
                 }
-                return $res;
+            } else {
+                $done = $this->auth->quickInstall($req, $req->post('setup_code'), $req->post('allow_http') === '1');
+                if ($done['error'] === null) {
+                    return $this->setupDone($req, $done['code']);
+                }
+                $err = $done['error'];
             }
             $error = match ($err) {
                 'bad_setup_code' => $this->t('The setup code is wrong.'),
@@ -228,11 +240,25 @@ final class Panel
             . '<div class="card"><form method="post" action="' . $this->url($req, '/setup') . '">'
             . $this->field('Setup code', 'setup_code', 'text', '', 'autocomplete="off" required style="direction:ltr"')
             . '<p class="warn msg"><b>' . $this->e($this->t('Where is the setup code?')) . '</b><br>' . $this->e($this->t('If you downloaded the agent from the Studio, the code is shown there. Otherwise open this file in your host file manager:')) . '<br><code>' . $this->e($this->auth->setupTokenPath()) . '</code></p>'
-            . $this->field('Username', 'username', 'text', '', 'autocomplete="username" required style="direction:ltr"')
-            . $this->field('Password', 'password', 'password', '', 'autocomplete="new-password" required minlength="10"')
-            . $this->field('Repeat password', 'confirm', 'password', '', 'autocomplete="new-password" required minlength="10"')
             . ($insecure ? '<label><input type="checkbox" name="allow_http" value="1"> ' . $this->e($this->t('I understand this connection is not encrypted and I accept the risk')) . '</label>' : '')
-            . '<button' . ($blocked ? ' disabled' : '') . '>' . $this->e($this->t('Create account')) . '</button></form></div>';
+            . '<button' . ($blocked ? ' disabled' : '') . '>' . $this->e($this->t('Continue')) . '</button></form></div>';
+
+        return Response::html($this->layout($req, 'Setup', $body, null));
+    }
+
+    private function agentBase(Request $req): string
+    {
+        return ($req->isSecure() ? 'https' : 'http') . '://' . $req->host() . rtrim(str_replace('\\', '/', dirname($req->server['SCRIPT_NAME'] ?? '/index.php')), '/') . '/';
+    }
+
+    /** Shown once, straight after setup: the two things the Studio asks for. */
+    private function setupDone(Request $req, string $code): Response
+    {
+        $body = '<h1>' . $this->e($this->t('Agent ready')) . '</h1><div class="card">'
+            . '<p>' . $this->e($this->t('Open the Studio → Hosts → Connect a host and enter these two values. The code works once and for 30 minutes.')) . '</p>'
+            . '<p>' . $this->e($this->t('Address')) . '</p><p><code class="big" style="direction:ltr;display:block">' . $this->e($this->agentBase($req)) . '</code></p>'
+            . '<p>' . $this->e($this->t('Connection code')) . '</p><p><code class="big" style="direction:ltr;display:block">' . $this->e($code) . '</code></p>'
+            . '<p class="warn msg">' . $this->e($this->t('Do not refresh this page: the code is not shown again. If it expires, upload a new agent zip from the Studio.')) . '</p></div>';
 
         return Response::html($this->layout($req, 'Setup', $body, null));
     }
@@ -486,8 +512,7 @@ final class Panel
     private function connect(Request $req, array $session): Response
     {
         $p = $this->auth->createPairing($req->post('level', 'admin'), (string) $session['user']);
-        $scheme = $req->isSecure() ? 'https' : 'http';
-        $base = $scheme . '://' . $req->host() . rtrim(str_replace('\\', '/', dirname($req->server['SCRIPT_NAME'] ?? '/index.php')), '/') . '/';
+        $base = $this->agentBase($req);
         $html = $this->e($this->t('Pairing code (valid 10 minutes). Enter it in the Studio together with this address:')) . '<br><br><code class="big">' . $this->e($p['code']) . '</code><br><br><code>' . $this->e($base) . '</code>';
 
         return $this->dashboard($req, $session, $html);

@@ -232,6 +232,33 @@ section('store + guard', function () {
     same($s->read('missing', ['d' => 1]), ['d' => 1], 'default');
 });
 
+section('one-field setup, and a new zip over an installed agent', function () {
+    [$agent] = newAgent();
+    $auth = new Auth($agent);
+    $zipCode = 'WPMS-AAAA-BBBB-CCCC-DDDD';
+    $writeCode = static fn (string $c) => file_put_contents($agent->agentDir . '/wpm-setup.php', "<?php\ndefined('WPM_AGENT') || exit;\nreturn '" . $c . "';\n");
+    $writeCode($zipCode);
+    check($auth->setupPending(), 'fresh agent waits for setup');
+    same($auth->quickInstall(req('POST', '/setup'), 'WRONG', false)['error'], 'bad_setup_code', 'wrong code');
+    same($auth->quickInstall(req('POST', '/setup', '', [], ['HTTPS' => '']), $zipCode, false)['error'], 'https_required', 'http refused');
+    $done = $auth->quickInstall(req('POST', '/setup'), strtolower($zipCode), false);
+    same($done['error'], null, 'code alone installs');
+    check(str_starts_with($done['code'], 'WPMA-'), 'a one-time connection code is returned');
+    check($agent->installed() && !$auth->setupPending(), 'installed, nothing pending, code file consumed');
+    same($auth->quickInstall(req('POST', '/setup'), $zipCode, false)['error'], 'already_installed', 'the same code cannot be reused');
+    $paired = $auth->pair(req('POST', '/pair'), $done['code'], 'Studio');
+    check($paired['key_id'] !== '', 'the Studio pairs with that code');
+    throwsCode(fn () => $auth->pair(req('POST', '/pair'), $done['code'], 'Studio'), 'bad_code', 'the connection code works once');
+
+    $writeCode($zipCode);
+    check(!$auth->setupPending(), 'the already-used code in a re-uploaded zip is ignored');
+    $writeCode('WPMS-EEEE-FFFF-GGGG-HHHH');
+    check($auth->setupPending(), 'a zip with a new code starts setup again');
+    $again = $auth->quickInstall(req('POST', '/setup'), 'WPMS-EEEE-FFFF-GGGG-HHHH', false);
+    same($again['error'], null, 'setup runs again');
+    check($auth->connection($paired['key_id']) === null, 'old connections are dropped');
+});
+
 section('setup, login, lockout, 2FA', function () {
     [$agent] = newAgent();
     $auth = new Auth($agent);
