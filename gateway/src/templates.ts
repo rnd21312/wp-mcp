@@ -7,12 +7,16 @@ export interface FrameworkTemplate {
   label: string;
   framework: string;
   /** Site type on the host. */
-  kind: 'static' | 'spa';
+  kind: 'static' | 'spa' | 'node';
   /** Folder that goes live after the build. */
   publish: string;
   note: string;
+  /** Node apps: the file the host starts. */
+  startup?: string;
   files: (title: string, rtl: boolean) => Record<string, string>;
 }
+
+import { NODE_TEMPLATES } from './templates-node.ts';
 
 const json = (v: unknown): string => JSON.stringify(v, null, 2) + '\n';
 const esc = (s: string): string => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
@@ -43,6 +47,7 @@ const viteIndex = (title: string, rtl: boolean, entry: string): string => `<!doc
 const viteConfig = (import_: string, plugin: string): string => `import { defineConfig } from 'vite';\n${import_}\n\nexport default defineConfig({ base: './', plugins: [${plugin}] });\n`;
 
 export const FRAMEWORKS: Record<string, FrameworkTemplate> = {
+  ...NODE_TEMPLATES,
   'vite-react': {
     label: 'React (Vite)',
     framework: 'vite-react',

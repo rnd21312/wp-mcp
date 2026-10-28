@@ -52,6 +52,8 @@ export function createZip(entries: ZipEntry[]): Buffer {
 }
 
 const SKIP_DIRS = new Set(['node_modules', '.git', '.svn', '.hg', '.idea', '.vscode', '.next', '.nuxt', '.cache', '.turbo']);
+/** A Node app ships its dependencies and build folders (.next/static); only repository and editor folders stay out. */
+const SKIP_DIRS_NODE = new Set(['.git', '.svn', '.hg', '.idea', '.vscode']);
 const SKIP_FILES = /^(\.DS_Store|Thumbs\.db|desktop\.ini|\.env(\..*)?|\.wpm-project\.json)$/i;
 
 export interface DirZip {
@@ -61,7 +63,8 @@ export interface DirZip {
 }
 
 /** Zips a folder's contents (not the folder itself). Links, junk and secrets are left out. */
-export function zipDirectory(dir: string, limits = { files: 20000, bytes: 400 * 1024 * 1024 }): DirZip {
+export function zipDirectory(dir: string, limits = { files: 20000, bytes: 400 * 1024 * 1024 }, opts: { node?: boolean } = {}): DirZip {
+  const skip = opts.node ? SKIP_DIRS_NODE : SKIP_DIRS;
   const entries: ZipEntry[] = [];
   let bytes = 0;
   const walk = (current: string): void => {
@@ -70,7 +73,7 @@ export function zipDirectory(dir: string, limits = { files: 20000, bytes: 400 * 
       const info = lstatSync(full);
       if (info.isSymbolicLink()) continue;
       if (info.isDirectory()) {
-        if (!SKIP_DIRS.has(name)) walk(full);
+        if (!skip.has(name)) walk(full);
         continue;
       }
       if (!info.isFile() || SKIP_FILES.test(name)) continue;

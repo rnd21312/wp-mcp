@@ -252,6 +252,36 @@ describe.skipIf(!hasPhp)('Host Agent end to end (php -S)', () => {
     expect(sites.sites.map((s: any) => s.id).sort()).toEqual(['big', 'demo']);
   });
 
+  it('deploys a Node.js app outside the web root with env, Passenger config and a server script', async () => {
+    mkdirSync(join(root, 'nodeapps'), { recursive: true });
+    await studio('projects/create', { name: 'api', template: 'node-http', title: 'My API' });
+    const done = await studio('projects/deploy', { project: 'api', host: 'mine', folder: 'api', node: { app_root: join(root, 'nodeapps'), docroot: 'api-public', port: 24123, env: { GREETING: 'salam "dost"' } } });
+    expect(done.error ?? done.ok).toBe(true);
+    const appDir = join(root, 'nodeapps', 'api');
+    expect(readFileSync(join(appDir, 'server.js'), 'utf8')).toContain('createServer');
+    expect(existsSync(join(appDir, 'tmp', 'restart.txt'))).toBe(true);
+    const ht = readFileSync(join(web, 'api-public', '.htaccess'), 'utf8');
+    expect(ht).toContain('PassengerAppType node');
+    expect(ht).toContain(`PassengerAppRoot "${appDir.replace(/\\/g, '/')}"`);
+    expect(ht).toContain('SetEnv GREETING "salam \\"dost\\""');
+    const envFile = readFileSync(join(root, 'wpm-agent-data', 'sites', 'api', 'env'), 'utf8');
+    expect(envFile).toContain('GREETING="salam \\"dost\\""');
+    expect(existsSync(join(web, 'api'))).toBe(false); // the source is not under the web root
+    const forbidden = await studio('hosts/env', { host: 'mine', site: 'api', env: { NODE_OPTIONS: '--require /tmp/x.js' } });
+    expect(forbidden.ok).toBe(false);
+    expect(forbidden.error.code).toBe('env_forbidden');
+    const script = await studio('hosts/node-script', { host: 'mine', site: 'api', domain: 'api.example.com', user: 'appuser' });
+    if (process.platform === 'win32') {
+      expect(script.error.code).toBe('bad_path'); // Windows paths cannot go into a Linux script; refused rather than mangled
+    } else {
+      expect(script.error ?? script.ok).toBe(true);
+      expect(script.script).toContain('proxy_pass http://127.0.0.1:24123;');
+      expect(script.script).toContain('server_name api.example.com;');
+    }
+    const bad = await studio('hosts/node-script', { host: 'mine', site: 'api', domain: 'x.com; reboot', user: 'u' });
+    expect(bad.error.code).toBe('bad_domain');
+  });
+
   it('the Studio detects a wrong secret and a revoked connection', async () => {
     // revoke in the agent panel, then the Studio must fail with a clear error
     const page = await call('/security', { cookie });

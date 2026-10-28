@@ -76,6 +76,20 @@ Not done yet: Plesk API, SQLite for WordPress, installing MySQL on a bare VPS (a
 
 Notes: Vite templates use relative asset paths, so they work in a sub-folder. Astro needs `base` and Next needs `basePath` for a sub-folder. Next.js is static export only; server rendering arrives with Node targets in M4. The only commands the Studio ever runs are those two npm calls, started by a click; the project's own scripts and dependencies do execute during a build, so build only projects you trust.
 
+## Node.js and server-rendered sites (M4)
+
+Templates **Node.js app** and **Next.js (server rendering)** make a project of type Node. Publishing ships the built app with its dependencies (`node_modules`, or Next's standalone output with static files assembled beside `server.js`), as a release like any other, with rollback.
+
+What the agent does for a Node site, and what it deliberately does not:
+
+* It never starts, stops or installs anything. After each switch it writes the environment file (private, in the data folder), refreshes the Passenger settings in the optional public folder, and **touches restart markers**: `tmp/restart.txt` in the app folder (Phusion Passenger: cPanel, Plesk, DirectAdmin Node apps) and `restart.txt` in the site's data folder (watched by a systemd path unit on a VPS).
+* The app lives in a folder you allow (**roots.add**: only inside your hosting account, outside the agent folders), ideally outside `public_html`; a warning appears when it is inside the web root. On shared hosting register the app once in your panel's Node.js app screen (or let the agent write the Passenger directives into the public folder you name), then the Studio only updates files.
+* Environment variables are set from the Studio, stored on the host in a private file, never shown again, and variables that change how code loads (`NODE_OPTIONS`, `LD_PRELOAD`, `PATH`, …) are refused.
+* **VPS:** the Hosts page generates a **server setup script** (Node.js, nginx reverse proxy, systemd service plus a path unit that restarts on deploy, optional MariaDB). You read it and run it yourself as root over SSH; the agent never runs it, and its inputs (domain, user, paths) are strictly validated. This is the approved path for installing what a bare server needs.
+* After publishing, the Studio calls the address you give and reports whether the app answers.
+
+Native add-ons are bundled as built on your computer, so a package with a compiled binary for another operating system will not run on the host; pure JavaScript apps and Next standalone are the intended targets.
+
 ## Status
 
 Milestone M1 (this document): installer, auth, signed API, chunked upload, releases, atomic switch, rollback, static and SPA deploy. Symlink mode is covered by unit tests only on hosts that allow symlinks (not on the Windows development machine); sync mode is covered end to end. Next: WordPress provisioning (database creation through cPanel/DirectAdmin/Plesk APIs or the agent itself), see [v2-plan.md](v2-plan.md).

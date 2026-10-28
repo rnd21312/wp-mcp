@@ -24,6 +24,7 @@ function Workspace({ project, hosts, onDeployed }: { project: ProjectInfo; hosts
   const [host, setHost] = useState(project.host || hosts[0] || '');
   const [folder, setFolder] = useState(project.name);
   const [note, setNote] = useState('');
+  const [nodeForm, setNodeForm] = useState({ app_root: '', docroot: '', check_url: '', env: '' });
   const [busy, setBusy] = useState(false);
   const [job, setJob] = useState<{ status: string; step: string; log: string; error: string; output: { dir: string; files: number } | null } | null>(null);
 
@@ -86,10 +87,17 @@ function Workspace({ project, hosts, onDeployed }: { project: ProjectInfo; hosts
   const deploy = async (): Promise<void> => {
     if (dirty) await save();
     setBusy(true);
-    const r = await api.post<any>('projects/deploy', { project: project.name, host, folder, note, ...(project.host === host && project.site ? { site: project.site } : {}) });
+    const env: Record<string, string> = {};
+    for (const line of nodeForm.env.split(/\r?\n/)) {
+      const m = /^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=(.*)$/.exec(line);
+      if (m) env[m[1]] = m[2].trim();
+    }
+    const node = project.kind === 'node' ? { app_root: nodeForm.app_root, docroot: nodeForm.docroot, check_url: nodeForm.check_url, env } : undefined;
+    const r = await api.post<any>('projects/deploy', { project: project.name, host, folder, note, node, ...(project.host === host && project.site ? { site: project.site } : {}) });
     setBusy(false);
     if (r.ok) {
       toast.success(t(`Published: ${r.files} files, release ${r.release.id}`, `منتشر شد: ${r.files} فایل، نسخه ${r.release.id}`));
+      if (r.check) r.check.status >= 200 && r.check.status < 400 ? toast.success(t(`The address answers (HTTP ${r.check.status}).`, `نشانی پاسخ می‌دهد (HTTP ${r.check.status}).`)) : toast.warning(t(`The address answered HTTP ${r.check.status || 'nothing'}. Node apps may need to be registered or restarted in the hosting panel.`, `نشانی پاسخ ${r.check.status || 'نداد'} داد. ممکن است برنامه‌ی Node باید در پنل هاست ثبت یا ری‌استارت شود.`));
       await onDeployed();
     } else toast.error(r.error?.message ?? 'error');
   };
@@ -146,6 +154,17 @@ function Workspace({ project, hosts, onDeployed }: { project: ProjectInfo; hosts
                 <Field label={t('Host', 'هاست')}><Pick value={host} onChange={setHost} options={hosts.map((h) => ({ value: h, label: h }))} /></Field>
                 <Field label={t('Folder on the host', 'پوشه روی هاست')} hint={project.site && project.host === host ? t('Already created; updates the same site.', 'ساخته شده؛ همان سایت به‌روز می‌شود.') : t('Empty = web root', 'خالی = ریشه‌ی وب')}><Input dir="ltr" value={folder} disabled={!!project.site && project.host === host} onChange={(e) => setFolder(e.target.value)} /></Field>
                 <Field label={t('Note', 'یادداشت')}><Input value={note} onChange={(e) => setNote(e.target.value)} /></Field>
+              </div>
+            )}
+            {project.kind === 'node' && !(project.site && project.host === host) && (
+              <div className="space-y-3 rounded-lg border p-3">
+                <p className="text-xs text-muted-foreground">{t('Node.js app: it runs from a folder outside the public web folder. On shared hosting (Passenger) register the app in your hosting panel, or let the agent write the Passenger settings into the public folder below.', 'برنامه‌ی Node.js از پوشه‌ای بیرون از پوشه‌ی عمومی اجرا می‌شود. روی هاست اشتراکی (Passenger) برنامه را در پنل هاست ثبت کنید یا بگذارید ایجنت تنظیمات Passenger را در پوشه‌ی عمومی پایین بنویسد.')}</p>
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <Field label={t('App folder on the host', 'پوشه‌ی برنامه روی هاست')} hint={t('Absolute path inside your account, e.g. /home/you/nodeapps', 'مسیر مطلق داخل حساب شما، مثل /home/you/nodeapps')}><Input dir="ltr" value={nodeForm.app_root} onChange={(e) => setNodeForm({ ...nodeForm, app_root: e.target.value })} /></Field>
+                  <Field label={t('Public folder (Passenger)', 'پوشه‌ی عمومی (Passenger)')} hint={t('Under the web root; empty = none', 'زیر ریشه‌ی وب؛ خالی = ندارد')}><Input dir="ltr" value={nodeForm.docroot} onChange={(e) => setNodeForm({ ...nodeForm, docroot: e.target.value })} /></Field>
+                  <Field label={t('Check address after publish', 'نشانی آزمون بعد از انتشار')}><Input dir="ltr" placeholder="https://" value={nodeForm.check_url} onChange={(e) => setNodeForm({ ...nodeForm, check_url: e.target.value })} /></Field>
+                </div>
+                <Field label={t('Environment variables (KEY=value per line)', 'متغیرهای محیطی (هر خط KEY=value)')} hint={t('Stored on the host in a private file; never shown again.', 'روی هاست در فایل خصوصی ذخیره می‌شود؛ دوباره نمایش داده نمی‌شود.')}><Textarea dir="ltr" className="h-20 font-mono text-xs" value={nodeForm.env} onChange={(e) => setNodeForm({ ...nodeForm, env: e.target.value })} /></Field>
               </div>
             )}
             <Button disabled={busy || !host} onClick={deploy}><RocketIcon /> {busy ? t('Uploading…', 'در حال ارسال…') : t('Publish now', 'همین حالا منتشر کن')}</Button>

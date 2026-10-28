@@ -66,6 +66,14 @@ export async function studioApi(app: App, method: string, route: string, body: R
         const r = await createWordPress(app, { host: str('host'), name: str('name') || undefined, folder: body.folder === undefined ? undefined : str('folder'), url: str('url') || undefined, title: str('title') || str('name'), adminUser: str('admin_user') || undefined, adminEmail: str('admin_email'), adminPassword: str('admin_password') || undefined, searchEngines: body.search_engines !== false, locale: str('locale') || undefined, db: (body.db ?? { method: 'manual' }) as DbSpec });
         return json(200, { ok: true, site: { name: r.site.name, url: r.site.url }, url: r.url, admin_user: r.admin_user, admin_password: r.admin_password, wp_version: r.wp_version });
       }
+      case 'hosts/env': {
+        const out = await app.agents.call(needHost(app, str('host')), 'sites.env', { site: str('site'), env: body.env ?? {} });
+        return json(200, { ok: true, ...out });
+      }
+      case 'hosts/node-script': {
+        const out = await app.agents.call<{ script: string }>(needHost(app, str('host')), 'node.script', { site: str('site'), domain: str('domain'), user: str('user'), install_db: !!body.install_db });
+        return json(200, { ok: true, ...out });
+      }
       case 'projects/create':
         return json(200, { ok: true, project: projectView(app, projects.createProject(app, { name: str('name'), kind: str('kind') || 'static', template: str('template') || 'landing', title: str('title'), rtl: !!body.rtl })) });
       case 'projects/build': {
@@ -88,7 +96,7 @@ export async function studioApi(app: App, method: string, route: string, body: R
         projects.deleteFile(app, str('project'), str('path'));
         return json(200, { ok: true });
       case 'projects/deploy': {
-        const done = await projects.deployProject(app, { project: str('project'), host: str('host'), site: body.site ? str('site') : undefined, folder: body.folder === undefined ? undefined : str('folder'), url: str('url'), note: str('note') });
+        const done = await projects.deployProject(app, { project: str('project'), host: str('host'), site: body.site ? str('site') : undefined, folder: body.folder === undefined ? undefined : str('folder'), url: str('url'), note: str('note'), node: body.node ? { appRoot: body.node.app_root || undefined, docroot: body.node.docroot || undefined, port: body.node.port ? Number(body.node.port) : undefined, env: body.node.env ?? undefined, checkUrl: body.node.check_url || undefined } : undefined });
         return json(200, { ok: true, ...done });
       }
       default:

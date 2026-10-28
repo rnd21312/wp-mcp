@@ -4,14 +4,23 @@ import { AgentError, type Release } from './agentclient.ts';
 import type { App } from './context.ts';
 import { needHost } from './hosts.ts';
 import type { ProjectRow } from './store.ts';
+import { safeRequest } from './ssrf.ts';
 import { FRAMEWORKS } from './templates.ts';
 import { zipDirectory } from './zip.ts';
 
 export const PROJECT_NAME = /^[a-z0-9][a-z0-9-]{1,39}$/;
-export const PROJECT_KINDS = ['static', 'spa'] as const;
+export const PROJECT_KINDS = ['static', 'spa', 'node'] as const;
 export type ProjectKind = (typeof PROJECT_KINDS)[number];
 const TEXT_LIMIT = 2 * 1024 * 1024;
 const META = '.wpm-project.json';
+
+export const projectMeta = (app: App, name: string): { framework?: string; startup?: string } => {
+  try {
+    return JSON.parse(readFileSync(join(projectDir(app, name), META), 'utf8')) as { framework?: string; startup?: string };
+  } catch {
+    return {};
+  }
+};
 
 export const projectFramework = (app: App, name: string): string => {
   try {
@@ -120,7 +129,7 @@ export function createProject(app: App, input: { name: string; kind?: string; te
     mkdirSync(dirname(target), { recursive: true });
     writeFileSync(target, content);
   }
-  if (framework) writeFileSync(join(dir, META), JSON.stringify({ framework: framework.framework, kind, publish: framework.publish }, null, 2));
+  if (framework) writeFileSync(join(dir, META), JSON.stringify({ framework: framework.framework, kind, publish: framework.publish, startup: framework.startup ?? '' }, null, 2));
   app.store.addProject({ name, kind, publish: framework ? framework.publish : '.' });
 
   return app.store.project(name)!;
@@ -204,25 +213,58 @@ export interface DeployInput {
   folder?: string;
   url?: string;
   note?: string;
+  /** Node projects only. */
+  node?: { appRoot?: string; docroot?: string; port?: number; env?: Record<string, string>; checkUrl?: string };
 }
 
-export async function deployProject(app: App, input: DeployInput): Promise<{ site: string; release: Release & { previous: string | null; mode: string }; files: number; bytes: number }> {
+export async function deployProject(app: App, input: DeployInput): Promise<{ site: string; release: Release & { previous: string | null; mode: string }; files: number; bytes: number; check: { status: number; ms: number } | null }> {
   const row = needProject(app, input.project);
   const host = needHost(app, input.host);
   const dir = publishDir(app, row);
-  if (!existsSync(join(dir, 'index.html'))) throw new ProjectError('no_index', `There is no index.html in ${relative(projectDir(app, row.name), dir) || 'the project'}. Build the project first, or add an index.html.`);
+  const isNode = row.kind === 'node';
+  const startup = projectMeta(app, row.name).startup || 'server.js';
+  const where = relative(projectDir(app, row.name), dir) || 'the project';
+  if (isNode) {
+    if (!existsSync(join(dir, startup))) throw new ProjectError('no_startup', `There is no ${startup} in ${where}. Build the project first, or add the file the host should start.`);
+  } else if (!existsSync(join(dir, 'index.html'))) throw new ProjectError('no_index', `There is no index.html in ${where}. Build the project first, or add an index.html.`);
 
   let site = input.site || (row.host === host.name ? row.site : '');
   if (!site) {
-    const created = await app.agents.call<{ site: { id: string } }>(host, 'sites.create', { name: row.name, kind: row.kind, folder: input.folder ?? row.name, url: input.url ?? '' });
+    let root: string | undefined;
+    if (isNode && input.node?.appRoot) {
+      const added = await app.agents.call<{ root: string }>(host, 'roots.add', { path: input.node.appRoot });
+      root = added.root;
+    }
+    const created = await app.agents.call<{ site: { id: string } }>(host, 'sites.create', { name: row.name, kind: row.kind, folder: input.folder ?? row.name, url: input.url ?? '', ...(isNode ? { root, startup, port: input.node?.port, docroot: input.node?.docroot, mode: 'auto' } : {}) });
     site = created.site.id;
   }
-  const packed = zipDirectory(dir);
+  if (isNode && input.node?.env && Object.keys(input.node.env).length) await app.agents.call(host, 'sites.env', { site, env: input.node.env });
+  const packed = isNode ? zipDirectory(dir, { files: 120000, bytes: 400 * 1024 * 1024 }, { node: true }) : zipDirectory(dir);
   const release = await app.agents.deploy(host, site, packed.buffer, input.note ?? `Studio deploy of ${row.name}`);
   app.store.projectDeployed(row.name, host.name, site, release.id);
+  let check: { status: number; ms: number } | null = null;
+  if (isNode && input.node?.checkUrl) check = await healthCheck(app, input.node.checkUrl);
   app.store.log({ principal: 'studio', principal_name: 'Studio', tool: 'deploy', action: 'push', site: host.name, level: 'live', status: 'ok', summary: `${row.name} -> ${host.name}/${site} (${packed.files} files, release ${release.id})`, request_id: release.id, revision: 0 });
 
-  return { site, release, files: packed.files, bytes: packed.bytes };
+  return { site, release, files: packed.files, bytes: packed.bytes, check };
+}
+
+/** One GET to the public address after a Node deploy (give the app a few seconds to restart). Never fails the deploy. */
+export async function healthCheck(app: App, url: string): Promise<{ status: number; ms: number }> {
+  const policy = { allowPrivate: app.config.allowPrivateSites, allowHttp: true };
+  const started = Date.now();
+  let status = 0;
+  for (let attempt = 0; attempt < 4; attempt++) {
+    if (attempt) await new Promise((done) => setTimeout(done, 2000));
+    try {
+      status = (await safeRequest(url, policy, { timeoutMs: 15000, maxBytes: 200000 })).status;
+      if (status > 0 && status < 500) break;
+    } catch {
+      status = 0;
+    }
+  }
+
+  return { status, ms: Date.now() - started };
 }
 
 export const isAgentError = (e: unknown): e is AgentError => e instanceof AgentError;

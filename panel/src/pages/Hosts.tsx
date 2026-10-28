@@ -31,6 +31,13 @@ function Sites({ host }: { host: HostInfo }) {
   const [open, setOpen] = useState('');
   const [rels, setRels] = useState<{ current: string | null; releases: Rel[] }>({ current: null, releases: [] });
   const [form, setForm] = useState({ name: '', kind: 'static', folder: '' });
+  const [script, setScript] = useState<{ site: string; domain: string; text: string } | null>(null);
+
+  const makeScript = async (): Promise<void> => {
+    if (!script) return;
+    const r = await api.post<any>('hosts/node-script', { host: host.name, site: script.site, domain: script.domain });
+    r.ok ? setScript({ ...script, text: r.script }) : toast.error(r.error?.message ?? 'error');
+  };
 
   const load = useCallback(async () => {
     const r = await api.post<{ ok: boolean; sites: RemoteSite[]; error?: { message: string } }>('hosts/sites', { host: host.name });
@@ -64,6 +71,13 @@ function Sites({ host }: { host: HostInfo }) {
 
   return (
     <div className="space-y-3">
+      {script && (
+        <div className="space-y-2 rounded-lg border p-3 text-sm">
+          <p className="text-muted-foreground">{t('For a VPS you control. Read the script, then run it as root over SSH yourself; the agent never runs it.', 'برای VPS خودتان. اسکریپت را بخوانید و خودتان با SSH به‌صورت root اجرا کنید؛ ایجنت هرگز اجرایش نمی‌کند.')}</p>
+          <div className="flex gap-2"><Input dir="ltr" placeholder="app.example.com" value={script.domain} onChange={(e) => setScript({ ...script, domain: e.target.value })} /><Button disabled={!script.domain} onClick={makeScript}>{t('Generate', 'بساز')}</Button><Button variant="ghost" onClick={() => setScript(null)}>{t('Close', 'بستن')}</Button></div>
+          {script.text && <textarea readOnly dir="ltr" className="h-64 w-full rounded-lg bg-muted p-3 font-mono text-xs" value={script.text} onFocus={(e) => e.currentTarget.select()} />}
+        </div>
+      )}
       {sites.length === 0 && <p className="text-sm text-muted-foreground">{t('No sites on this host yet.', 'هنوز سایتی روی این هاست نیست.')}</p>}
       {sites.map((s) => (
         <div key={s.id} className="rounded-lg border p-3 text-sm">
@@ -71,7 +85,10 @@ function Sites({ host }: { host: HostInfo }) {
             <div>
               <span className="font-medium">{s.name}</span> <span className="text-muted-foreground">· {s.kind} · {s.mode} · <span dir="ltr">/{s.folder}</span></span>
             </div>
-            <Button size="sm" variant="outline" onClick={() => showReleases(s.id)}>{t('Releases', 'نسخه‌ها')} ({s.releases})</Button>
+            <div className="flex gap-2">
+              {s.kind === 'node' && <Button size="sm" variant="ghost" onClick={() => setScript({ site: s.id, domain: '', text: '' })}>{t('Server script', 'اسکریپت سرور')}</Button>}
+              <Button size="sm" variant="outline" onClick={() => showReleases(s.id)}>{t('Releases', 'نسخه‌ها')} ({s.releases})</Button>
+            </div>
           </div>
           {open === s.id && (
             <div className="mt-3 space-y-1">

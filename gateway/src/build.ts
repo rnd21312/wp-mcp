@@ -1,8 +1,8 @@
 import { spawn } from 'node:child_process';
-import { existsSync, readFileSync, statSync } from 'node:fs';
+import { cpSync, existsSync, readdirSync, readFileSync, rmSync, statSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import type { App } from './context.ts';
-import { ProjectError, projectDir, publishDir } from './projects.ts';
+import { ProjectError, projectDir, projectMeta, publishDir } from './projects.ts';
 import { listFiles } from './projects.ts';
 
 /**
@@ -77,6 +77,33 @@ function runNpm(job: BuildJob, cwd: string, extra: string[]): Promise<number> {
   });
 }
 
+/** Next nests the output under the workspace path when a lock file sits above the project; find the real server.js. */
+function findStandaloneRoot(base: string, depth = 0): string | null {
+  if (!existsSync(base) || depth > 10) return null;
+  if (existsSync(join(base, 'server.js')) && existsSync(join(base, '.next'))) return base;
+  for (const name of readdirSync(base)) {
+    if (name === 'node_modules' || name === '.next') continue;
+    const next = join(base, name);
+    if (statSync(next).isDirectory()) {
+      const found = findStandaloneRoot(next, depth + 1);
+      if (found) return found;
+    }
+  }
+  return null;
+}
+
+/** Next's standalone output needs its static files and public folder copied beside server.js. */
+export function assembleNextStandalone(dir: string): void {
+  const base = join(dir, '.next', 'standalone');
+  const standalone = findStandaloneRoot(base) ?? base;
+  if (!existsSync(join(standalone, 'server.js'))) throw new Error('Next.js did not produce .next/standalone/server.js. Check that next.config has output: "standalone".');
+  const out = join(dir, '.wpm-deploy');
+  rmSync(out, { recursive: true, force: true });
+  cpSync(standalone, out, { recursive: true });
+  if (existsSync(join(dir, '.next', 'static'))) cpSync(join(dir, '.next', 'static'), join(out, '.next', 'static'), { recursive: true });
+  if (existsSync(join(dir, 'public'))) cpSync(join(dir, 'public'), join(out, 'public'), { recursive: true });
+}
+
 export function hasBuildScript(dir: string): boolean {
   try {
     const pkg = JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8')) as { scripts?: Record<string, string> };
@@ -107,6 +134,7 @@ export function startBuild(app: App, name: string): BuildJob {
       job.step = 'build';
       const code = await runNpm(job, dir, ['run', 'build']);
       if (code !== 0) throw new Error(`The build failed (exit ${code}). See the log.`);
+      if (projectMeta(app, name).framework === 'next-ssr') assembleNextStandalone(dir);
       const out = publishDir(app, row);
       if (!existsSync(join(out, 'index.html'))) throw new Error(`The build finished but there is no index.html in "${out.slice(dir.length + 1) || '.'}". Check the output folder of your tool.`);
       const files = listFiles(app, name).filter((f) => f.path.startsWith(out.slice(dir.length + 1).replace(/\\/g, '/') + '/')).length;

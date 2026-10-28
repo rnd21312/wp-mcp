@@ -1,6 +1,10 @@
 # Changelog
 
-## 2.0.0-m3 (in progress)
+## 2.0.0-m4 (in progress)
+
+M4: Node.js sites (releases with rollback, private env file, Passenger config, restart markers, user-run VPS setup script, extra allowed locations), Node and Next SSR (standalone) templates, post-deploy health check.
+
+## 2.0.0-m3
 
 M2: WordPress provisioning (official core with checksum, database via cPanel/DirectAdmin/MySQL admin/manual, wp-config, bridge auto-activation and pairing). M3: React/Vue/Svelte (Vite), Astro and Next static-export templates with local npm builds and live log.
 

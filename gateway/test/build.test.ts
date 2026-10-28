@@ -39,7 +39,7 @@ describe('framework templates', () => {
     // (astro and next carry the title only as a JSON string literal, which their renderers escape)
     for (const file of Object.keys(t.files('Café "Nur" <b>', false))) {
       const text = readFileSync(join(dir, file), 'utf8');
-      if (id === 'astro' || id === 'next-export') expect(text.replace(JSON.stringify('Café "Nur" <b>'), '')).not.toContain('<b>');
+      if (id === 'astro' || id === 'next-export' || id === 'next-ssr') expect(text.replace(JSON.stringify('Café "Nur" <b>'), '')).not.toContain('<b>');
       else expect(text).not.toContain('<b>');
     }
     // nothing is built or installed at creation
