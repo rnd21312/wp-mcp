@@ -1,4 +1,5 @@
 node_modules/
+panel/node_modules/
 dist/
 data/
 *.sqlite

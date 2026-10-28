@@ -46,6 +46,10 @@ What `read` cannot see, on purpose: drafts and private posts, users (only public
 
 Text that comes from the website is returned with a `content_notice` and the server `instructions` tell the model to treat it as data. That is advice to the model, not enforcement. The enforcement is structural: a model that reads a malicious comment still cannot exceed its level, still hits the confirmation step for destructive actions, can be undone, and is visible in the log. Below `admin`, HTML the AI writes is filtered with `kses` (no scripts); CSS rejects `</style>`, `javascript:`, `expression()`, and remote `@import` except Google Fonts.
 
+## Local panel (passwordless)
+
+`wp-mcp local` serves a single-page panel with no sign-in, so it must not be reachable by anything but you. It binds to `127.0.0.1` only. Every request must carry a loopback `Host` header (a web page reaching it through DNS rebinding sends a different one and is refused), a same-origin `Origin` when one is sent, and the custom header `X-WPM-Panel` (which a foreign page cannot add without a CORS preflight, and the panel never grants one). Do not put the local panel behind a reverse proxy or tunnel; use the normal gateway with its password for that. Anyone who can use your computer's browser while you are signed in to Windows can use the panel, as with any local tool.
+
 ## Admin panel
 
 Password hashed with scrypt, signed `HttpOnly` `SameSite=Lax` cookie (`Secure` on https), CSRF tokens on every form, login throttling, strict CSP and `X-Frame-Options: DENY`. There is no 2FA: if the panel is internet-facing, put it behind your reverse proxy's authentication or IP allow-list.

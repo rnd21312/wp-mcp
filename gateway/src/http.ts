@@ -1,5 +1,6 @@
 import http from 'node:http';
 import { authenticate, bearerFrom } from './auth.ts';
+import { handleLocal } from './local.ts';
 import { handleAdmin, loginRedirect, sessionOf } from './admin.ts';
 import type { App, Reply } from './context.ts';
 import { json } from './context.ts';
@@ -52,6 +53,9 @@ function send(res: http.ServerResponse, reply: Reply, extra: Record<string, stri
   if (reply.json !== undefined) {
     body = JSON.stringify(reply.json);
     headers['content-type'] = 'application/json';
+  } else if (reply.body !== undefined) {
+    res.writeHead(reply.status, headers);
+    return void res.end(reply.body);
   } else if (reply.html !== undefined) {
     body = reply.html;
     headers['content-type'] ??= 'text/html; charset=utf-8';
@@ -142,6 +146,18 @@ async function route(app: App, req: http.IncomingMessage, res: http.ServerRespon
       if (!session) return send(res, loginRedirect('/admin'));
       return send(res, decide(app, session, Object.fromEntries(form), form.getAll('sites')));
     }
+  }
+
+  if (app.config.localPanel && (path === '/admin' || path.startsWith('/admin/'))) {
+    let body: Record<string, any> = {};
+    if (method === 'POST') {
+      try {
+        body = JSON.parse((await readBody(req, SMALL_LIMIT)).toString('utf8') || '{}');
+      } catch {
+        return send(res, json(400, { error: 'bad_json' }));
+      }
+    }
+    return send(res, await handleLocal(app, { method, path, query: url.searchParams, body, headers: req.headers }));
   }
 
   if (path === '/admin' || path.startsWith('/admin/')) {

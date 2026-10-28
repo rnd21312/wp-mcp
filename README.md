@@ -47,10 +47,15 @@ Details: [docs/architecture.md](docs/architecture.md).
 
 Double-click `start-local.cmd` (or `node gateway/dist/index.js local`): the panel opens at `http://127.0.0.1:8787/admin`, listening on this computer only. Persian (default) and English.
 
-* **Dashboard**: connect sites with a pairing code, set per-site level ceilings, create API keys, see connected apps.
+No password and no token: it only answers on this computer (loopback host, same-origin, custom header; see docs/security.md). Built with React, Tailwind and **shadcn/ui**, dark/light, RTL.
+
+* **Overview**: health of every site, quick actions (site health, SEO audit, updates, copy content), recent activity.
+* **Sites**: connect with a pairing code, per-site level ceilings, test, remove.
 * **Workbench**: run any tool action by hand from generated forms, as a chosen level, with previews, confirmations and results. Covers every task, including `site.transfer`.
-* **Connect AI**: ready-to-copy commands for Claude Code, Claude Desktop (stdio, no server needed), Cursor and remote clients, filled in for your install.
-* **Activity**: everything the AI and you did.
+* **Connect AI**: copy buttons for Claude Code, Claude Desktop (stdio, no server needed), Cursor and remote clients, filled in for your install.
+* **Access** (API keys, OAuth apps) and **Activity**.
+
+First time: `npm run setup` (installs and builds server and panel), then `start-local.cmd` or `npm run local`.
 
 ## What the AI can do
 
@@ -91,7 +96,7 @@ Read [docs/security.md](docs/security.md) for the full model and honest limits.
 ## Development
 
 ```bash
-npm test            # gateway (123 tests) + plugin checks (108) in one go
+npm test            # gateway (130 tests) + plugin checks (108) in one go
 npm run docs        # regenerate docs/TOOLS.md from spec/ops.json
 ```
 

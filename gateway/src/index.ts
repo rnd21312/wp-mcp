@@ -17,6 +17,7 @@ const localMode = command === 'local';
 if (localMode) {
   // Panel on this computer only: listens on 127.0.0.1, nothing is exposed to the network.
   process.env.WPMCP_HOST = '127.0.0.1';
+  process.env.WPMCP_LOCAL_PANEL = '1';
   command = 'serve';
 }
 
@@ -46,7 +47,7 @@ async function main(): Promise<void> {
 
   switch (command) {
     case 'serve': {
-      const token = prepareSetup(app);
+      const token = config.localPanel ? null : prepareSetup(app);
       const server = await startServer(app);
       console.log(`WP MCP gateway listening on ${config.host}:${config.port}`);
       console.log(`MCP endpoint: ${config.publicUrl}/mcp`);

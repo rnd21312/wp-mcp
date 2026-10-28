@@ -7,7 +7,9 @@
   "scripts": {
     "spec": "node scripts/sync-spec.mjs",
     "docs": "node scripts/sync-spec.mjs && node scripts/gen-docs.mjs",
+    "setup": "npm --prefix gateway ci && npm --prefix panel ci && npm --prefix gateway run build",
     "build": "npm --prefix gateway run build",
+    "local": "node gateway/dist/index.js local",
     "test": "npm --prefix gateway test",
     "package:plugin": "node scripts/sync-spec.mjs && node scripts/package-plugin.mjs",
     "test:php": "php plugin/tests/run.php"

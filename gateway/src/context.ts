@@ -22,6 +22,7 @@ export interface Reply {
   cookies?: string[];
   json?: unknown;
   html?: string;
+  body?: Buffer;
   text?: string;
 }
 

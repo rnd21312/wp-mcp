@@ -13,6 +13,8 @@ export interface Config {
   /** Allow http:// site URLs (development only). */
   allowInsecureSites: boolean;
   trustProxy: boolean;
+  /** Passwordless panel for this computer only (command "local"). */
+  localPanel: boolean;
   accessTtl: number;
   refreshTtl: number;
   refreshGrace: number;
@@ -53,6 +55,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env, overrides: Part
     allowPrivateSites: env.WPMCP_ALLOW_PRIVATE_SITES === '1',
     allowInsecureSites: env.WPMCP_ALLOW_INSECURE_SITES === '1',
     trustProxy: env.WPMCP_TRUST_PROXY === '1',
+    localPanel: env.WPMCP_LOCAL_PANEL === '1',
     accessTtl: num(env.WPMCP_ACCESS_TTL, 3600),
     refreshTtl: num(env.WPMCP_REFRESH_TTL, 180 * 86400),
     refreshGrace: num(env.WPMCP_REFRESH_GRACE, 600),

@@ -4,8 +4,10 @@ COPY spec ./spec
 COPY scripts ./scripts
 COPY plugin/wp-mcp-bridge ./plugin/wp-mcp-bridge
 COPY gateway/package.json gateway/package-lock.json ./gateway/
-RUN cd gateway && npm ci
+COPY panel/package.json panel/package-lock.json ./panel/
+RUN cd gateway && npm ci && cd ../panel && npm ci
 COPY gateway ./gateway
+COPY panel ./panel
 RUN cd gateway && npm run build
 
 FROM node:24-alpine
