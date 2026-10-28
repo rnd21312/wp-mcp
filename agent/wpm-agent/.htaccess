@@ -1,5 +1,4 @@
 # Only index.php may be requested from the web. Everything else in this folder stays private.
-Options -Indexes
 <IfModule mod_authz_core.c>
   Require all denied
   <Files "index.php">

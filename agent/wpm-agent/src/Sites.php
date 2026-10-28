@@ -352,12 +352,7 @@ final class Sites
                 if (!isset($info['manifest']['index.html'])) {
                     throw new ApiError('no_index', 'A single-page app needs an index.html at the top of the archive.');
                 }
-                $ht = "Options -Indexes\n<IfModule mod_rewrite.c>\nRewriteEngine On\nRewriteCond %{REQUEST_FILENAME} !-f\nRewriteCond %{REQUEST_FILENAME} !-d\nRewriteRule . index.html [L]\n</IfModule>\n";
-                file_put_contents($rdir . '/.htaccess', $ht);
-                $info['manifest']['.htaccess'] = ['sha256' => hash('sha256', $ht), 'size' => strlen($ht)];
-                ksort($info['manifest']);
-            } else {
-                $ht = "Options -Indexes\n";
+                $ht = "<IfModule mod_rewrite.c>\nRewriteEngine On\nRewriteCond %{REQUEST_FILENAME} !-f\nRewriteCond %{REQUEST_FILENAME} !-d\nRewriteRule . index.html [L]\n</IfModule>\n";
                 file_put_contents($rdir . '/.htaccess', $ht);
                 $info['manifest']['.htaccess'] = ['sha256' => hash('sha256', $ht), 'size' => strlen($ht)];
                 ksort($info['manifest']);
