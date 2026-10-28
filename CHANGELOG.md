@@ -1,6 +1,10 @@
 # Changelog
 
-## 2.0.0-m4 (in progress)
+## 2.0.0-m5 (in progress)
+
+M5: AI site builder with human checkpoints (sitemap, design system, pages, images, SEO, audit, publish), server-enforced order, deterministic shell/SEO/CSS/audit.
+
+## 2.0.0-m4
 
 M4: Node.js sites (releases with rollback, private env file, Passenger config, restart markers, user-run VPS setup script, extra allowed locations), Node and Next SSR (standalone) templates, post-deploy health check.
 

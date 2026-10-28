@@ -1,15 +1,18 @@
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
 import { AgentError, type RemoteSite, type Release } from './agentclient.ts';
 import type { App, Reply } from './context.ts';
 import { addHost, buildAgentZip, hostView, needHost, testHost } from './hosts.ts';
 import { buildStatus, hasBuildScript, startBuild } from './build.ts';
 import * as projects from './projects.ts';
 import { FRAMEWORKS } from './templates.ts';
+import { approve, pageMain, preview, publish, runStage, startBuilder, STAGES, stateView, BuilderError, type Stage } from './builder.ts';
 import { createWordPress, type DbSpec } from './wordpress.ts';
 import { ProjectError } from './projects.ts';
 
 const json = (status: number, body: unknown): Reply => ({ status, json: body, headers: { 'cache-control': 'no-store' } });
 
-const projectView = (app: App, p: ReturnType<App['store']['projects']>[number]) => ({ name: p.name, kind: p.kind, host: p.host, site: p.site, publish: p.publish, last_deploy: p.last_deploy, last_release: p.last_release, framework: projects.projectFramework(app, p.name), has_build: hasBuildScript(projects.projectDir(app, p.name)) });
+const projectView = (app: App, p: ReturnType<App['store']['projects']>[number]) => ({ name: p.name, kind: p.kind, host: p.host, site: p.site, publish: p.publish, last_deploy: p.last_deploy, last_release: p.last_release, framework: projects.projectFramework(app, p.name), has_build: hasBuildScript(projects.projectDir(app, p.name)), builder: existsSync(join(projects.projectDir(app, p.name), '.wpm-builder', 'state.json')) });
 
 /**
  * Studio v2 endpoints of the local panel: Host Agents (connect, sites, releases, rollback) and projects (files, deploy).
@@ -74,6 +77,30 @@ export async function studioApi(app: App, method: string, route: string, body: R
         const out = await app.agents.call<{ script: string }>(needHost(app, str('host')), 'node.script', { site: str('site'), domain: str('domain'), user: str('user'), install_db: !!body.install_db });
         return json(200, { ok: true, ...out });
       }
+      case 'builder/start': {
+        const s = startBuilder(app, { name: str('name'), brief: str('brief'), language: str('language') || 'en', tone: str('tone'), pagesHint: str('pages_hint'), baseUrl: str('base_url'), provider: str('provider') });
+        return json(200, { ok: true, project: s.project });
+      }
+      case 'builder/state':
+        return json(200, { ok: true, state: stateView(app, str('project')) });
+      case 'builder/run': {
+        if (!STAGES.includes(str('stage') as Stage)) return json(200, { ok: false, error: { code: 'bad_stage', message: 'Unknown step.' } });
+        await runStage(app, str('project'), { stage: str('stage') as Stage, slug: body.slug ? str('slug') : undefined, feedback: str('feedback') });
+        return json(200, { ok: true, state: stateView(app, str('project')) });
+      }
+      case 'builder/approve': {
+        if (!STAGES.includes(str('stage') as Stage)) return json(200, { ok: false, error: { code: 'bad_stage', message: 'Unknown step.' } });
+        approve(app, str('project'), { stage: str('stage') as Stage, slug: body.slug ? str('slug') : undefined, edit: body.edit });
+        return json(200, { ok: true, state: stateView(app, str('project')) });
+      }
+      case 'builder/page':
+        return json(200, { ok: true, main: pageMain(app, str('project'), str('slug')) });
+      case 'builder/preview':
+        return json(200, { ok: true, html: preview(app, str('project'), str('slug')) });
+      case 'builder/publish': {
+        const done = await publish(app, str('project'), { host: str('host'), site: body.site ? str('site') : undefined, folder: body.folder === undefined ? undefined : str('folder'), url: str('url') || undefined, note: str('note') || undefined });
+        return json(200, { ok: true, ...done });
+      }
       case 'projects/create':
         return json(200, { ok: true, project: projectView(app, projects.createProject(app, { name: str('name'), kind: str('kind') || 'static', template: str('template') || 'landing', title: str('title'), rtl: !!body.rtl })) });
       case 'projects/build': {
@@ -103,7 +130,7 @@ export async function studioApi(app: App, method: string, route: string, body: R
         return null;
     }
   } catch (error) {
-    if (error instanceof AgentError || error instanceof ProjectError) return json(200, { ok: false, error: { code: error.code, message: error.message } });
+    if (error instanceof AgentError || error instanceof ProjectError || error instanceof BuilderError) return json(200, { ok: false, error: { code: error.code, message: error.message } });
     throw error;
   }
 }

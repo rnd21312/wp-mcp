@@ -152,7 +152,7 @@ export function listFiles(app: App, name: string): FileInfo[] {
   needProject(app, name);
   const root = projectDir(app, name);
   const out: FileInfo[] = [];
-  const skip = new Set(['node_modules', '.git']);
+  const skip = new Set(['node_modules', '.git', '.wpm-builder']);
   const walk = (dir: string): void => {
     for (const entry of readdirSync(dir).sort()) {
       const full = join(dir, entry);

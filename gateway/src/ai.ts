@@ -68,7 +68,7 @@ export interface ChatResult {
 
 const clip = (s: string, n = 30000): string => (s.length > n ? `${s.slice(0, n)}\n…[truncated ${s.length - n} chars]` : s);
 
-interface Provider {
+export interface Provider {
   id: string;
   type: ProviderType;
   base: string;
@@ -76,7 +76,7 @@ interface Provider {
   key: string;
 }
 
-const toolDefs = (principal: Principal) => listTools(principal).map((t) => ({ name: t.name, description: t.description, schema: t.inputSchema }));
+export const toolDefs = (principal: Principal) => listTools(principal).map((t) => ({ name: t.name, description: t.description, schema: t.inputSchema }));
 
 async function post(url: string, headers: Record<string, string>, body: unknown): Promise<any> {
   const res = await fetch(url, { method: 'POST', headers: { 'content-type': 'application/json', ...headers }, body: JSON.stringify(body), signal: AbortSignal.timeout(180000) });
@@ -88,14 +88,14 @@ async function post(url: string, headers: Record<string, string>, body: unknown)
   return data;
 }
 
-async function askOpenAI(p: Provider, system: string, msgs: Msg[], tools: ReturnType<typeof toolDefs>): Promise<{ text: string; calls: ToolCall[] }> {
+export async function askOpenAI(p: Provider, system: string, msgs: Msg[], tools: ReturnType<typeof toolDefs>): Promise<{ text: string; calls: ToolCall[] }> {
   const messages: any[] = [{ role: 'system', content: system }];
   for (const m of msgs) {
     if (m.role === 'user') messages.push({ role: 'user', content: m.content ?? '' });
     else if (m.role === 'assistant') messages.push({ role: 'assistant', content: m.content ?? (m.toolCalls?.length ? null : ''), ...(m.toolCalls?.length ? { tool_calls: m.toolCalls.map((c) => ({ id: c.id, type: 'function', function: { name: c.name, arguments: JSON.stringify(c.args) } })) } : {}) });
     else messages.push({ role: 'tool', tool_call_id: m.toolCallId, content: m.content ?? '' });
   }
-  const data = await post(`${p.base.replace(/\/+$/, '')}/chat/completions`, p.key ? { authorization: `Bearer ${p.key}` } : {}, { model: p.model, messages, tools: tools.map((t) => ({ type: 'function', function: { name: t.name, description: t.description, parameters: t.schema } })), tool_choice: 'auto' });
+  const data = await post(`${p.base.replace(/\/+$/, '')}/chat/completions`, p.key ? { authorization: `Bearer ${p.key}` } : {}, { model: p.model, messages, ...(tools.length ? { tools: tools.map((t) => ({ type: 'function', function: { name: t.name, description: t.description, parameters: t.schema } })), tool_choice: 'auto' } : {}) });
   const message = data.choices?.[0]?.message ?? {};
   const calls: ToolCall[] = (message.tool_calls ?? []).map((c: any) => {
     let args: Record<string, unknown> = {};
@@ -106,7 +106,7 @@ async function askOpenAI(p: Provider, system: string, msgs: Msg[], tools: Return
   return { text: typeof message.content === 'string' ? message.content : '', calls };
 }
 
-async function askAnthropic(p: Provider, system: string, msgs: Msg[], tools: ReturnType<typeof toolDefs>): Promise<{ text: string; calls: ToolCall[] }> {
+export async function askAnthropic(p: Provider, system: string, msgs: Msg[], tools: ReturnType<typeof toolDefs>): Promise<{ text: string; calls: ToolCall[] }> {
   const messages: any[] = [];
   for (const m of msgs) {
     if (m.role === 'user') messages.push({ role: 'user', content: m.content ?? '' });
@@ -117,7 +117,7 @@ async function askAnthropic(p: Provider, system: string, msgs: Msg[], tools: Ret
       if (last?.role === 'user' && Array.isArray(last.content)) last.content.push(block); else messages.push({ role: 'user', content: [block] });
     }
   }
-  const data = await post(`${p.base.replace(/\/+$/, '')}/messages`, { 'x-api-key': p.key, 'anthropic-version': '2023-06-01' }, { model: p.model, max_tokens: 4096, system, messages, tools: tools.map((t) => ({ name: t.name, description: t.description, input_schema: t.schema })) });
+  const data = await post(`${p.base.replace(/\/+$/, '')}/messages`, { 'x-api-key': p.key, 'anthropic-version': '2023-06-01' }, { model: p.model, max_tokens: tools.length ? 4096 : 16000, system, messages, ...(tools.length ? { tools: tools.map((t) => ({ name: t.name, description: t.description, input_schema: t.schema })) } : {}) });
   const blocks: any[] = data.content ?? [];
 
   return { text: blocks.filter((b) => b.type === 'text').map((b) => b.text).join('\n'), calls: blocks.filter((b) => b.type === 'tool_use').map((b) => ({ id: String(b.id), name: String(b.name), args: (b.input ?? {}) as Record<string, unknown> })) };

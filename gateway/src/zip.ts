@@ -51,9 +51,9 @@ export function createZip(entries: ZipEntry[]): Buffer {
   return Buffer.concat([...parts, dir, end]);
 }
 
-const SKIP_DIRS = new Set(['node_modules', '.git', '.svn', '.hg', '.idea', '.vscode', '.next', '.nuxt', '.cache', '.turbo']);
+const SKIP_DIRS = new Set(['.wpm-builder', 'node_modules', '.git', '.svn', '.hg', '.idea', '.vscode', '.next', '.nuxt', '.cache', '.turbo']);
 /** A Node app ships its dependencies and build folders (.next/static); only repository and editor folders stay out. */
-const SKIP_DIRS_NODE = new Set(['.git', '.svn', '.hg', '.idea', '.vscode']);
+const SKIP_DIRS_NODE = new Set(['.wpm-builder', '.git', '.svn', '.hg', '.idea', '.vscode']);
 const SKIP_FILES = /^(\.DS_Store|Thumbs\.db|desktop\.ini|\.env(\..*)?|\.wpm-project\.json)$/i;
 
 export interface DirZip {

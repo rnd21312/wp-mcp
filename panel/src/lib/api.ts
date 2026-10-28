@@ -74,6 +74,7 @@ export interface ProjectInfo {
   last_release: string;
   framework: string;
   has_build: boolean;
+  builder: boolean;
 }
 
 export interface Studio {
@@ -98,6 +99,7 @@ export const api = {
   state: () => call<State>('state'),
   spec: () => call<ToolSpec[]>('spec'),
   studio: () => call<Studio>('studio'),
+  get: <T>(path: string) => call<T>(path),
   activity: (limit = 100) => call<{ entries: Activity[] }>(`activity?limit=${limit}`),
   post: <T = { ok: boolean; error?: { message: string } }>(path: string, body: unknown = {}) => call<T>(path, body),
 };
