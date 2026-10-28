@@ -148,6 +148,7 @@ CREATE TABLE IF NOT EXISTS activity (
 );
 CREATE INDEX IF NOT EXISTS activity_site ON activity (site, id);
 CREATE TABLE IF NOT EXISTS ai_providers (id TEXT PRIMARY KEY, name TEXT NOT NULL, preset TEXT NOT NULL, type TEXT NOT NULL, base_url TEXT NOT NULL, model TEXT NOT NULL, key_enc TEXT NOT NULL DEFAULT '', created INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS settings (k TEXT PRIMARY KEY, v TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS hosts (
   name TEXT PRIMARY KEY, url TEXT NOT NULL, key_id TEXT NOT NULL, secret_enc TEXT NOT NULL, level TEXT NOT NULL DEFAULT 'admin', status TEXT NOT NULL DEFAULT 'new',
   created INTEGER NOT NULL, last_ok INTEGER NOT NULL DEFAULT 0, last_error TEXT NOT NULL DEFAULT '', agent_version TEXT NOT NULL DEFAULT '', caps TEXT NOT NULL DEFAULT '{}'
@@ -362,6 +363,17 @@ export class Store {
 
   removeAiProvider(id: string): void {
     this.run('DELETE FROM ai_providers WHERE id = ?', id);
+  }
+
+  /* settings */
+
+  setting(key: string): string | undefined {
+    return this.one<{ v: string }>('SELECT v FROM settings WHERE k = ?', key)?.v;
+  }
+
+  setSetting(key: string, value: string | null): void {
+    if (value === null) this.run('DELETE FROM settings WHERE k = ?', key);
+    else this.run('INSERT INTO settings (k, v) VALUES (?, ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v', key, value);
   }
 
   /* hosts (Host Agents) */

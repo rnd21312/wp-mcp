@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { createInterface } from 'node:readline';
-import { createApiKey, type Principal } from './auth.ts';
+import { createApiKey, stdioPrincipal, type Principal } from './auth.ts';
 import { prepareSetup } from './admin.ts';
 import { loadConfig } from './config.ts';
 import { createApp } from './context.ts';
@@ -76,8 +76,7 @@ async function main(): Promise<void> {
     }
 
     case 'stdio': {
-      const level = isLevel(process.env.WPMCP_STDIO_LEVEL) ? process.env.WPMCP_STDIO_LEVEL : 'live';
-      const principal: Principal = { id: 'stdio', kind: 'stdio', name: 'local stdio', level, sites: '*' };
+      const principal = stdioPrincipal(app); // its level follows the panel setting live
       const lines = createInterface({ input: process.stdin });
       for await (const line of lines) {
         if (!line.trim()) continue;

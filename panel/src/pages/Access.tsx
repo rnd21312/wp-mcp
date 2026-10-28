@@ -42,6 +42,19 @@ export function Access({ state, reload }: { state: State; reload: () => Promise<
         </Button>
       </PageTitle>
 
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle>{t('AI apps on this computer (stdio)', 'برنامه‌های هوش مصنوعی روی همین کامپیوتر (stdio)')}</CardTitle>
+          <CardDescription>{t('Claude Code, Claude Desktop, Cursor and other apps that start the gateway themselves. The level applies on the next call, no restart needed.', 'Claude Code، Claude Desktop، Cursor و برنامه‌هایی که خودشان gateway را اجرا می‌کنند. سطح از فراخوانی بعدی اعمال می‌شود؛ ری‌استارت لازم نیست.')}</CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-wrap items-center gap-3">
+          <div className="w-40"><Pick value={state.stdio.level} options={levels} onChange={async (v) => { await api.post('stdio/level', { level: v }); toast.success(t('Level changed', 'سطح تغییر کرد')); await reload(); }} /></div>
+          <LevelBadge level={state.stdio.level} />
+          <span className="text-xs text-muted-foreground">{state.stdio.from === 'panel' ? t('Set here.', 'از همین‌جا تنظیم شده.') : t('Default (from WPMCP_STDIO_LEVEL or live).', 'پیش‌فرض (از WPMCP_STDIO_LEVEL یا live).')}</span>
+          {state.stdio.from === 'panel' && <Button size="sm" variant="ghost" onClick={async () => { await api.post('stdio/level', { level: 'default' }); await reload(); }}>{t('Back to default', 'بازگشت به پیش‌فرض')}</Button>}
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader>
           <CardTitle>{t('API keys', 'کلیدهای API')}</CardTitle>

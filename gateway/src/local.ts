@@ -1,7 +1,7 @@
 import { readFileSync, existsSync, statSync } from 'node:fs';
 import { dirname, extname, join, normalize, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { createApiKey, type Principal } from './auth.ts';
+import { createApiKey, stdioLevel, type Principal } from './auth.ts';
 import type { App, Reply } from './context.ts';
 import { isLevel, LEVELS } from './levels.ts';
 import { callTool } from './mcp/tools.ts';
@@ -80,6 +80,7 @@ function state(app: App) {
   return {
     version: '2.0.0',
     levels: LEVELS,
+    stdio: { level: stdioLevel(app), from: app.store.setting('stdio_level') ? 'panel' : process.env.WPMCP_STDIO_LEVEL ? 'environment' : 'default' },
     publicUrl: app.config.publicUrl,
     dataDir: app.config.dataDir,
     entry: ENTRY,
@@ -201,6 +202,12 @@ async function api(app: App, req: LocalReq): Promise<Reply> {
       case 'sites/remove':
         app.store.removeSite(String(body.name));
         return json(200, { ok: true });
+      case 'stdio/level':
+        // 'default' removes the panel's choice and falls back to WPMCP_STDIO_LEVEL (or live)
+        if (body.level === 'default') app.store.setSetting('stdio_level', null);
+        else if (isLevel(body.level)) app.store.setSetting('stdio_level', body.level);
+        else return json(200, { ok: false, error: { code: 'bad_level', message: 'Unknown level.' } });
+        return json(200, { ok: true, level: stdioLevel(app) });
       case 'sites/level':
         if (isLevel(body.level) && app.store.site(String(body.name))) app.store.setSiteLevel(String(body.name), body.level);
         return json(200, { ok: true });

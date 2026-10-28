@@ -14,6 +14,30 @@ export interface Principal {
   clientId?: string;
 }
 
+/**
+ * Level of the stdio connection (AI apps started on this computer, e.g. Claude Code or Claude Desktop). The panel can change
+ * it; the process reads it on every call, so a change applies at once without restarting the AI app. WPMCP_STDIO_LEVEL is the
+ * default when the panel has not set one.
+ */
+export function stdioLevel(app: App, env: NodeJS.ProcessEnv = process.env): Level {
+  const chosen = app.store.setting('stdio_level');
+  if (chosen && isLevel(chosen)) return chosen;
+
+  return isLevel(env.WPMCP_STDIO_LEVEL) ? env.WPMCP_STDIO_LEVEL : 'live';
+}
+
+export function stdioPrincipal(app: App): Principal {
+  return {
+    id: 'stdio',
+    kind: 'stdio',
+    name: 'local stdio',
+    sites: '*',
+    get level(): Level {
+      return stdioLevel(app);
+    },
+  };
+}
+
 export type AuthResult = { principal: Principal } | { error: 'missing' | 'invalid' | 'expired' };
 
 export const KEY_PREFIX = 'wpmk_';

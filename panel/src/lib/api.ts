@@ -26,6 +26,7 @@ export interface Activity {
 export interface State {
   version: string;
   levels: string[];
+  stdio: { level: string; from: 'panel' | 'environment' | 'default' };
   publicUrl: string;
   dataDir: string;
   entry: string;
