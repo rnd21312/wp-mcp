@@ -90,6 +90,31 @@ export interface ActivityRow {
   revision: number;
 }
 
+export interface HostRow {
+  name: string;
+  url: string;
+  key_id: string;
+  secret_enc: string;
+  level: string;
+  status: 'ok' | 'error' | 'new';
+  created: number;
+  last_ok: number;
+  last_error: string;
+  agent_version: string;
+  caps: string;
+}
+
+export interface ProjectRow {
+  name: string;
+  kind: string;
+  host: string;
+  site: string;
+  publish: string;
+  created: number;
+  last_deploy: number;
+  last_release: string;
+}
+
 export const parseScope = (raw: string): SiteScope => {
   const value = JSON.parse(raw) as unknown;
   return Array.isArray(value) && value.length === 1 && value[0] === '*' ? '*' : (value as string[]);
@@ -123,6 +148,14 @@ CREATE TABLE IF NOT EXISTS activity (
 );
 CREATE INDEX IF NOT EXISTS activity_site ON activity (site, id);
 CREATE TABLE IF NOT EXISTS ai_providers (id TEXT PRIMARY KEY, name TEXT NOT NULL, preset TEXT NOT NULL, type TEXT NOT NULL, base_url TEXT NOT NULL, model TEXT NOT NULL, key_enc TEXT NOT NULL DEFAULT '', created INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS hosts (
+  name TEXT PRIMARY KEY, url TEXT NOT NULL, key_id TEXT NOT NULL, secret_enc TEXT NOT NULL, level TEXT NOT NULL DEFAULT 'admin', status TEXT NOT NULL DEFAULT 'new',
+  created INTEGER NOT NULL, last_ok INTEGER NOT NULL DEFAULT 0, last_error TEXT NOT NULL DEFAULT '', agent_version TEXT NOT NULL DEFAULT '', caps TEXT NOT NULL DEFAULT '{}'
+);
+CREATE TABLE IF NOT EXISTS projects (
+  name TEXT PRIMARY KEY, kind TEXT NOT NULL, host TEXT NOT NULL DEFAULT '', site TEXT NOT NULL DEFAULT '', publish TEXT NOT NULL DEFAULT '.', created INTEGER NOT NULL,
+  last_deploy INTEGER NOT NULL DEFAULT 0, last_release TEXT NOT NULL DEFAULT ''
+);
 CREATE TABLE IF NOT EXISTS idempotency (k TEXT PRIMARY KEY, created INTEGER NOT NULL, args_hash TEXT NOT NULL, response TEXT NOT NULL);
 `;
 
@@ -329,6 +362,62 @@ export class Store {
 
   removeAiProvider(id: string): void {
     this.run('DELETE FROM ai_providers WHERE id = ?', id);
+  }
+
+  /* hosts (Host Agents) */
+
+  addHost(h: Pick<HostRow, 'name' | 'url' | 'key_id' | 'secret_enc' | 'level'>): void {
+    this.run(`INSERT INTO hosts (name, url, key_id, secret_enc, level, status, created) VALUES (?, ?, ?, ?, ?, 'new', ?)`, h.name, h.url, h.key_id, h.secret_enc, h.level, this.now());
+  }
+
+  host(name: string): HostRow | undefined {
+    return this.one<HostRow>('SELECT * FROM hosts WHERE name = ?', name);
+  }
+
+  hosts(): HostRow[] {
+    return this.all<HostRow>('SELECT * FROM hosts ORDER BY name');
+  }
+
+  removeHost(name: string): void {
+    this.run('DELETE FROM hosts WHERE name = ?', name);
+    this.run("UPDATE projects SET host = '', site = '' WHERE host = ?", name);
+  }
+
+  hostHealth(name: string, ok: boolean, detail = '', info: { version?: string; caps?: unknown } = {}): void {
+    if (ok) {
+      this.run(
+        `UPDATE hosts SET status = 'ok', last_ok = ?, last_error = '', agent_version = COALESCE(NULLIF(?, ''), agent_version), caps = COALESCE(NULLIF(?, ''), caps) WHERE name = ?`,
+        this.now(), info.version ?? '', info.caps === undefined ? '' : JSON.stringify(info.caps), name,
+      );
+    } else {
+      this.run("UPDATE hosts SET status = 'error', last_error = ? WHERE name = ?", detail.slice(0, 300), name);
+    }
+  }
+
+  /* projects */
+
+  addProject(p: Pick<ProjectRow, 'name' | 'kind' | 'publish'>): void {
+    this.run('INSERT INTO projects (name, kind, publish, created) VALUES (?, ?, ?, ?)', p.name, p.kind, p.publish, this.now());
+  }
+
+  project(name: string): ProjectRow | undefined {
+    return this.one<ProjectRow>('SELECT * FROM projects WHERE name = ?', name);
+  }
+
+  projects(): ProjectRow[] {
+    return this.all<ProjectRow>('SELECT * FROM projects ORDER BY name');
+  }
+
+  removeProject(name: string): void {
+    this.run('DELETE FROM projects WHERE name = ?', name);
+  }
+
+  setProjectPublish(name: string, publish: string): void {
+    this.run('UPDATE projects SET publish = ? WHERE name = ?', publish, name);
+  }
+
+  projectDeployed(name: string, host: string, site: string, release: string): void {
+    this.run('UPDATE projects SET host = ?, site = ?, last_release = ?, last_deploy = ? WHERE name = ?', host, site, release, this.now(), name);
   }
 
   /* idempotency */

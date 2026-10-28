@@ -1,5 +1,6 @@
 import type { Config } from './config.ts';
 import { RateLimiter } from './ratelimit.ts';
+import { AgentClient } from './agentclient.ts';
 import { SiteClient } from './wpclient.ts';
 import type { Store } from './store.ts';
 
@@ -9,10 +10,11 @@ export interface App {
   store: Store;
   limiter: RateLimiter;
   sites: SiteClient;
+  agents: AgentClient;
 }
 
-export function createApp(config: Config, store: Store, parts: Partial<Pick<App, 'limiter' | 'sites'>> = {}): App {
-  return { config, store, limiter: parts.limiter ?? new RateLimiter(), sites: parts.sites ?? new SiteClient(config) };
+export function createApp(config: Config, store: Store, parts: Partial<Pick<App, 'limiter' | 'sites' | 'agents'>> = {}): App {
+  return { config, store, limiter: parts.limiter ?? new RateLimiter(), sites: parts.sites ?? new SiteClient(config), agents: parts.agents ?? new AgentClient(config) };
 }
 
 /** What a handler returns; the HTTP layer turns it into a response. */

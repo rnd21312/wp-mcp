@@ -12,6 +12,7 @@ import * as ws from './workspace.ts';
 import { addSite, testSite } from './siteadmin.ts';
 import { parseScope } from './store.ts';
 import { safeRequest, SsrfError } from './ssrf.ts';
+import { studioApi } from './studio.ts';
 import { SiteError } from './wpclient.ts';
 
 /**
@@ -155,6 +156,8 @@ async function api(app: App, req: LocalReq): Promise<Reply> {
     if (method === 'GET' && route === 'ws/status') return json(200, ws.status(app, String(query.get('site') ?? '')));
     if (method === 'GET' && route === 'ai/providers') return json(200, { providers: app.store.aiProviders().map((p) => ({ id: p.id, name: p.name, preset: p.preset, type: p.type, base_url: p.base_url, model: p.model, has_key: !!p.key_enc })), presets: PRESETS });
     if (method === 'GET' && route === 'activity') return json(200, { entries: app.store.activity({ limit: Math.min(200, Number(query.get('limit') ?? 100)) }) });
+    const studio = await studioApi(app, method, route, body);
+    if (studio) return studio;
     if (method !== 'POST') return json(404, { error: 'not_found' });
 
     switch (route) {

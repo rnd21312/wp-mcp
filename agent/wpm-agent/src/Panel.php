@@ -40,7 +40,7 @@ final class Panel
     {
     }
 
-    private function t(string $en, string ...$args): string
+    private function t(string $en, string|int ...$args): string
     {
         $s = $this->lang === 'fa' ? (self::FA[$en] ?? $en) : $en;
 
