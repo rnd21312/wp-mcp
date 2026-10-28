@@ -6,6 +6,7 @@ import { atLeast, LEVEL_HELP, minLevel, type Level } from '../levels.ts';
 import { checkArgs, OPS, opsOf, paramSchema, signature, TOOLS, type OpSpec } from '../registry.ts';
 import type { SiteRow } from '../store.ts';
 import { SiteError } from '../wpclient.ts';
+import { callStudio, studioTool } from './studio.ts';
 import { runTransfer } from './transfer.ts';
 
 export interface ToolDef {
@@ -33,6 +34,11 @@ const firstSentence = (text: string): string => {
 /* --------------------------------------------------------------- listing */
 
 export function listTools(principal: Principal): ToolDef[] {
+  const studio = studioTool(principal);
+  return [...listSiteTools(principal), ...(studio ? [studio] : [])];
+}
+
+function listSiteTools(principal: Principal): ToolDef[] {
   return TOOLS.map((info) => {
     const ops = opsOf(info.name);
     const open = ops.filter((op) => atLeast(principal.level, op.level));
@@ -120,6 +126,7 @@ export async function callTool(app: App, principal: Principal, toolName: string,
     app.store.log({ principal: principal.id, principal_name: principal.name, tool: tool ?? toolName, action: action ?? String(input.action ?? ''), site, level, status, summary, request_id: requestId, revision });
   };
 
+  if (toolName === 'studio') return await callStudio(app, principal, input);
   if (!TOOLS.some((t) => t.name === toolName)) return fail('unknown_tool', `Unknown tool "${toolName}". Tools: ${TOOLS.map((t) => t.name).join(', ')}.`);
   const action = String(input.action ?? '');
   const op = OPS[`${toolName}.${action}`];

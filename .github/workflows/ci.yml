@@ -3,12 +3,22 @@ on: [push, pull_request]
 jobs:
   test:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        php: ['8.1', '8.3']
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: 24 }
       - uses: shivammathur/setup-php@v2
-        with: { php-version: '8.1' }
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: sodium, zip, curl, mbstring, pdo_sqlite
       - run: npm --prefix gateway ci
       - run: npm --prefix gateway run typecheck
+      # Linux runs the symlink-mode release tests and the signed-update tests that are skipped on Windows.
+      - run: php plugin/tests/run.php
+      - run: php agent/tests/run.php
       - run: npm --prefix gateway test
+      - run: npm --prefix panel ci
+      - run: npm --prefix panel exec -- tsc -p tsconfig.app.json --noEmit

@@ -26,6 +26,10 @@ Claude.ai / Claude Code / Cursor / هر کلاینت MCP
 
 جزئیات: [docs/fa/architecture.md](docs/fa/architecture.md)
 
+## نسخه‌ی ۲: ساخت هر سایت از صفر
+
+**یک زیپ** (ایجنت هاست، PHP 8.1 به بالا) را روی هر هاستی آپلود کنید: cPanel، DirectAdmin، Plesk، اشتراکی یا VPS. در مرورگر بازش کنید و نام کاربری و گذرواژه بگذارید. بعد از Studio روی کامپیوتر خودتان سایت را از صفر می‌سازید و منتشر می‌کنید: ایستا، React/Vue/Svelte، Astro، Next، Node، **وردپرس با دیتابیسش**، یا بگذارید **سازنده‌ی AI** سایت را بنویسد و شما هر مرحله را تأیید کنید. هر انتشار نسخه‌ای است که می‌توان برگرداند. [نصب و مدل امنیتی](docs/fa/agent.md) · [سازنده‌ی AI](docs/fa/builder.md) · [انتشار، به‌روزرسانی امضاشده، ماتریس تست](docs/fa/release.md) · [طرح](docs/v2-plan.md).
+
 ## شروع سریع
 
 ۱. **اجرای gateway** (Node 22.13 به بالا؛ Docker هم هست، [docs/fa/install.md](docs/fa/install.md)):

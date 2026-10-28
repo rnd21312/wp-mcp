@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { AgentError, normalizeAgentUrl } from './agentclient.ts';
 import type { App } from './context.ts';
 import { encrypt } from './crypto.ts';
+import { safeRequest } from './ssrf.ts';
 import { createZip, type ZipEntry } from './zip.ts';
 import type { HostRow } from './store.ts';
 
@@ -130,3 +131,77 @@ const AGENT_README = `WPM Host Agent
 Needs PHP 8.1 or newer. Use HTTPS. The agent never runs shell commands and only writes inside the folders you let it manage.
 Open source (MIT).
 `;
+
+// ---- signed updates and host checks -----------------------------------------------------------------------------
+
+export interface AgentRelease {
+  version: string;
+  zip: string;
+  sig: string;
+}
+
+/** The signed agent release shipped with this Studio (scripts/release.mjs), or null on an unsigned/dev build. */
+export const releasePaths: { dirs?: string[] } = {};
+
+export function agentRelease(): AgentRelease | null {
+  const dirs = releasePaths.dirs ?? [resolve(here, 'agent-release'), resolve(here, '..', 'dist', 'agent-release'), resolve(here, '..', '..', 'dist')];
+  for (const dir of dirs) {
+    const zip = join(dir, 'wpm-agent.zip');
+    const sig = join(dir, 'wpm-agent.zip.sig');
+    if (!existsSync(zip) || !existsSync(sig)) continue;
+    // release.mjs writes the version of the signed zip next to it; fall back to the sources for hand-made releases
+    const versionFile = join(dir, 'wpm-agent.version');
+    const version = existsSync(versionFile) ? readFileSync(versionFile, 'utf8').trim() : (/const VERSION = '([^']+)'/.exec(readFileSync(join(agentSourceDir(), 'src', 'Agent.php'), 'utf8'))?.[1] ?? '');
+    return { version, zip, sig };
+  }
+
+  return null;
+}
+
+const newer = (a: string, b: string): boolean => {
+  const parts = (v: string): number[] => v.split(/[.-]/).map((x) => Number.parseInt(x, 10) || 0);
+  const [x, y] = [parts(a), parts(b)];
+  for (let i = 0; i < Math.max(x.length, y.length); i++) if ((x[i] ?? 0) !== (y[i] ?? 0)) return (x[i] ?? 0) > (y[i] ?? 0);
+  return false;
+};
+
+/** Sends the signed release; the agent verifies the signature itself and refuses anything else. */
+export async function updateAgent(app: App, name: string): Promise<{ from: string; to: string }> {
+  const host = needHost(app, name);
+  const release = agentRelease();
+  if (!release) throw new AgentError('no_release', 'This Studio has no signed agent release (it is a development build). Download the agent zip and upload it by hand.');
+  if (!newer(release.version, host.agent_version)) throw new AgentError('up_to_date', `The agent is already at ${host.agent_version}.`);
+  const uploadId = await app.agents.upload(host, readFileSync(release.zip));
+  const out = await app.agents.call<{ from: string; to: string }>(host, 'agent.update', { upload_id: uploadId, signature: readFileSync(release.sig, 'utf8').trim() }, { timeoutMs: 120000 });
+  await testHost(app, name);
+  app.store.log({ principal: 'studio', principal_name: 'Studio', tool: 'agent', action: 'update', site: name, level: 'admin', status: 'ok', summary: `${out.from} -> ${out.to}`, request_id: out.to, revision: 0 });
+
+  return out;
+}
+
+export interface Exposure {
+  path: string;
+  status: number;
+  safe: boolean;
+  note: string;
+}
+
+/** The agent's own self-test plus a look from outside: can the web reach files it must not? */
+export async function checkHost(app: App, name: string): Promise<{ checks: { id: string; status: string; msg: string }[]; exposure: Exposure[] }> {
+  const host = needHost(app, name);
+  const { checks } = await app.agents.call<{ checks: { id: string; status: string; msg: string }[] }>(host, 'host.selftest', { online: true }, { timeoutMs: 90000 });
+  const policy = { allowPrivate: app.config.allowPrivateSites, allowHttp: app.config.allowInsecureSites };
+  const exposure: Exposure[] = [];
+  for (const path of ['src/Auth.php', 'src/Store.php', 'data-location.php', 'wpm-setup.php', '.htaccess', 'data/config.json.php', 'README.txt']) {
+    try {
+      const res = await safeRequest(`${host.url}${path}`, policy, { timeoutMs: 15000, maxBytes: 200000 });
+      const text = res.body.toString('utf8');
+      const leaks = res.status === 200 && /<\?php|defined\(|namespace |"hash"/i.test(text) && text.trim().length > 0;
+      exposure.push({ path, status: res.status, safe: !leaks, note: leaks ? 'The web server returned the contents of this file. Block it in the server configuration or move the agent.' : res.status === 200 ? 'Reachable but harmless (no secrets or code).' : 'Not served.' });
+    } catch (error) {
+      exposure.push({ path, status: 0, safe: true, note: `Not reachable (${error instanceof Error ? error.message.slice(0, 60) : 'error'}).` });
+    }
+  }
+
+  return { checks, exposure };
+}

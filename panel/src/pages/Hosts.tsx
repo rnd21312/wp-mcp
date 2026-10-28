@@ -122,6 +122,22 @@ export function Hosts() {
   const [agent, setAgent] = useState<{ setup_code: string } | null>(null);
   const [open, setOpen] = useState('');
   const [wpHost, setWpHost] = useState('');
+  const [report, setReport] = useState<{ host: string; checks: { id: string; status: string; msg: string }[]; exposure: { path: string; status: number; safe: boolean; note: string }[] } | null>(null);
+
+  const check = async (name: string): Promise<void> => {
+    setBusy('check-' + name);
+    const r = await api.post<any>('hosts/check', { name });
+    setBusy('');
+    r.ok ? setReport({ host: name, checks: r.checks, exposure: r.exposure }) : toast.error(r.error?.message ?? 'error');
+  };
+
+  const updateAgent = async (name: string): Promise<void> => {
+    setBusy('update-' + name);
+    const r = await api.post<any>('hosts/update-agent', { name });
+    setBusy('');
+    r.ok ? toast.success(t(`Agent updated: ${r.from} → ${r.to}`, `ایجنت به‌روز شد: ${r.from} ← ${r.to}`)) : toast.error(r.error?.message ?? 'error');
+    await refresh();
+  };
 
   const connect = async (): Promise<void> => {
     setBusy('add');
@@ -199,6 +215,8 @@ export function Hosts() {
                 {open === h.name && <Sites host={h} />}
                 <div className="flex flex-wrap gap-2">
                   <Button size="sm" variant="outline" onClick={() => setOpen(open === h.name ? '' : h.name)}>{t('Sites & releases', 'سایت‌ها و نسخه‌ها')}</Button>
+                  <Button size="sm" variant="outline" disabled={busy === 'check-' + h.name} onClick={() => check(h.name)}>{t('Check this host', 'بررسی این هاست')}</Button>
+                  {data.agent_release && h.agent_version && data.agent_release !== h.agent_version && <Button size="sm" variant="outline" disabled={busy === 'update-' + h.name} onClick={() => updateAgent(h.name)}>{t(`Update agent to ${data.agent_release}`, `به‌روزرسانی ایجنت به ${data.agent_release}`)}</Button>}
                   <Button size="sm" onClick={() => setWpHost(h.name)}><PlusIcon /> {t('New WordPress site', 'سایت وردپرس جدید')}</Button>
                   <Button size="sm" variant="outline" disabled={busy === h.name} onClick={() => test(h.name)}><RefreshCwIcon /> {t('Test', 'آزمایش')}</Button>
                   <Button size="sm" variant="ghost" className="text-destructive" onClick={async () => { if (confirm(t('Disconnect this host? Sites stay online.', 'اتصال این هاست قطع شود؟ سایت‌ها آنلاین می‌مانند.'))) { await api.post('hosts/remove', { name: h.name }); await refresh(); } }}><Trash2Icon /> {t('Disconnect', 'قطع اتصال')}</Button>
@@ -221,6 +239,20 @@ export function Hosts() {
             <Field label={t('Name (optional)', 'نام (اختیاری)')}><Input dir="ltr" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></Field>
           </div>
           <DialogFooter><Button disabled={!form.url || !form.code || busy === 'add'} onClick={connect}>{t('Connect', 'اتصال')}</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!report} onOpenChange={() => setReport(null)}>
+        <DialogContent className="max-h-[90svh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{t('Host check', 'بررسی هاست')}: {report?.host}</DialogTitle>
+            <DialogDescription>{t('What this host can do, tested from inside the agent, and what the web can reach from outside.', 'این هاست چه کارهایی می‌تواند، از داخل ایجنت آزموده شده، و آنچه از بیرون از وب در دسترس است.')}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-1 text-sm">
+            {report?.checks.map((c) => <div key={c.id} className="flex gap-2"><span className={c.status === 'ok' ? 'text-green-600' : c.status === 'warn' ? 'text-amber-600' : 'text-destructive'}>{c.status === 'ok' ? '✓' : c.status === 'warn' ? '!' : '✗'}</span><span>{c.msg}</span></div>)}
+            <div className="pt-2 font-medium">{t('Reachable from the web', 'قابل دسترسی از وب')}</div>
+            {report?.exposure.map((e) => <div key={e.path} className="flex gap-2"><span className={e.safe ? 'text-green-600' : 'text-destructive'}>{e.safe ? '✓' : '✗'}</span><span dir="ltr">{e.path}</span><span className="text-muted-foreground">{e.note}</span></div>)}
+          </div>
         </DialogContent>
       </Dialog>
 

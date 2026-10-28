@@ -1,7 +1,7 @@
 {
   "name": "wp-mcp",
   "private": true,
-  "version": "0.1.0",
+  "version": "2.0.0",
   "description": "MCP gateway and WordPress bridge plugin: let an AI run WordPress sites safely",
   "license": "MIT",
   "scripts": {
@@ -13,6 +13,8 @@
     "test": "npm --prefix gateway test",
     "package:plugin": "node scripts/sync-spec.mjs && node scripts/package-plugin.mjs",
     "test:php": "php plugin/tests/run.php && php agent/tests/run.php",
-    "package:agent": "node scripts/package-agent.mjs"
+    "package:agent": "node scripts/package-agent.mjs",
+    "release:keygen": "node scripts/release-keygen.mjs",
+    "release": "node scripts/release.mjs"
   }
 }

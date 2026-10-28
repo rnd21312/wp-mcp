@@ -8,7 +8,7 @@ declare(strict_types=1);
 error_reporting(E_ALL);
 define('WPM_AGENT', true);
 $src = dirname(__DIR__) . '/wpm-agent/src/';
-foreach (['Util', 'ApiError', 'Store', 'Fs', 'Zip', 'Security', 'Http', 'Caps', 'Agent', 'Auth', 'Net', 'Db', 'NodeApp', 'Sites', 'Wp', 'Api', 'Panel'] as $f) {
+foreach (['Util', 'ApiError', 'Store', 'Fs', 'Zip', 'Security', 'Http', 'Caps', 'Agent', 'Auth', 'Net', 'Db', 'NodeApp', 'Sites', 'Wp', 'Selftest', 'Update', 'Api', 'Panel'] as $f) {
     require $src . $f . '.php';
 }
 
@@ -500,6 +500,7 @@ section('capabilities', function () {
 use WPM\Agent\Db;
 use WPM\Agent\Net;
 use WPM\Agent\NodeApp;
+use WPM\Agent\Update;
 use WPM\Agent\Wp;
 
 section('database provisioning through hosting-panel APIs (mocked transport)', function () {
@@ -717,6 +718,111 @@ section('Node.js sites: deploy, env, restart signal, server script', function ()
     $lintFile = tap($script);
     $sh = trim((string) @shell_exec('bash -n ' . escapeshellarg($lintFile) . ' 2>&1'));
     check($sh === '', 'generated script passes bash -n' . ($sh !== '' ? ': ' . $sh : ''));
+});
+
+section('host self-test', function () {
+    [$agent, $root, $web] = newAgent();
+    installAgent($agent);
+    (new Sites($agent))->create(['name' => 'T', 'folder' => 't', 'mode' => 'sync'], 't');
+    $checks = \WPM\Agent\Selftest::run($agent, true, false);
+    $by = array_column($checks, null, 'id');
+    foreach (['php', 'https', 'data_dir', 'atomic_rename', 'locking', 'symlink', 'zlib', 'upload_limit', 'memory', 'disk', 'sodium', 'database', 'hashing', 'node', 'panel', 'site_t'] as $id) {
+        check(isset($by[$id]), 'selftest reports ' . $id);
+    }
+    check($by['data_dir']['status'] === 'ok' && $by['atomic_rename']['status'] === 'ok' && $by['zlib']['status'] === 'ok', 'core checks pass');
+    check(!array_filter($checks, static fn ($c) => $c['status'] === 'fail'), 'no failures on a healthy folder');
+    same(\WPM\Agent\Selftest::run($agent, false, false)[1]['status'], 'warn', 'plain http is a warning');
+    check(count(glob($agent->dataDir . '/selftest-*')) === 0, 'scratch folder is removed');
+    $net = [];
+    Net::$transport = function () use (&$net) { $net[] = 1; return [200, 'abc']; };
+    $online = array_column(\WPM\Agent\Selftest::run($agent, true, true), null, 'id');
+    same($online['outbound']['status'], 'ok', 'outbound check');
+    Net::$transport = fn () => throw new ApiError('net_failed', 'blocked by firewall');
+    $off = array_column(\WPM\Agent\Selftest::run($agent, true, true), null, 'id');
+    same($off['outbound']['status'], 'warn', 'blocked outbound is a warning, not a failure');
+    Net::$transport = null;
+});
+
+section('signed agent update', function () {
+    if (!function_exists('sodium_crypto_sign_keypair')) {
+        echo "  (sodium unavailable, skipped)\n";
+        return;
+    }
+    [$agent, $root, $web] = newAgent();
+    installAgent($agent);
+    $src = dirname(__DIR__) . '/wpm-agent';
+    // a live-looking installation to update
+    mkdir($agent->agentDir . '/src', 0777, true);
+    $files = ['index.php', '.htaccess'];
+    foreach (glob($src . '/src/*.php') as $f) {
+        $files[] = 'src/' . basename($f);
+    }
+    foreach ($files as $f) {
+        copy($src . '/' . $f, $agent->agentDir . '/' . $f);
+    }
+    file_put_contents($agent->agentDir . '/data-location.php', "<?php return 'keep-me';");
+    file_put_contents($agent->agentDir . '/wpm-setup.php', '<?php // setup');
+    file_put_contents($agent->agentDir . '/src/Obsolete.php', '<?php // removed in the new version');
+
+    $kp = sodium_crypto_sign_keypair();
+    Update::$publicKey = base64_encode(sodium_crypto_sign_publickey($kp));
+    $sign = static fn (string $zip, string $key) => base64_encode(sodium_crypto_sign_detached(Update::CONTEXT . hash('sha256', $zip), $key));
+    $tree = static function (string $version) use ($files, $src): array {
+        $t = [];
+        foreach ($files as $f) {
+            $t[$f] = (string) file_get_contents($src . '/' . $f);
+        }
+        $t['src/Agent.php'] = preg_replace("/const VERSION = '[^']+'/", "const VERSION = '" . $version . "'", $t['src/Agent.php']);
+        $t['src/Util.php'] .= "\n// updated\n";
+
+        return $t;
+    };
+    $write = static function (string $zip) use ($root): string {
+        $f = $root . '/u-' . bin2hex(random_bytes(3)) . '.zip';
+        file_put_contents($f, $zip);
+
+        return $f;
+    };
+    $secret = sodium_crypto_sign_secretkey($kp);
+
+    $good = makeZip($tree('99.0.0'));
+    throwsCode(fn () => Update::apply($agent, $write($good), $sign($good, sodium_crypto_sign_secretkey(sodium_crypto_sign_keypair()))), 'bad_signature', 'signature from another key');
+    throwsCode(fn () => Update::apply($agent, $write($good), base64_encode('short')), 'bad_signature', 'garbage signature');
+    throwsCode(fn () => Update::apply($agent, $write($good . 'x'), $sign($good, $secret)), 'bad_signature', 'tampered archive');
+    check(!str_contains(file_get_contents($agent->agentDir . '/src/Util.php'), '// updated'), 'nothing changed after refusals');
+
+    $old = makeZip($tree('1.0.0'));
+    throwsCode(fn () => Update::apply($agent, $write($old), $sign($old, $secret)), 'not_newer', 'downgrades are refused even when signed');
+    $same = makeZip($tree(Agent::VERSION));
+    throwsCode(fn () => Update::apply($agent, $write($same), $sign($same, $secret)), 'not_newer', 'the same version is refused');
+
+    $extra = $tree('99.0.0');
+    $extra['evil.php'] = '<?php system($_GET[0]);';
+    $bad = makeZip($extra);
+    throwsCode(fn () => Update::apply($agent, $write($bad), $sign($bad, $secret)), 'zip_rejected', 'extra files are refused');
+    $nested = $tree('99.0.0');
+    $nested['../escape.php'] = 'x';
+    $bad2 = makeZip($nested);
+    throwsCode(fn () => Update::apply($agent, $write($bad2), $sign($bad2, $secret)), 'zip_unsafe_path', 'path escape is refused');
+    $incomplete = $tree('99.0.0');
+    unset($incomplete['src/Update.php']);
+    $bad3 = makeZip($incomplete);
+    throwsCode(fn () => Update::apply($agent, $write($bad3), $sign($bad3, $secret)), 'bad_update', 'incomplete update is refused');
+
+    $res = Update::apply($agent, $write($good), $sign($good, $secret));
+    same([$res['from'], $res['to']], [Agent::VERSION, '99.0.0'], 'update applied');
+    check(str_contains(file_get_contents($agent->agentDir . '/src/Util.php'), '// updated'), 'files replaced');
+    check(str_contains(file_get_contents($agent->agentDir . '/src/Agent.php'), "'99.0.0'"), 'version replaced');
+    check(!is_file($agent->agentDir . '/src/Obsolete.php'), 'files the new version dropped are removed');
+    same(file_get_contents($agent->agentDir . '/data-location.php'), "<?php return 'keep-me';", 'data-location.php untouched');
+    check(is_file($agent->agentDir . '/wpm-setup.php'), 'setup code file untouched');
+    check(is_file($agent->dataDir . '/backups/' . $res['backup'] . '/src/Util.php') && !str_contains(file_get_contents($agent->dataDir . '/backups/' . $res['backup'] . '/src/Util.php'), '// updated'), 'previous version kept in backups');
+    check(count(glob($agent->agentDir . '/*.wpm-new')) + count(glob($agent->agentDir . '/src/*.wpm-new')) === 0, 'no temp files left');
+    check(count(glob($agent->dataDir . '/update-*')) === 0, 'staging folder removed');
+
+    Update::$publicKey = '';
+    throwsCode(fn () => Update::apply($agent, $write($good), $sign($good, $secret)), 'no_update_key', 'agent without a release key refuses updates');
+    Update::$publicKey = null;
 });
 
 function tap(string $content): string

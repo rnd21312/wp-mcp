@@ -1,6 +1,10 @@
 # Changelog
 
-## 2.0.0-m5 (in progress)
+## 2.0.0
+
+M6: signed agent self-update (Ed25519, anti-downgrade, backup and automatic restore), host self-test with outside exposure probe, `studio` MCP tool (static projects, confirmed publish/rollback), release and key scripts, Linux CI with symlink and signed-update tests, test matrix.
+
+## 2.0.0-m5
 
 M5: AI site builder with human checkpoints (sitemap, design system, pages, images, SEO, audit, publish), server-enforced order, deterministic shell/SEO/CSS/audit.
 

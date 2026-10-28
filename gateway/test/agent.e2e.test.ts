@@ -5,7 +5,9 @@ import net from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { agentSourceDir, buildAgentZip } from '../src/hosts.ts';
+import { createHash, createPrivateKey, createPublicKey, generateKeyPairSync, sign } from 'node:crypto';
+import { agentSourceDir, buildAgentZip, releasePaths } from '../src/hosts.ts';
+import { createZip } from '../src/zip.ts';
 import { createEnv, type Env } from './helpers.ts';
 
 /**
@@ -13,6 +15,9 @@ import { createEnv, type Env } from './helpers.ts';
  * chunked uploads, deploy, rollback) through the local panel API.
  */
 const hasPhp = spawnSync('php', ['-v']).status === 0;
+// Signed updates need the sodium extension; it is optional on some PHP builds.
+const sodiumArgs = spawnSync('php', ['-r', 'exit(function_exists("sodium_crypto_sign_detached") ? 0 : 1);']).status === 0 ? [] : spawnSync('php', ['-d', 'extension=sodium', '-r', 'exit(function_exists("sodium_crypto_sign_detached") ? 0 : 1);']).status === 0 ? ['-d', 'extension=sodium'] : null;
+const releaseKey = generateKeyPairSync('ed25519');
 
 const freePort = (): Promise<number> =>
   new Promise((resolve) => {
@@ -71,10 +76,18 @@ describe.skipIf(!hasPhp)('Host Agent end to end (php -S)', () => {
     expect(existsSync(join(web, 'wpm-agent', 'index.php'))).toBe(true);
     expect(readFileSync(join(web, 'wpm-agent', 'wpm-setup.php'), 'utf8')).toContain(setupCode);
 
+    // The installation trusts our test release key.
+    const rawPublic = createPublicKey(releaseKey.privateKey).export({ type: 'spki', format: 'der' }).subarray(-32).toString('base64');
+    writeFileSync(join(web, 'wpm-agent', 'src', 'UpdateKey.php'), `<?php
+declare(strict_types=1);
+defined('WPM_AGENT') || exit;
+return '${rawPublic}';
+`);
+
     const port = await freePort();
     origin = `http://127.0.0.1:${port}`;
     agentUrl = `${origin}/wpm-agent/`;
-    php = spawn('php', ['-S', `127.0.0.1:${port}`, '-t', web], { stdio: 'ignore' });
+    php = spawn('php', [...(sodiumArgs ?? []), '-S', `127.0.0.1:${port}`, '-t', web], { stdio: 'ignore' });
     for (let i = 0; i < 100; i++) {
       try {
         await fetch(origin);
@@ -281,6 +294,68 @@ describe.skipIf(!hasPhp)('Host Agent end to end (php -S)', () => {
     const bad = await studio('hosts/node-script', { host: 'mine', site: 'api', domain: 'x.com; reboot', user: 'u' });
     expect(bad.error.code).toBe('bad_domain');
   });
+
+  it('checks the host from inside and outside', async () => {
+    const r = await studio('hosts/check', { name: 'mine' });
+    expect(r.error ?? r.ok).toBe(true);
+    const by = Object.fromEntries(r.checks.map((c: any) => [c.id, c]));
+    expect(by.data_dir.status).toBe('ok');
+    expect(by.atomic_rename.status).toBe('ok');
+    expect(by.zlib.status).toBe('ok');
+    expect(r.checks.some((c: any) => c.status === 'fail')).toBe(false);
+    for (const e of r.exposure) expect(e.safe, `${e.path}: ${e.note}`).toBe(true);
+    expect(r.exposure.map((e: any) => e.path)).toContain('src/Auth.php');
+  });
+
+  it.skipIf(!sodiumArgs)('updates the agent with a signed release, refusing a bad signature and a downgrade', async () => {
+    const src = agentSourceDir();
+    const files = ['index.php', '.htaccess', ...readdirSync(join(src, 'src')).map((f) => `src/${f}`)];
+    const build = (version: string) =>
+      createZip(
+        files.map((name) => {
+          let data = readFileSync(name === 'src/UpdateKey.php' ? join(web, 'wpm-agent', name) : join(src, name));
+          if (name === 'src/Agent.php') data = Buffer.from(data.toString('utf8').replace(/const VERSION = '[^']+'/, `const VERSION = '${version}'`));
+          return { name, data };
+        }),
+      );
+    const signed = (zip: Buffer, key = releaseKey.privateKey) => sign(null, Buffer.from(`wpm-agent-update
+${createHash('sha256').update(zip).digest('hex')}`), key).toString('base64');
+    const dir = join(root, 'release');
+    mkdirSync(dir, { recursive: true });
+    releasePaths.dirs = [dir];
+
+    // no release shipped
+    expect((await studio('hosts/update-agent', { name: 'mine' })).error.code).toBe('no_release');
+    // a release signed with the wrong key is refused by the agent itself
+    const v2 = build('2.0.1');
+    writeFileSync(join(dir, 'wpm-agent.zip'), v2);
+    writeFileSync(join(dir, 'wpm-agent.version'), '2.0.1');
+    writeFileSync(join(dir, 'wpm-agent.zip.sig'), signed(v2, generateKeyPairSync('ed25519').privateKey));
+    const bad = await studio('hosts/update-agent', { name: 'mine' });
+    expect(bad.error.code).toBe('bad_signature');
+    expect(readFileSync(join(web, 'wpm-agent', 'src', 'Agent.php'), 'utf8')).toContain("'2.0.0'");
+    // the real signature works
+    writeFileSync(join(dir, 'wpm-agent.zip.sig'), signed(v2));
+    const ok = await studio('hosts/update-agent', { name: 'mine' });
+    expect(ok.error ?? ok.ok).toBe(true);
+    expect(ok.to).toBe('2.0.1');
+    expect(readFileSync(join(web, 'wpm-agent', 'src', 'Agent.php'), 'utf8')).toContain("'2.0.1'");
+    expect(env.app.store.host('mine')!.agent_version).toBe('2.0.1');
+    // the data stayed, the site still deploys through the updated agent
+    expect(existsSync(join(web, 'wpm-agent', 'data-location.php'))).toBe(true);
+    const again = await studio('projects/deploy', { project: 'demo', host: 'mine', note: 'after update' });
+    expect(again.error ?? again.ok).toBe(true);
+    // the same version again is "up to date" on the Studio side, and a signed downgrade is refused by the agent
+    expect((await studio('hosts/update-agent', { name: 'mine' })).error.code).toBe('up_to_date');
+    const v1 = build('1.0.0');
+    writeFileSync(join(dir, 'wpm-agent.zip'), v1);
+    writeFileSync(join(dir, 'wpm-agent.version'), '1.0.0');
+    writeFileSync(join(dir, 'wpm-agent.zip.sig'), signed(v1));
+    env.app.store.hostHealth('mine', true, '', { version: '0.0.1' }); // pretend the Studio thinks it is old
+    expect((await studio('hosts/update-agent', { name: 'mine' })).error.code).toBe('not_newer');
+    releasePaths.dirs = undefined;
+    await studio('hosts/test', { name: 'mine' });
+  }, 60000);
 
   it('the Studio detects a wrong secret and a revoked connection', async () => {
     // revoke in the agent panel, then the Studio must fail with a clear error

@@ -35,7 +35,7 @@ First run: wizard (requirements → setup code → username/password → optiona
 * **M3 Templates + local builds** (DONE) (Vite React/Vue/Svelte, Astro, Next/Nuxt static export).
 * **M4 Node targets / SSR** (DONE for Passenger-style hosts and VPS via a user-run script; not tested on real hosts) (cPanel Node app, Passenger, VPS with systemd through an approved allow-listed path).
 * **M5 AI builder pipeline** with human checkpoints (DONE, see [builder.md](builder.md); not tried with a real AI provider yet).
-* **M6 Polish**: signed self-update, docs, packaging, test matrix.
+* **M6 Polish** (DONE: signed self-update, host self-test, MCP studio tool, release scripts, CI on Linux, test matrix; see [release.md](release.md)): signed self-update, docs, packaging, test matrix.
 
 ## Threat notes for M1
 

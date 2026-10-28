@@ -78,6 +78,7 @@ export interface ProjectInfo {
 }
 
 export interface Studio {
+  agent_release: string;
   hosts: HostInfo[];
   projects: ProjectInfo[];
   templates: { id: string; label: string; build: boolean; note: string }[];

@@ -169,6 +169,17 @@ final class Api
             case 'roots.add':
                 $this->need($conn, 'admin');
                 return ['root' => $this->agent->addRoot((string) ($in['path'] ?? ''), $actor), 'roots' => $this->agent->roots()];
+            case 'host.selftest':
+                $this->need($conn, 'deploy');
+                return ['checks' => Selftest::run($this->agent, $req->isSecure(), !empty($in['online']))];
+            case 'agent.update':
+                $this->need($conn, 'admin');
+                $zip = $this->sites->uploadBlob((string) ($in['upload_id'] ?? ''), $keyId);
+                try {
+                    return Update::apply($this->agent, $zip, (string) ($in['signature'] ?? ''));
+                } finally {
+                    Fs::rrmdir(dirname($zip));
+                }
             case 'db.test':
                 $this->need($conn, 'admin');
                 $db = Db::provision(['method' => 'manual'] + $in);

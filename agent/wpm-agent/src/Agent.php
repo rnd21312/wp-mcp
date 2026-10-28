@@ -8,7 +8,7 @@ defined('WPM_AGENT') || exit;
 /** Shared state of one agent installation: where the data lives, the config, the audit log. */
 final class Agent
 {
-    public const VERSION = '2.0.0-m1';
+    public const VERSION = '2.0.0';
 
     public Store $store;
     /** @var array<string,mixed> */

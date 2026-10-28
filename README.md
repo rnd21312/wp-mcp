@@ -27,6 +27,10 @@ Claude.ai / Claude Code / Cursor / any MCP client
 
 Details: [docs/architecture.md](docs/architecture.md).
 
+## Version 2: build any site from zero
+
+Upload **one zip** (the Host Agent, PHP 8.1+) to any hosting: cPanel, DirectAdmin, Plesk, shared or a VPS. Open it in a browser, set a username and password. From the Studio on your computer you then create sites from scratch and publish them: static, React/Vue/Svelte, Astro, Next, Node, **WordPress with its database**, or let the **AI builder** write the site while you approve each step. Every publish is a release you can roll back. [Setup and security model](docs/agent.md) · [AI builder](docs/builder.md) · [releases, signed updates, test matrix](docs/release.md) · [plan](docs/v2-plan.md).
+
 ## Quick start
 
 1. **Run the gateway** (Node 22.13+; Docker also works, see [docs/install.md](docs/install.md)):

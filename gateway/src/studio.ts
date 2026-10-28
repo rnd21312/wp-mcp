@@ -2,7 +2,7 @@ import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { AgentError, type RemoteSite, type Release } from './agentclient.ts';
 import type { App, Reply } from './context.ts';
-import { addHost, buildAgentZip, hostView, needHost, testHost } from './hosts.ts';
+import { addHost, agentRelease, buildAgentZip, checkHost, hostView, needHost, testHost, updateAgent } from './hosts.ts';
 import { buildStatus, hasBuildScript, startBuild } from './build.ts';
 import * as projects from './projects.ts';
 import { FRAMEWORKS } from './templates.ts';
@@ -21,7 +21,7 @@ const projectView = (app: App, p: ReturnType<App['store']['projects']>[number]) 
 export async function studioApi(app: App, method: string, route: string, body: Record<string, any>): Promise<Reply | null> {
   try {
     if (method === 'GET' && route === 'studio') {
-      return json(200, { hosts: app.store.hosts().map(hostView), projects: app.store.projects().map((p) => projectView(app, p)), templates: [...Object.entries(projects.TEMPLATES).map(([id, t]) => ({ id, label: t.label, build: false, note: '' })), ...Object.entries(FRAMEWORKS).map(([id, t]) => ({ id, label: t.label, build: true, note: t.note }))] });
+      return json(200, { agent_release: agentRelease()?.version ?? '', hosts: app.store.hosts().map(hostView), projects: app.store.projects().map((p) => projectView(app, p)), templates: [...Object.entries(projects.TEMPLATES).map(([id, t]) => ({ id, label: t.label, build: false, note: '' })), ...Object.entries(FRAMEWORKS).map(([id, t]) => ({ id, label: t.label, build: true, note: t.note }))] });
     }
     if (method !== 'POST') return null;
     const str = (key: string): string => String(body[key] ?? '');
@@ -35,6 +35,10 @@ export async function studioApi(app: App, method: string, route: string, body: R
         const host = await addHost(app, { url: str('url'), code: str('code'), name: str('name') });
         return json(200, { ok: true, host: hostView(host) });
       }
+      case 'hosts/check':
+        return json(200, { ok: true, ...(await checkHost(app, str('name'))) });
+      case 'hosts/update-agent':
+        return json(200, { ok: true, ...(await updateAgent(app, str('name'))) });
       case 'hosts/test':
         return json(200, await testHost(app, str('name')));
       case 'hosts/remove':
