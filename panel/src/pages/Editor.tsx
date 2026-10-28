@@ -1,5 +1,5 @@
 import Editor, { type OnMount } from '@monaco-editor/react';
-import { ArrowLeftIcon, ChevronDownIcon, ChevronRightIcon, FilePlusIcon, FileTextIcon, MonitorIcon, MousePointerClickIcon, PaletteIcon, RefreshCwIcon, SaveIcon, SmartphoneIcon, TabletIcon, XIcon, EyeIcon } from 'lucide-react';
+import { ArrowLeftIcon, CodeXmlIcon, ChevronDownIcon, ChevronRightIcon, FilePlusIcon, FileTextIcon, MonitorIcon, MousePointerClickIcon, PaletteIcon, RefreshCwIcon, SaveIcon, SmartphoneIcon, TabletIcon, XIcon, EyeIcon } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
@@ -8,7 +8,9 @@ import { Loading } from '@/components/common';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { api } from '@/lib/api';
 import { languageOf } from '@/lib/monaco';
 import { useI18n } from '@/lib/i18n';
 import { useAction, useSite } from '@/lib/site';
@@ -117,6 +119,9 @@ export function CodeEditor({ go }: { go: (h: string) => void }) {
   const [info, setInfo] = useState<any>(null);
   const [domTree, setDomTree] = useState<any>(null);
   const [filter, setFilter] = useState('');
+  const [ws, setWs] = useState<any>(null);
+  const [wsBusy, setWsBusy] = useState(false);
+  const lastEvents = useRef(0);
   const frame = useRef<HTMLIFrameElement>(null);
   const editorRef = useRef<any>(null);
   const monacoRef = useRef<any>(null);
@@ -273,6 +278,32 @@ export function CodeEditor({ go }: { go: (h: string) => void }) {
     addEventListener('pointerup', up);
   };
 
+  /* VS Code workspace: the theme as local files, live sync back to the site */
+  useEffect(() => {
+    if (!site) return;
+    let alive = true;
+    const poll = async (): Promise<void> => {
+      const r = await fetch(`/admin/api/ws/status?site=${encodeURIComponent(site.name)}`, { headers: { 'x-wpm-panel': '1' } }).then((x) => x.json()).catch(() => null);
+      if (!alive || !r) return;
+      setWs(r);
+      if (r.events.length > lastEvents.current) { if (lastEvents.current) setNonce((n) => n + 1); lastEvents.current = r.events.length; }
+    };
+    void poll();
+    const id = setInterval(poll, 2500);
+    return () => { alive = false; clearInterval(id); };
+  }, [site?.name]);
+
+  const openVsCode = async (): Promise<void> => {
+    if (!site) return;
+    setWsBusy(true);
+    const pulled = await api.post<any>('ws/pull', { site: site.name });
+    if (pulled.ok === false) { toast.error(pulled.error?.message ?? 'Failed'); setWsBusy(false); return; }
+    const o = await api.post<any>('ws/open', { site: site.name });
+    setWsBusy(false);
+    toast.success(t(`Theme "${pulled.theme}" (${pulled.files} files) is in ${o.dir}`, `پوسته‌ی «${pulled.theme}» (${pulled.files} فایل) در ${o.dir} است`), { description: t('VS Code is opening. Turn on Live sync to push every save to the site.', 'VS Code باز می‌شود. برای ارسال هر ذخیره به سایت، همگام‌سازی زنده را روشن کنید.'), action: { label: 'vscode://', onClick: () => { location.href = o.vscodeUrl; } } });
+    setWs(await fetch(`/admin/api/ws/status?site=${encodeURIComponent(site.name)}`, { headers: { 'x-wpm-panel': '1' } }).then((x) => x.json()));
+  };
+
   const dirty = (d: Doc): boolean => d.value !== d.original;
   const items: any[] = [...(pages.data?.items ?? []), ...(posts.data?.items ?? [])];
 
@@ -283,6 +314,8 @@ export function CodeEditor({ go }: { go: (h: string) => void }) {
         <span className="text-sm font-medium">{site?.name}</span>
         <span className="text-xs text-muted-foreground">· {t('Code & visual editor', 'ویرایشگر کد و بصری')}</span>
         <div className="ms-auto flex items-center gap-2">
+          <Button variant="outline" size="sm" disabled={wsBusy} onClick={openVsCode}><CodeXmlIcon /> {t('Open in VS Code', 'باز کردن در VS Code')}</Button>
+          {ws?.pulled && <label className="flex items-center gap-1.5 text-xs" title={ws.dir}><Switch checked={!!ws.watching} onCheckedChange={async (on) => setWs({ ...ws, ...(await api.post<any>('ws/watch', { site: site!.name, on })) })} />{t('Live sync', 'همگام‌سازی زنده')}{ws.events[0] && <Badge variant="secondary" className={ws.events[0].ok ? '' : 'bg-rose-500/15 text-rose-700 dark:text-rose-300'}>{ws.events[0].path.split('/').pop()} {ws.events[0].ok ? '✓' : '✗'}</Badge>}</label>}
           <Button size="sm" disabled={!doc || !dirty(doc)} onClick={() => save()}><SaveIcon /> {t('Save', 'ذخیره')} <kbd className="ms-1 rounded border px-1 text-[10px]">Ctrl+S</kbd></Button>
         </div>
       </header>

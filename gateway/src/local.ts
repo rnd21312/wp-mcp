@@ -6,7 +6,9 @@ import type { App, Reply } from './context.ts';
 import { isLevel, LEVELS } from './levels.ts';
 import { callTool } from './mcp/tools.ts';
 import { OPS, TOOLS } from './registry.ts';
+import { chat, PRESETS, sealKey } from './ai.ts';
 import { previewInfo } from './preview.ts';
+import * as ws from './workspace.ts';
 import { addSite, testSite } from './siteadmin.ts';
 import { parseScope } from './store.ts';
 import { safeRequest, SsrfError } from './ssrf.ts';
@@ -150,10 +152,34 @@ async function api(app: App, req: LocalReq): Promise<Reply> {
   try {
     if (method === 'GET' && route === 'state') return json(200, state(app));
     if (method === 'GET' && route === 'spec') return json(200, spec());
+    if (method === 'GET' && route === 'ws/status') return json(200, ws.status(app, String(query.get('site') ?? '')));
+    if (method === 'GET' && route === 'ai/providers') return json(200, { providers: app.store.aiProviders().map((p) => ({ id: p.id, name: p.name, preset: p.preset, type: p.type, base_url: p.base_url, model: p.model, has_key: !!p.key_enc })), presets: PRESETS });
     if (method === 'GET' && route === 'activity') return json(200, { entries: app.store.activity({ limit: Math.min(200, Number(query.get('limit') ?? 100)) }) });
     if (method !== 'POST') return json(404, { error: 'not_found' });
 
     switch (route) {
+      case 'ai/providers/add': {
+        const preset = PRESETS.find((p) => p.id === body.preset) ?? PRESETS[PRESETS.length - 1];
+        const base = String(body.base_url || preset.base).trim();
+        if (!/^https?:\/\//.test(base)) return json(200, { ok: false, error: { code: 'bad_url', message: 'Base URL must start with http(s)://' } });
+        const model = String(body.model || preset.model).trim();
+        if (!model) return json(200, { ok: false, error: { code: 'bad_model', message: 'Choose a model name.' } });
+        const id = `ai_${Math.random().toString(36).slice(2, 10)}`;
+        app.store.addAiProvider({ id, name: String(body.name || preset.label).slice(0, 60), preset: preset.id, type: preset.type, base_url: base, model, key_enc: sealKey(app, String(body.key ?? '').trim()) });
+        return json(200, { ok: true, id });
+      }
+      case 'ws/pull':
+        return json(200, { ok: true, ...(await ws.pull(app, String(body.site))) });
+      case 'ws/open':
+        return json(200, { ...ws.openInVsCode(ws.wsDir(app, String(body.site))), dir: ws.wsDir(app, String(body.site)) });
+      case 'ws/watch':
+        if (body.on) ws.startWatch(app, String(body.site)); else ws.stopWatch(String(body.site));
+        return json(200, { ok: true, ...ws.status(app, String(body.site)) });
+      case 'ai/providers/remove':
+        app.store.removeAiProvider(String(body.id));
+        return json(200, { ok: true });
+      case 'ai/chat':
+        return json(200, await chat(app, { providerId: String(body.provider ?? ''), site: body.site ? String(body.site) : undefined, level: isLevel(body.level) ? body.level : 'read', messages: Array.isArray(body.messages) ? body.messages : [], approve: body.approve }));
       case 'inspect/fetch': {
         try {
           return json(200, await fetchChain(app, String(body.url ?? '')));

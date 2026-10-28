@@ -1,4 +1,4 @@
-import { ActivityIcon, ArrowLeftRightIcon, BrushIcon, MousePointerClickIcon, ScanSearchIcon, CodeIcon, FileTextIcon, GlobeIcon, ImageIcon, KeyRoundIcon, LayoutDashboardIcon, MoonIcon, PlugIcon, PlugZapIcon, SearchCheckIcon, ShoppingBagIcon, SunIcon, TerminalSquareIcon, WrenchIcon, type LucideIcon } from 'lucide-react';
+import { ActivityIcon, ArrowLeftRightIcon, BotIcon, BrushIcon, MousePointerClickIcon, ScanSearchIcon, CodeIcon, FileTextIcon, GlobeIcon, ImageIcon, KeyRoundIcon, LayoutDashboardIcon, MoonIcon, PlugIcon, PlugZapIcon, SearchCheckIcon, ShoppingBagIcon, SunIcon, TerminalSquareIcon, WrenchIcon, type LucideIcon } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { useCallback, useEffect, useState, type ReactElement } from 'react';
 import { Pick } from '@/components/bits';
@@ -9,6 +9,7 @@ import { useI18n } from '@/lib/i18n';
 import { SiteProvider, useSite } from '@/lib/site';
 import { cn } from '@/lib/utils';
 import { Access } from '@/pages/Access';
+import { AiPage } from '@/pages/Ai';
 import { ActivityPage } from '@/pages/ActivityPage';
 import { Maintenance, Plugins } from '@/pages/Care';
 import { Connect } from '@/pages/Connect';
@@ -49,6 +50,7 @@ function Shell({ state, spec, reload }: { state: State; spec: ToolSpec[]; reload
   const groups: { title: string; items: NavItem[] }[] = [
     { title: t('Manage', 'مدیریت'), items: [
       { path: '/', label: t('Overview', 'نمای کلی'), icon: LayoutDashboardIcon },
+      { path: '/ai', label: t('AI assistant', 'دستیار هوش مصنوعی'), icon: BotIcon },
       { path: '/content', label: t('Content', 'محتوا'), icon: FileTextIcon },
       { path: '/media', label: t('Media', 'رسانه'), icon: ImageIcon },
       { path: '/shop', label: t('Shop', 'فروشگاه'), icon: ShoppingBagIcon, hide: overview ? !overview.woocommerce : false },
@@ -85,6 +87,7 @@ function Shell({ state, spec, reload }: { state: State; spec: ToolSpec[]; reload
   else if (path === '/content/edit') page = siteOnly(<ContentEditor key={`${site?.name}${location.hash}`} query={query} go={go} />);
   else if (path === '/media') page = siteOnly(<MediaPage key={site?.name} />);
   else if (path === '/shop') page = siteOnly(<Shop key={site?.name} />);
+  else if (path === '/ai') page = <AiPage key={site?.name} />;
   else if (path === '/editor') page = siteOnly(<CodeEditor key={site?.name} go={go} />);
   else if (path === '/inspector') page = <Inspector key={site?.name} />;
   else if (path === '/seo') page = siteOnly(<Seo key={site?.name} />);

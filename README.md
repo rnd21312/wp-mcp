@@ -55,7 +55,8 @@ A site switcher sits on top; everything below works on the selected site, for or
 * **Content**: pages, posts and custom types: list, search, filter, edit (title, slug, status, content, categories, tags, featured image, SEO snippet with live Google-style preview and rendered preview), publish, trash. Every change shows an **Undo** button.
 * **Media**: grid, multi-upload, alt text and title, delete.
 * **Shop** (WooCommerce): products with inline price and stock, edit, create.
-* **Visual editor**: your page in a frame, device widths, click any element like the browser inspector: DOM tree, box size, selector suggestions, live style editing (color, spacing, size, border, layout) per desktop/tablet/mobile, text and alt editing written back into the page, SEO overlay (heading levels, images without alt). Styles are saved as clean CSS in a named section.
+* **AI assistant**: chat with **ChatGPT (OpenAI), Claude, Gemini, OpenRouter, DeepSeek, Groq, Mistral, Grok, a free local model (Ollama) or any OpenAI-compatible URL**. It uses the same tools, levels and confirmations as MCP, on the selected site, with approve/decline cards for risky steps. Keys are stored encrypted on this computer and only sent to the provider. (Remote clients such as ChatGPT connectors, Claude.ai, Cursor, Gemini CLI, Codex connect through MCP: see Connect AI.)
+* **Code & visual editor** (full screen): Monaco, the editor of VS Code, with HTML/CSS/JS/PHP/JSON highlighting, Emmet and error checking, tabs and Ctrl+S, for pages, block templates and parts, CSS sections and every theme file. Beside it the **real page**, loaded through a preview origin with its stylesheets proxied, device widths, and a **DevTools-style inspector**: hover with margin/padding/content overlay and size tooltip, click to select, DOM tree, matched CSS rules with their source file (click to jump to the code), computed styles, box model, edit any value live, SEO overlay. CSS you type shows in the page instantly; saves go to the site (Undo available). **Open in VS Code** pulls the active theme to a local folder and opens it; **Live sync** pushes every save in VS Code to the site (PHP syntax-checked and auto-reverted if it breaks the site).
 * **URL Inspector**: Search-Console style inspection of any public URL (the gateway fetches it like a crawler): indexing, redirect chain, snippet previews (Google desktop/mobile, social), headings, links with broken-link check, structured data validation, images, keyword analysis, speed and technical headers, a scored list of fixes.
 * **SEO**: per-page title/description/noindex/canonical, one-click page audit with score, robots.txt, sitemap, redirects.
 * **Design**: identity, color pickers and fonts (design tokens), menu builder, header/footer templates, named CSS sections.
@@ -108,7 +109,7 @@ Read [docs/security.md](docs/security.md) for the full model and honest limits.
 ## Development
 
 ```bash
-npm test            # gateway (134 tests) + plugin checks (108) in one go
+npm test            # gateway (147 tests) + plugin checks (108) in one go
 npm run docs        # regenerate docs/TOOLS.md from spec/ops.json
 ```
 

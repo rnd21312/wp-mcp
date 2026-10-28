@@ -122,6 +122,7 @@ CREATE TABLE IF NOT EXISTS activity (
   site TEXT NOT NULL, level TEXT NOT NULL, status TEXT NOT NULL, summary TEXT NOT NULL, request_id TEXT NOT NULL, revision INTEGER NOT NULL DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS activity_site ON activity (site, id);
+CREATE TABLE IF NOT EXISTS ai_providers (id TEXT PRIMARY KEY, name TEXT NOT NULL, preset TEXT NOT NULL, type TEXT NOT NULL, base_url TEXT NOT NULL, model TEXT NOT NULL, key_enc TEXT NOT NULL DEFAULT '', created INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS idempotency (k TEXT PRIMARY KEY, created INTEGER NOT NULL, args_hash TEXT NOT NULL, response TEXT NOT NULL);
 `;
 
@@ -310,6 +311,24 @@ export class Store {
     if (filter.before) { where.push('id < ?'); params.push(filter.before); }
     params.push(Math.min(filter.limit ?? 50, 200));
     return this.all<ActivityRow>(`SELECT * FROM activity ${where.length ? 'WHERE ' + where.join(' AND ') : ''} ORDER BY id DESC LIMIT ?`, ...params);
+  }
+
+  /* ai providers */
+
+  aiProviders(): { id: string; name: string; preset: string; type: string; base_url: string; model: string; key_enc: string; created: number }[] {
+    return this.all('SELECT * FROM ai_providers ORDER BY created');
+  }
+
+  aiProvider(id: string) {
+    return this.aiProviders().find((p) => p.id === id);
+  }
+
+  addAiProvider(p: { id: string; name: string; preset: string; type: string; base_url: string; model: string; key_enc: string }): void {
+    this.run('INSERT INTO ai_providers (id, name, preset, type, base_url, model, key_enc, created) VALUES (?, ?, ?, ?, ?, ?, ?, ?)', p.id, p.name, p.preset, p.type, p.base_url, p.model, p.key_enc, this.now());
+  }
+
+  removeAiProvider(id: string): void {
+    this.run('DELETE FROM ai_providers WHERE id = ?', id);
   }
 
   /* idempotency */

@@ -66,7 +66,7 @@ describe('preview origin for the visual editor', () => {
     });
 
     it('does not fetch private addresses when they are not allowed', async () => {
-      const strict = await createEnv([], { localPanel: true, allowPrivateSites: false, port: env.config.port + 10 }, { owner: false });
+      const strict = await createEnv([], { localPanel: true, allowPrivateSites: false }, { owner: false });
       const p2 = await startPreview(strict.app, strict.config.port);
       const res = await fetch(`http://127.0.0.1:${strict.config.port + 1}/page?u=${encodeURIComponent('http://169.254.169.254/')}&t=${previewToken}`);
       expect(res.status).toBe(502);
