@@ -2,6 +2,7 @@ import { AgentError, type RemoteSite, type Release } from './agentclient.ts';
 import type { App, Reply } from './context.ts';
 import { addHost, buildAgentZip, hostView, needHost, testHost } from './hosts.ts';
 import * as projects from './projects.ts';
+import { createWordPress, type DbSpec } from './wordpress.ts';
 import { ProjectError } from './projects.ts';
 
 const json = (status: number, body: unknown): Reply => ({ status, json: body, headers: { 'cache-control': 'no-store' } });
@@ -58,6 +59,10 @@ export async function studioApi(app: App, method: string, route: string, body: R
       case 'hosts/audit': {
         const out = await app.agents.call<{ entries: unknown[] }>(needHost(app, str('host')), 'audit', { limit: 100 }, { retry: true });
         return json(200, { ok: true, ...out });
+      }
+      case 'hosts/wordpress/create': {
+        const r = await createWordPress(app, { host: str('host'), name: str('name') || undefined, folder: body.folder === undefined ? undefined : str('folder'), url: str('url') || undefined, title: str('title') || str('name'), adminUser: str('admin_user') || undefined, adminEmail: str('admin_email'), adminPassword: str('admin_password') || undefined, searchEngines: body.search_engines !== false, locale: str('locale') || undefined, db: (body.db ?? { method: 'manual' }) as DbSpec });
+        return json(200, { ok: true, site: { name: r.site.name, url: r.site.url }, url: r.url, admin_user: r.admin_user, admin_password: r.admin_password, wp_version: r.wp_version });
       }
       case 'projects/create':
         return json(200, { ok: true, project: projectView(projects.createProject(app, { name: str('name'), kind: str('kind') || 'static', template: str('template') || 'landing', title: str('title'), rtl: !!body.rtl })) });

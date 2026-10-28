@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from '@/components/ui/input';
 import { ago, api, type HostInfo, type Studio } from '@/lib/api';
 import { useI18n } from '@/lib/i18n';
+import { WordPressDialog } from '@/pages/WordPressDialog';
 
 export const useStudio = () => {
   const [data, setData] = useState<Studio | null>(null);
@@ -103,6 +104,7 @@ export function Hosts() {
   const [busy, setBusy] = useState('');
   const [agent, setAgent] = useState<{ setup_code: string } | null>(null);
   const [open, setOpen] = useState('');
+  const [wpHost, setWpHost] = useState('');
 
   const connect = async (): Promise<void> => {
     setBusy('add');
@@ -180,6 +182,7 @@ export function Hosts() {
                 {open === h.name && <Sites host={h} />}
                 <div className="flex flex-wrap gap-2">
                   <Button size="sm" variant="outline" onClick={() => setOpen(open === h.name ? '' : h.name)}>{t('Sites & releases', 'سایت‌ها و نسخه‌ها')}</Button>
+                  <Button size="sm" onClick={() => setWpHost(h.name)}><PlusIcon /> {t('New WordPress site', 'سایت وردپرس جدید')}</Button>
                   <Button size="sm" variant="outline" disabled={busy === h.name} onClick={() => test(h.name)}><RefreshCwIcon /> {t('Test', 'آزمایش')}</Button>
                   <Button size="sm" variant="ghost" className="text-destructive" onClick={async () => { if (confirm(t('Disconnect this host? Sites stay online.', 'اتصال این هاست قطع شود؟ سایت‌ها آنلاین می‌مانند.'))) { await api.post('hosts/remove', { name: h.name }); await refresh(); } }}><Trash2Icon /> {t('Disconnect', 'قطع اتصال')}</Button>
                 </div>
@@ -203,6 +206,8 @@ export function Hosts() {
           <DialogFooter><Button disabled={!form.url || !form.code || busy === 'add'} onClick={connect}>{t('Connect', 'اتصال')}</Button></DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {wpHost && <WordPressDialog host={wpHost} onClose={() => setWpHost('')} onDone={refresh} />}
 
       <Dialog open={!!agent} onOpenChange={() => setAgent(null)}>
         <DialogContent>

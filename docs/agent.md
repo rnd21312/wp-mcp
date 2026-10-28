@@ -53,6 +53,23 @@ Honest limits: the signing secret must be stored on the host to verify requests,
 
 `Hosts` shows PHP version and extensions, upload and memory limits and the chunk size derived from them, web server (Apache/LiteSpeed/nginx/…), hosting panel (cPanel, DirectAdmin, Plesk, CyberPanel, CloudPanel, Hestia), symlink support, free disk, whether the data folder is outside the web root, and whether Node is present. Later milestones use this to choose how to create databases and run server-side apps.
 
+## New WordPress site (M2)
+
+**Hosts → New WordPress site.** The Studio creates the site slot, then the agent: (1) makes the database, (2) downloads the official `latest.zip` and verifies it against wordpress.org's published SHA-1, (3) unpacks it, writes `wp-config.php` with fresh salts and a random table prefix, (4) copies the bridge plugin. The Studio then runs WordPress's own web installer over HTTP, the agent activates the bridge and issues it a pairing code, and the Studio pairs automatically. You get the admin address, username and a generated password once; the Studio never stores that password.
+
+Database, in order of preference (you pick in the dialog):
+
+| Method | How |
+|---|---|
+| cPanel | UAPI `Mysql/create_database`, `create_user`, `set_privileges_on_database` with a cPanel API token (Security → Manage API Tokens), port 2083 |
+| DirectAdmin | `CMD_API_DATABASES` with a Login Key, port 2222 |
+| MySQL admin (VPS) | the agent connects with root/admin credentials and creates database, user and grants itself (generated identifiers, bound password) |
+| Details given | you type name, user, password; connection is tested before anything is written |
+
+Panel tokens and database passwords travel once over the signed channel and are not stored. New database passwords are generated on the host and only written to `wp-config.php` (mode 0640). If the database step fails, nothing is downloaded or written; a bad checksum installs nothing.
+
+Not done yet: Plesk API, SQLite for WordPress, installing MySQL on a bare VPS (an approved, allow-listed path is planned for M4), and `localhost`-less setups where the web installer cannot be reached from your computer (you are told to open `wp-admin/install.php` yourself; files and database are ready).
+
 ## Status
 
 Milestone M1 (this document): installer, auth, signed API, chunked upload, releases, atomic switch, rollback, static and SPA deploy. Symlink mode is covered by unit tests only on hosts that allow symlinks (not on the Windows development machine); sync mode is covered end to end. Next: WordPress provisioning (database creation through cPanel/DirectAdmin/Plesk APIs or the agent itself), see [v2-plan.md](v2-plan.md).

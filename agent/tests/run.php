@@ -8,7 +8,7 @@ declare(strict_types=1);
 error_reporting(E_ALL);
 define('WPM_AGENT', true);
 $src = dirname(__DIR__) . '/wpm-agent/src/';
-foreach (['Util', 'ApiError', 'Store', 'Fs', 'Zip', 'Security', 'Http', 'Caps', 'Agent', 'Auth', 'Sites', 'Api', 'Panel'] as $f) {
+foreach (['Util', 'ApiError', 'Store', 'Fs', 'Zip', 'Security', 'Http', 'Caps', 'Agent', 'Auth', 'Net', 'Db', 'Sites', 'Wp', 'Api', 'Panel'] as $f) {
     require $src . $f . '.php';
 }
 
@@ -496,6 +496,150 @@ section('capabilities', function () {
     same(\WPM\Agent\Caps::chunkBytes(PHP_INT_MAX), 8388608, 'unlimited');
     check($caps['data_dir_outside_web_root'], 'data folder outside web root');
 });
+
+use WPM\Agent\Db;
+use WPM\Agent\Net;
+use WPM\Agent\Wp;
+
+section('database provisioning through hosting-panel APIs (mocked transport)', function () {
+    check(Db::ident('wp_ab12') && !Db::ident('a;drop') && !Db::ident('') && !Db::ident('a b'), 'identifier check');
+    check(strlen(Db::randomPassword()) >= 30, 'generated password is long');
+    $calls = [];
+    Net::$transport = function (string $m, string $url, array $h, string $body, bool $verify) use (&$calls) {
+        $calls[] = [$m, $url, $h, $body];
+        return [200, json_encode(['status' => 1, 'errors' => null])];
+    };
+    $db = Db::provision(['method' => 'cpanel', 'url' => 'https://panel.test:2083', 'user' => 'alice', 'token' => 'TOK']);
+    same(count($calls), 3, 'three UAPI calls');
+    check(str_contains($calls[0][1], '/execute/Mysql/create_database?name=' . $db['name']), 'create_database');
+    check(str_contains($calls[1][1], 'create_user') && str_contains($calls[1][1], 'password='), 'create_user');
+    check(str_contains($calls[2][1], 'set_privileges_on_database') && str_contains($calls[2][1], 'ALL+PRIVILEGES'), 'privileges');
+    same($calls[0][2]['Authorization'], 'cpanel alice:TOK', 'token header');
+    check(str_starts_with($db['name'], 'alice_') && str_starts_with($db['user'], 'alice_') && strlen($db['user']) <= 16, 'cPanel prefixes and length');
+    foreach ([['url' => 'http://panel.test:2083'], ['url' => 'https://panel.test:22'], ['url' => 'https://panel.test:2083', 'user' => 'bad user!']] as $bad) {
+        throwsCode(fn () => Db::provision(array_merge(['method' => 'cpanel', 'user' => 'alice', 'token' => 'T'], $bad)), count($bad) === 1 ? 'panel_url' : 'cpanel_creds', 'bad cPanel input ' . json_encode($bad));
+    }
+    Net::$transport = fn () => [200, json_encode(['status' => 0, 'errors' => ['Database name too long']])];
+    throwsCode(fn () => Db::provision(['method' => 'cpanel', 'url' => 'https://panel.test:2083', 'user' => 'alice', 'token' => 'T']), 'cpanel_failed', 'panel error is surfaced');
+
+    $calls = [];
+    Net::$transport = function ($m, $url, $h, $body) use (&$calls) {
+        $calls[] = [$m, $url, $h, $body];
+        return [200, 'error=0&text=Database+Created'];
+    };
+    $db = Db::provision(['method' => 'directadmin', 'url' => 'https://da.test:2222', 'user' => 'bob', 'key' => 'KEY']);
+    same($calls[0][1], 'https://da.test:2222/CMD_API_DATABASES', 'DirectAdmin endpoint');
+    same($calls[0][2]['Authorization'], 'Basic ' . base64_encode('bob:KEY'), 'DirectAdmin login key');
+    check(str_contains($calls[0][3], 'action=create') && str_starts_with($db['name'], 'bob_'), 'DirectAdmin create + prefix');
+    Net::$transport = fn () => [200, 'error=1&text=Quota+exceeded'];
+    throwsCode(fn () => Db::provision(['method' => 'directadmin', 'url' => 'https://da.test:2222', 'user' => 'bob', 'key' => 'K']), 'da_failed', 'DirectAdmin error');
+    throwsCode(fn () => Net::request('GET', 'http://insecure.test/'), 'https_only', 'outbound http refused');
+    throwsCode(fn () => Db::provision(['method' => 'nope']), 'db_method', 'unknown method');
+    throwsCode(fn () => Db::provision(['method' => 'manual', 'host' => '127.0.0.1:1', 'name' => 'x', 'user' => 'y']), extension_loaded('pdo_mysql') ? 'db_connect' : 'no_pdo_mysql', 'unreachable database fails before anything is written');
+    Net::$transport = null;
+});
+
+/** A tiny stand-in for the official WordPress download. */
+function fakeCore(): array
+{
+    $zip = makeZip([
+        'wordpress/index.php' => '<?php // wp',
+        'wordpress/wp-settings.php' => '<?php // settings',
+        'wordpress/wp-includes/version.php' => "<?php\n\$wp_version = '6.9.1';\n",
+        'wordpress/wp-content/plugins/index.php' => '<?php // silence',
+    ]);
+
+    return [$zip, sha1($zip)];
+}
+
+section('WordPress provisioning: core, config, bridge, finish', function () {
+    // wp-config round trip with hostile characters
+    $db = ['host' => 'db.test:3307', 'name' => 'n', 'user' => "u'ser", 'pass' => "p\\ass'w\"ord\$x"];
+    $cfg = Wp::configText($db, 'wpab_');
+    $back = Wp::parseConfig($cfg);
+    same([$back['user'], $back['pass'], $back['host'], $back['port'], $back['prefix']], ["u'ser", "p\\ass'w\"ord\$x", 'db.test', 3307, 'wpab_'], 'wp-config round trip');
+    check(substr_count($cfg, "define('AUTH_KEY'") === 1 && preg_match("/define\('NONCE_SALT', '[a-f0-9]{64}'\)/", $cfg) === 1, 'fresh salts');
+    check(str_contains(shell_exec('php -l ' . escapeshellarg(tap($cfg))) ?? '', 'No syntax errors'), 'generated wp-config is valid PHP');
+
+    [$agent, $root, $web] = newAgent();
+    installAgent($agent);
+    $sites = new Sites($agent);
+    $wp = new Wp($agent, $sites);
+    [$coreZip, $coreSha] = fakeCore();
+    $serve = function (string $sum) use ($coreZip) {
+        return function (string $m, string $url) use ($coreZip, $sum) {
+            if ($url === Wp::CORE_SHA1) {
+                return [200, $sum . "  latest.zip\n"];
+            }
+            if ($url === Wp::CORE_URL) {
+                return [200, $coreZip];
+            }
+            return [404, ''];
+        };
+    };
+    Db::$override = fn (array $spec) => ['host' => 'localhost', 'name' => 'wpdb', 'user' => 'wpuser', 'pass' => 'S3cr3t'];
+    $bridge = tmp() . '/bridge.zip';
+    file_put_contents($bridge, makeZip(['wp-mcp-bridge/wp-mcp-bridge.php' => '<?php // bridge', 'wp-mcp-bridge/includes/Api.php' => '<?php']));
+
+    // bad checksum: nothing is installed
+    Net::$transport = $serve(str_repeat('0', 40));
+    $site = $sites->create(['name' => 'Blog', 'kind' => 'wordpress', 'folder' => 'blog'], 't');
+    same($site['mode'], 'sync', 'wordpress sites are live installs');
+    throwsCode(fn () => $wp->install($site, ['method' => 'manual'], null, 't'), 'core_corrupt', 'checksum mismatch');
+    check(!is_dir($web . '/blog') || Fs::isEmptyDir($web . '/blog'), 'nothing written after a corrupt download');
+
+    // database failure: no files, no download
+    Net::$transport = function () { throw new Exception('must not download'); };
+    Db::$override = function () { throw new ApiError('db_connect', 'nope'); };
+    throwsCode(fn () => $wp->install($site, ['method' => 'manual'], null, 't'), 'db_connect', 'database first');
+    check(!is_dir($web . '/blog'), 'no folder when the database fails');
+
+    Db::$override = fn (array $spec) => ['host' => 'localhost', 'name' => 'wpdb', 'user' => 'wpuser', 'pass' => 'S3cr3t'];
+    Net::$transport = $serve($coreSha);
+    $out = $wp->install($site, ['method' => 'manual'], $bridge, 't');
+    same($out['wp_version'], '6.9.1', 'version detected');
+    check(is_file($web . '/blog/wp-settings.php') && is_file($web . '/blog/wp-config.php'), 'core + config in place');
+    check(is_file($web . '/blog/wp-content/plugins/wp-mcp-bridge/wp-mcp-bridge.php'), 'bridge copied into plugins');
+    same(Wp::parseConfig(file_get_contents($web . '/blog/wp-config.php'))['pass'], 'S3cr3t', 'credentials in wp-config');
+    check(!str_contains(json_encode($out), 'S3cr3t'), 'password is never returned');
+    throwsCode(fn () => $wp->install($site, ['method' => 'manual'], null, 't'), 'already_installed', 'no second install over it');
+    throwsCode(fn () => deployZip($sites, 'blog', ['index.html' => 'x']), 'not_deployable', 'wordpress sites are not release-deployed');
+
+    // finish, against an in-memory SQLite standing in for the WordPress database
+    $pdo = new PDO('sqlite::memory:');
+    $pdo->exec('CREATE TABLE wpab_users (ID INTEGER PRIMARY KEY, user_login TEXT)');
+    $pdo->exec('CREATE TABLE wpab_options (option_id INTEGER PRIMARY KEY, option_name TEXT UNIQUE, option_value TEXT, autoload TEXT)');
+    throwsCode(fn () => $wp->finish($site, 'owner', 'admin', 't', $pdo, 'wpab_'), 'no_admin', 'finish before the installer ran');
+    $pdo->exec("INSERT INTO wpab_users (ID, user_login) VALUES (7, 'owner')");
+    Wp::setOption($pdo, 'wpab_', 'active_plugins', serialize(['akismet/akismet.php']));
+    $res = $wp->finish($site, 'owner', 'live', 't', $pdo, 'wpab_');
+    check((bool) preg_match('/^WPMP-[A-Z2-9]{4}-[A-Z2-9]{4}-[A-Z2-9]{4}-[A-Z2-9]{4}$/', $res['pairing_code']), 'pairing code format');
+    $active = unserialize(Wp::option($pdo, 'wpab_', 'active_plugins'));
+    same($active, ['akismet/akismet.php', 'wp-mcp-bridge/wp-mcp-bridge.php'], 'bridge activated, others kept');
+    $pairing = unserialize(Wp::option($pdo, 'wpab_', 'wpm_bridge_pairing'));
+    // the bridge verifies: hash('sha256', normalize_code(code)) where normalize strips non-alphanumerics and uppercases
+    same($pairing['hash'], hash('sha256', strtoupper(preg_replace('/[^A-Za-z0-9]/', '', $res['pairing_code']))), 'hash matches the bridge verification');
+    same([$pairing['user'], $pairing['ceiling'], $pairing['attempts']], [7, 'live', 0], 'pairing record');
+    $wp->finish($site, 'owner', 'admin', 't', $pdo, 'wpab_');
+    same(count(unserialize(Wp::option($pdo, 'wpab_', 'active_plugins'))), 2, 'activation is idempotent');
+    check($agent->store->read('sites')['blog']['wp']['installed'] === true, 'site marked installed');
+
+    // non-empty folder is refused
+    mkdir($web . '/occupied');
+    file_put_contents($web . '/occupied/x.txt', 'x');
+    $busy = $sites->create(['name' => 'Busy', 'kind' => 'wordpress', 'folder' => 'occupied'], 't');
+    throwsCode(fn () => $wp->install($busy, ['method' => 'manual'], null, 't'), 'target_not_empty', 'will not install over other files');
+    Net::$transport = null;
+    Db::$override = null;
+});
+
+function tap(string $content): string
+{
+    $f = sys_get_temp_dir() . '/wpm-cfg-' . bin2hex(random_bytes(3)) . '.php';
+    file_put_contents($f, $content);
+
+    return $f;
+}
 
 $t = $GLOBALS['t'];
 echo "\n{$t['pass']} passed, {$t['fail']} failed\n";

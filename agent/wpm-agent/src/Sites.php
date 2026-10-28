@@ -8,7 +8,9 @@ defined('WPM_AGENT') || exit;
 /** Site records, uploads, deploys, atomic switch and rollback. */
 final class Sites
 {
-    public const KINDS = ['static' => 'Static site (HTML/CSS/JS)', 'spa' => 'Single-page app (React, Vue, Svelte, ...)'];
+    public const KINDS = ['static' => 'Static site (HTML/CSS/JS)', 'spa' => 'Single-page app (React, Vue, Svelte, ...)', 'wordpress' => 'WordPress'];
+    /** Kinds published as releases (WordPress is a live install instead). */
+    public const DEPLOYABLE = ['static', 'spa'];
     private const BLOCKED_EXT = '/\.(php\d?|phtml|pht|phps|phar|cgi|pl|py|sh|bash|asp|aspx|jsp|exe|dll)$/i';
     private const BLOCKED_NAME = '/^(\.htaccess|\.htpasswd|\.user\.ini|web\.config|\.env.*|php\.ini)$/i';
 
@@ -75,7 +77,7 @@ final class Sites
             }
         }
 
-        $mode = $this->chooseMode((string) ($in['mode'] ?? 'auto'), $target, $root);
+        $mode = $kind === 'wordpress' ? 'sync' : $this->chooseMode((string) ($in['mode'] ?? 'auto'), $target, $root);
         $site = ['id' => $id, 'name' => $name, 'kind' => $kind, 'root' => $root, 'folder' => $folder, 'target' => $target, 'mode' => $mode, 'url' => substr((string) ($in['url'] ?? ''), 0, 200), 'created' => Util::now()];
 
         $this->agent->store->update('sites', function (array $all, &$out) use ($site, $id) {
@@ -282,6 +284,16 @@ final class Sites
         return ['upload_id' => $id, 'size' => $size, 'sha256' => $sha];
     }
 
+    /** Path of a finished upload's zip. */
+    public function uploadBlob(string $id, string $keyId): string
+    {
+        $blob = $this->uploadDir($id, $keyId) . '/blob.zip';
+        if (!is_file($blob)) {
+            throw new ApiError('upload_unfinished', 'Finish the upload first.', 409);
+        }
+        return $blob;
+    }
+
     public function uploadFromFile(string $path, string $keyId): string
     {
         $begin = $this->uploadBegin((int) filesize($path), hash_file('sha256', $path), $keyId);
@@ -323,6 +335,9 @@ final class Sites
     public function deploy(string $siteId, string $uploadId, string $note, string $actor, string $keyId): array
     {
         $site = $this->get($siteId);
+        if (!in_array($site['kind'], self::DEPLOYABLE, true)) {
+            throw new ApiError('not_deployable', 'This site type is a live install and is not published as releases.', 409);
+        }
         $dir = $this->uploadDir($uploadId, $keyId);
         $blob = $dir . '/blob.zip';
         if (!is_file($blob)) {

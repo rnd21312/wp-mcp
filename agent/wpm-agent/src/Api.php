@@ -14,7 +14,7 @@ final class Api
 {
     private const PREFIX = '/api/v1/';
 
-    public function __construct(private Agent $agent, private Auth $auth, private Sites $sites)
+    public function __construct(private Agent $agent, private Auth $auth, private Sites $sites, private ?Wp $wp = null)
     {
     }
 
@@ -125,7 +125,7 @@ final class Api
                 return ['agent' => 'wpm-host-agent', 'version' => Agent::VERSION, 'time' => Util::now(), 'level' => $conn['level'], 'sites' => count($this->sites->all()), 'name' => $conn['name']];
             case 'host.info':
                 $this->need($conn, 'read');
-                return $this->agent->caps() + ['roots' => $this->agent->roots(), 'max_upload_bytes' => $this->agent->maxUploadBytes(), 'kinds' => Sites::KINDS];
+                return $this->agent->caps() + ['roots' => $this->agent->roots(), 'max_upload_bytes' => $this->agent->maxUploadBytes(), 'kinds' => Sites::KINDS, 'script_dir' => rtrim(str_replace('\\', '/', dirname($req->server['SCRIPT_NAME'] ?? '/index.php')), '/')];
             case 'sites.list':
                 $this->need($conn, 'read');
                 return ['sites' => array_values(array_map(fn ($s) => $this->sites->view($s), array_filter($this->sites->all(), fn ($s) => $conn['sites'] === '*' || in_array($s['id'], (array) $conn['sites'], true))))];
@@ -158,6 +158,23 @@ final class Api
                 $this->need($conn, 'deploy');
                 $this->allowedSite($conn, (string) ($in['site'] ?? ''));
                 return $this->sites->rollback((string) $in['site'], isset($in['release']) ? (string) $in['release'] : null, $actor);
+            case 'db.test':
+                $this->need($conn, 'admin');
+                $db = Db::provision(['method' => 'manual'] + $in);
+                return ['ok' => true, 'host' => $db['host'], 'name' => $db['name']];
+            case 'wp.install':
+                $this->need($conn, 'admin');
+                $this->allowedSite($conn, (string) ($in['site'] ?? ''));
+                $bridge = !empty($in['bridge_upload']) ? $this->sites->uploadBlob((string) $in['bridge_upload'], $keyId) : null;
+                $out = ($this->wp ?? new Wp($this->agent, $this->sites))->install($this->sites->get((string) $in['site']), (array) ($in['db'] ?? []), $bridge, $actor);
+                if ($bridge !== null) {
+                    Fs::rrmdir(dirname($bridge));
+                }
+                return $out;
+            case 'wp.finish':
+                $this->need($conn, 'admin');
+                $this->allowedSite($conn, (string) ($in['site'] ?? ''));
+                return ($this->wp ?? new Wp($this->agent, $this->sites))->finish($this->sites->get((string) $in['site']), (string) ($in['admin_user'] ?? ''), (string) ($in['ceiling'] ?? 'admin'), $actor);
             case 'audit':
                 $this->need($conn, 'admin');
                 return ['entries' => $this->agent->store->tail('audit', min(500, max(1, (int) ($in['limit'] ?? 100))))];
