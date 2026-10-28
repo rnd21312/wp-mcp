@@ -6,3 +6,4 @@ data/
 *.sqlite-*
 .env
 *.tsbuildinfo
+wpmcp-data/

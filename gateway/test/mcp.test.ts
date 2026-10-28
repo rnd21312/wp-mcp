@@ -27,9 +27,9 @@ describe('MCP protocol (stateless Streamable HTTP)', () => {
     expect((await rpc(env, read, 'initialize', { protocolVersion: '2099-01-01' })).body.result.protocolVersion).toBe('2025-06-18');
   });
 
-  it('lists 17 tools whose actions follow the connection level', async () => {
+  it('lists 18 tools whose actions follow the connection level', async () => {
     const full = (await rpc(env, admin, 'tools/list')).body.result.tools as { name: string; description: string; inputSchema: any; annotations: any }[];
-    expect(full.map((t) => t.name)).toEqual(['site', 'content', 'design', 'media', 'seo', 'inspect', 'maintain', 'plugins', 'users', 'options', 'rest', 'shop', 'forms', 'files', 'transfer', 'activity', 'studio']);
+    expect(full.map((t) => t.name)).toEqual(['site', 'content', 'design', 'media', 'seo', 'inspect', 'maintain', 'plugins', 'users', 'options', 'rest', 'shop', 'forms', 'files', 'transfer', 'activity', 'studio', 'search_console']);
     const narrow = (await rpc(env, read, 'tools/list')).body.result.tools as typeof full;
     const content = narrow.find((t) => t.name === 'content')!;
     expect(content.inputSchema.properties.action.enum).toContain('list');

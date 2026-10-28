@@ -6,6 +6,7 @@ import { atLeast, LEVEL_HELP, minLevel, type Level } from '../levels.ts';
 import { checkArgs, OPS, opsOf, paramSchema, signature, TOOLS, type OpSpec } from '../registry.ts';
 import type { SiteRow } from '../store.ts';
 import { SiteError } from '../wpclient.ts';
+import { callGsc, gscTool } from './gsc.ts';
 import { callStudio, studioTool } from './studio.ts';
 import { runTransfer } from './transfer.ts';
 
@@ -35,7 +36,8 @@ const firstSentence = (text: string): string => {
 
 export function listTools(principal: Principal): ToolDef[] {
   const studio = studioTool(principal);
-  return [...listSiteTools(principal), ...(studio ? [studio] : [])];
+  const gsc = gscTool(principal);
+  return [...listSiteTools(principal), ...(studio ? [studio] : []), ...(gsc ? [gsc] : [])];
 }
 
 function listSiteTools(principal: Principal): ToolDef[] {
@@ -127,6 +129,7 @@ export async function callTool(app: App, principal: Principal, toolName: string,
   };
 
   if (toolName === 'studio') return await callStudio(app, principal, input);
+  if (toolName === 'search_console') return await callGsc(app, principal, input);
   if (!TOOLS.some((t) => t.name === toolName)) return fail('unknown_tool', `Unknown tool "${toolName}". Tools: ${TOOLS.map((t) => t.name).join(', ')}.`);
   const action = String(input.action ?? '');
   const op = OPS[`${toolName}.${action}`];

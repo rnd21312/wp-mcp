@@ -7,6 +7,7 @@ import { isLevel, LEVELS } from './levels.ts';
 import { callTool } from './mcp/tools.ts';
 import { OPS, TOOLS } from './registry.ts';
 import { chat, PRESETS, sealKey } from './ai.ts';
+import { authUrl, disconnect, GscError, gscStatus, handleCallback, runGsc, saveClient } from './gsc.ts';
 import { previewInfo } from './preview.ts';
 import * as ws from './workspace.ts';
 import { addSite, testSite } from './siteadmin.ts';
@@ -157,6 +158,7 @@ async function api(app: App, req: LocalReq): Promise<Reply> {
     if (method === 'GET' && route === 'ws/status') return json(200, ws.status(app, String(query.get('site') ?? '')));
     if (method === 'GET' && route === 'ai/providers') return json(200, { providers: app.store.aiProviders().map((p) => ({ id: p.id, name: p.name, preset: p.preset, type: p.type, base_url: p.base_url, model: p.model, has_key: !!p.key_enc })), presets: PRESETS });
     if (method === 'GET' && route === 'activity') return json(200, { entries: app.store.activity({ limit: Math.min(200, Number(query.get('limit') ?? 100)) }) });
+    if (method === 'GET' && route === 'gsc/status') return json(200, gscStatus(app));
     const studio = await studioApi(app, method, route, body);
     if (studio) return studio;
     if (method !== 'POST') return json(404, { error: 'not_found' });
@@ -184,6 +186,16 @@ async function api(app: App, req: LocalReq): Promise<Reply> {
         return json(200, { ok: true });
       case 'ai/chat':
         return json(200, await chat(app, { providerId: String(body.provider ?? ''), site: body.site ? String(body.site) : undefined, level: isLevel(body.level) ? body.level : 'read', messages: Array.isArray(body.messages) ? body.messages : [], approve: body.approve }));
+      case 'gsc/client':
+        saveClient(app, String(body.client_id ?? ''), String(body.client_secret ?? ''));
+        return json(200, gscStatus(app));
+      case 'gsc/connect':
+        return json(200, { ok: true, url: authUrl(app) });
+      case 'gsc/disconnect':
+        disconnect(app);
+        return json(200, gscStatus(app));
+      case 'gsc/run':
+        return json(200, await runGsc(app, String(body.action ?? ''), body.args && typeof body.args === 'object' ? body.args : {}));
       case 'inspect/fetch': {
         try {
           return json(200, await fetchChain(app, String(body.url ?? '')));
@@ -243,6 +255,7 @@ async function api(app: App, req: LocalReq): Promise<Reply> {
         return json(404, { error: 'not_found' });
     }
   } catch (error) {
+    if (error instanceof GscError) return json(200, { ok: false, error: { code: error.code, message: error.message } });
     const message = error instanceof SiteError || error instanceof Error ? error.message : 'Failed.';
     return json(error instanceof SiteError ? 200 : 500, { ok: false, error: { code: error instanceof SiteError ? error.code : 'error', message } });
   }
@@ -251,6 +264,8 @@ async function api(app: App, req: LocalReq): Promise<Reply> {
 /** Handles every /admin request in local mode. */
 export async function handleLocal(app: App, req: LocalReq): Promise<Reply> {
   if (!hostOk(app, req.headers)) return json(403, { error: 'forbidden', message: 'The local panel only answers on 127.0.0.1 / localhost.' });
+  // Google sends the browser back here after sign-in; a top-level navigation cannot carry the panel header, so the signed state is the check.
+  if (req.method === 'GET' && req.path === '/admin/gsc/callback') return handleCallback(app, req.query);
   if (req.path.startsWith('/admin/api/')) {
     const origin = String(req.headers.origin ?? '');
     if (origin && origin !== `http://${req.headers.host}`) return json(403, { error: 'forbidden', message: 'Cross-origin request refused.' });

@@ -1,4 +1,4 @@
-import { SparklesIcon, FolderGit2Icon, ServerIcon, ActivityIcon, ArrowLeftRightIcon, BotIcon, BrushIcon, MousePointerClickIcon, ScanSearchIcon, CodeIcon, FileTextIcon, GlobeIcon, ImageIcon, KeyRoundIcon, LayoutDashboardIcon, MoonIcon, PlugIcon, PlugZapIcon, SearchCheckIcon, ShoppingBagIcon, SunIcon, TerminalSquareIcon, WrenchIcon, type LucideIcon } from 'lucide-react';
+import { ChartLineIcon, SparklesIcon, FolderGit2Icon, ServerIcon, ActivityIcon, ArrowLeftRightIcon, BotIcon, BrushIcon, MousePointerClickIcon, ScanSearchIcon, CodeIcon, FileTextIcon, GlobeIcon, ImageIcon, KeyRoundIcon, LayoutDashboardIcon, MoonIcon, PlugIcon, PlugZapIcon, SearchCheckIcon, ShoppingBagIcon, SunIcon, TerminalSquareIcon, WrenchIcon, type LucideIcon } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { useCallback, useEffect, useState, type ReactElement } from 'react';
 import { Pick } from '@/components/bits';
@@ -19,6 +19,7 @@ import { Developer, Transfer } from '@/pages/Dev';
 import { MediaPage } from '@/pages/Media';
 import { Overview } from '@/pages/Overview';
 import { Seo } from '@/pages/Seo';
+import { SearchConsole } from '@/pages/SearchConsole';
 import { Inspector } from '@/pages/Inspector';
 import { CodeEditor } from '@/pages/Editor';
 import { Shop } from '@/pages/Shop';
@@ -64,6 +65,7 @@ function Shell({ state, spec, reload }: { state: State; spec: ToolSpec[]; reload
       { path: '/shop', label: t('Shop', 'فروشگاه'), icon: ShoppingBagIcon, hide: overview ? !overview.woocommerce : false },
       { path: '/editor', label: t('Code & visual editor', 'ویرایشگر کد و بصری'), icon: MousePointerClickIcon },
       { path: '/seo', label: t('SEO', 'سئو'), icon: SearchCheckIcon },
+      { path: '/search-console', label: t('Search Console', 'سرچ کنسول گوگل'), icon: ChartLineIcon },
       { path: '/inspector', label: t('URL Inspector', 'بازرس URL'), icon: ScanSearchIcon },
       { path: '/design', label: t('Design', 'طراحی'), icon: BrushIcon },
     ] },
@@ -101,6 +103,7 @@ function Shell({ state, spec, reload }: { state: State; spec: ToolSpec[]; reload
   else if (path === '/ai') page = <AiPage key={site?.name} />;
   else if (path === '/editor') page = siteOnly(<CodeEditor key={site?.name} go={go} />);
   else if (path === '/inspector') page = <Inspector key={site?.name} />;
+  else if (path === '/search-console') page = <SearchConsole />;
   else if (path === '/seo') page = siteOnly(<Seo key={site?.name} />);
   else if (path === '/design') page = siteOnly(<Design key={site?.name} />);
   else if (path === '/maintenance') page = siteOnly(<Maintenance key={site?.name} />);

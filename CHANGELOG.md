@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+Google Search Console: new local-panel page (sign in with Google, dashboard of clicks, queries, pages, countries, devices, sitemaps, live indexing check, URL inspection) and read-only `search_console` MCP tool (status, sites, performance, queries, pages, compare, sitemaps, inspect, coverage). The owner's own Google OAuth client (Desktop app) is used; only a read-only refresh token is stored, encrypted. See docs/search-console.md.
+
 ## 2.0.0
 
 M6: signed agent self-update (Ed25519, anti-downgrade, backup and automatic restore), host self-test with outside exposure probe, `studio` MCP tool (static projects, confirmed publish/rollback), release and key scripts, Linux CI with symlink and signed-update tests, test matrix.
