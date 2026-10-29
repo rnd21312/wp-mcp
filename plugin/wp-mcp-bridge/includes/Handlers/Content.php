@@ -490,4 +490,81 @@ final class Content {
 
         return array( 'deleted' => $deleted );
     }
+
+    /** @return array{0: string, 1: int} */
+    private static function meta_target( array $a, Context $c ): array {
+        $obj = (string) ( $a['object'] ?? 'post' );
+        if ( ! in_array( $obj, array( 'post', 'user', 'term', 'comment' ), true ) ) {
+            throw new BridgeError( 'bad_arguments', 'object must be post, user, term or comment.', 400 );
+        }
+        if ( 'user' === $obj ) {
+            $c->need( 'admin', 'User meta is private.' );
+        }
+
+        return array( $obj, (int) $a['id'] );
+    }
+
+    private static function meta_key_ok( string $key, Context $c ): void {
+        if ( '' === $key || strlen( $key ) > 191 || Policy::is_secret_key( $key ) ) {
+            throw new BridgeError( 'forbidden', 'That meta key is not available.', 403 );
+        }
+        if ( str_starts_with( $key, '_' ) && ! $c->can( 'admin' ) ) {
+            throw new BridgeError( 'forbidden', 'Keys starting with an underscore need admin level.', 403 );
+        }
+    }
+
+    /**
+     * Reads meta of a post, user, term or comment (one key, or all).
+     *
+     * @param array<string, mixed> $a Arguments.
+     * @return array<string, mixed>
+     */
+    public static function op_meta_get( array $a, Context $c ): array {
+        [ $obj, $id ] = self::meta_target( $a, $c );
+        $key = (string) ( $a['key'] ?? '' );
+        if ( '' !== $key ) {
+            self::meta_key_ok( $key, $c );
+
+            return array( 'object' => $obj, 'id' => $id, 'key' => $key, 'value' => get_metadata( $obj, $id, $key, true ) );
+        }
+        $out = array();
+        foreach ( (array) get_metadata( $obj, $id ) as $k => $vals ) {
+            if ( Policy::is_secret_key( (string) $k ) || ( str_starts_with( (string) $k, '_' ) && ! $c->can( 'admin' ) ) ) {
+                continue;
+            }
+            $out[ $k ] = array_map( 'maybe_unserialize', (array) $vals );
+        }
+
+        return array( 'object' => $obj, 'id' => $id, 'meta' => $out );
+    }
+
+    /**
+     * @param array<string, mixed> $a Arguments.
+     * @return array<string, mixed>
+     */
+    public static function op_meta_set( array $a, Context $c ): array {
+        [ $obj, $id ] = self::meta_target( $a, $c );
+        $key = (string) $a['key'];
+        self::meta_key_ok( $key, $c );
+        $prev = get_metadata( $obj, $id, $key, true );
+        update_metadata( $obj, $id, $key, wp_slash( $a['value'] ?? '' ) );
+        $c->summary = "set $obj meta $key on #$id";
+
+        return array( 'object' => $obj, 'id' => $id, 'key' => $key, 'previous' => $prev, 'note' => 'Call meta_set with "previous" to revert.' );
+    }
+
+    /**
+     * @param array<string, mixed> $a Arguments.
+     * @return array<string, mixed>
+     */
+    public static function op_meta_delete( array $a, Context $c ): array {
+        [ $obj, $id ] = self::meta_target( $a, $c );
+        $key = (string) $a['key'];
+        self::meta_key_ok( $key, $c );
+        $prev = get_metadata( $obj, $id, $key, true );
+        delete_metadata( $obj, $id, $key );
+        $c->summary = "deleted $obj meta $key on #$id";
+
+        return array( 'object' => $obj, 'id' => $id, 'key' => $key, 'previous' => $prev );
+    }
 }

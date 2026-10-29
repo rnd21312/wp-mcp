@@ -210,6 +210,70 @@
    "escalates": null
   },
   {
+   "id": "content.meta_get",
+   "tool": "content",
+   "action": "meta_get",
+   "level": "draft",
+   "summary": "Read custom fields of a post, user, term or comment (one key or all). Underscore keys and user meta need admin.",
+   "params": {
+    "object": "enum:post,term,comment,user|Kind",
+    "id": "int|Object ID",
+    "key": "string|One key; omit for all"
+   },
+   "required": [
+    "object",
+    "id"
+   ],
+   "write": false,
+   "confirm": false,
+   "untrusted": true,
+   "escalates": "admin"
+  },
+  {
+   "id": "content.meta_set",
+   "tool": "content",
+   "action": "meta_set",
+   "level": "live",
+   "summary": "Set a custom field on a post, user, term or comment. Returns the previous value.",
+   "params": {
+    "object": "enum:post,term,comment,user|Kind",
+    "id": "int|Object ID",
+    "key": "string|Meta key",
+    "value": "any|Value"
+   },
+   "required": [
+    "object",
+    "id",
+    "key",
+    "value"
+   ],
+   "write": true,
+   "confirm": false,
+   "untrusted": false,
+   "escalates": "admin"
+  },
+  {
+   "id": "content.meta_delete",
+   "tool": "content",
+   "action": "meta_delete",
+   "level": "live",
+   "summary": "Delete a custom field. Returns the previous value.",
+   "params": {
+    "object": "enum:post,term,comment,user|Kind",
+    "id": "int|Object ID",
+    "key": "string|Meta key"
+   },
+   "required": [
+    "object",
+    "id",
+    "key"
+   ],
+   "write": true,
+   "confirm": false,
+   "untrusted": false,
+   "escalates": "admin"
+  },
+  {
    "id": "content.terms_list",
    "tool": "content",
    "action": "terms_list",
@@ -662,6 +726,23 @@
    },
    "required": [
     "url"
+   ],
+   "write": true,
+   "confirm": true,
+   "untrusted": false,
+   "escalates": null
+  },
+  {
+   "id": "design.theme_delete",
+   "tool": "design",
+   "action": "theme_delete",
+   "level": "admin",
+   "summary": "Delete an installed theme that is not active.",
+   "params": {
+    "theme": "string|Theme folder"
+   },
+   "required": [
+    "theme"
    ],
    "write": true,
    "confirm": true,
@@ -1396,6 +1477,41 @@
    "escalates": null
   },
   {
+   "id": "maintain.sql",
+   "tool": "maintain",
+   "action": "sql",
+   "level": "admin",
+   "summary": "Read-only SQL: one SELECT/SHOW/DESCRIBE/EXPLAIN. {prefix} stands for the table prefix.",
+   "params": {
+    "query": "string|SQL",
+    "limit": "int|Max rows (default 200, max 1000)"
+   },
+   "required": [
+    "query"
+   ],
+   "write": false,
+   "confirm": false,
+   "untrusted": true,
+   "escalates": null
+  },
+  {
+   "id": "maintain.sql_write",
+   "tool": "maintain",
+   "action": "sql_write",
+   "level": "admin",
+   "summary": "One INSERT/UPDATE/DELETE/REPLACE/CREATE/ALTER/DROP/TRUNCATE. Confirmed; not undoable (take maintain.backup_create first).",
+   "params": {
+    "query": "string|SQL; {prefix} stands for the table prefix"
+   },
+   "required": [
+    "query"
+   ],
+   "write": true,
+   "confirm": true,
+   "untrusted": false,
+   "escalates": null
+  },
+  {
    "id": "maintain.cron_list",
    "tool": "maintain",
    "action": "cron_list",
@@ -2028,6 +2144,51 @@
    "escalates": null
   },
   {
+   "id": "shop.gateways_list",
+   "tool": "shop",
+   "action": "gateways_list",
+   "level": "admin",
+   "summary": "Payment gateways (Zarinpal, bank transfer, COD…): enabled state and non-secret settings.",
+   "params": {},
+   "required": [],
+   "write": false,
+   "confirm": false,
+   "untrusted": false,
+   "escalates": null
+  },
+  {
+   "id": "shop.gateway_set",
+   "tool": "shop",
+   "action": "gateway_set",
+   "level": "admin",
+   "summary": "Turn a payment gateway on/off and edit non-secret settings (keys and merchant codes are entered by the owner in WooCommerce).",
+   "params": {
+    "id": "string|Gateway id, e.g. cod, bacs",
+    "enabled": "bool|On or off",
+    "settings": "object|Non-secret settings"
+   },
+   "required": [
+    "id"
+   ],
+   "write": true,
+   "confirm": true,
+   "untrusted": false,
+   "escalates": null
+  },
+  {
+   "id": "shop.shipping_zones",
+   "tool": "shop",
+   "action": "shipping_zones",
+   "level": "admin",
+   "summary": "Shipping zones with locations and methods.",
+   "params": {},
+   "required": [],
+   "write": false,
+   "confirm": false,
+   "untrusted": false,
+   "escalates": null
+  },
+  {
    "id": "forms.list",
    "tool": "forms",
    "action": "list",
@@ -2171,6 +2332,128 @@
    "required": [
     "root",
     "files"
+   ],
+   "write": true,
+   "confirm": true,
+   "untrusted": false,
+   "escalates": null
+  },
+  {
+   "id": "files.mkdir",
+   "tool": "files",
+   "action": "mkdir",
+   "level": "admin",
+   "summary": "Create a folder inside a root (themes/<slug>, plugins/<slug>, mu-plugins, uploads).",
+   "params": {
+    "root": "string|See files.list",
+    "path": "string|Folder path inside the root"
+   },
+   "required": [
+    "root",
+    "path"
+   ],
+   "write": true,
+   "confirm": false,
+   "untrusted": false,
+   "escalates": null
+  },
+  {
+   "id": "files.rmdir",
+   "tool": "files",
+   "action": "rmdir",
+   "level": "admin",
+   "summary": "Delete a folder and everything in it. Not undoable.",
+   "params": {
+    "root": "string|See files.list",
+    "path": "string|Folder path inside the root"
+   },
+   "required": [
+    "root",
+    "path"
+   ],
+   "write": true,
+   "confirm": true,
+   "untrusted": false,
+   "escalates": null
+  },
+  {
+   "id": "files.move",
+   "tool": "files",
+   "action": "move",
+   "level": "admin",
+   "summary": "Move or rename a file inside a root (2 MB max, undoable).",
+   "params": {
+    "root": "string|See files.list",
+    "from": "string|Current path",
+    "to": "string|New path"
+   },
+   "required": [
+    "root",
+    "from",
+    "to"
+   ],
+   "write": true,
+   "confirm": true,
+   "untrusted": false,
+   "escalates": null
+  },
+  {
+   "id": "files.copy",
+   "tool": "files",
+   "action": "copy",
+   "level": "admin",
+   "summary": "Copy a file inside a root (2 MB max).",
+   "params": {
+    "root": "string|See files.list",
+    "from": "string|Source path",
+    "to": "string|Target path"
+   },
+   "required": [
+    "root",
+    "from",
+    "to"
+   ],
+   "write": true,
+   "confirm": false,
+   "untrusted": false,
+   "escalates": null
+  },
+  {
+   "id": "files.fetch",
+   "tool": "files",
+   "action": "fetch",
+   "level": "admin",
+   "summary": "Download an https file (font, image, script; 20 MB max) straight into a root. Redirects are re-checked.",
+   "params": {
+    "root": "string|See files.list",
+    "path": "string|Target path inside the root",
+    "url": "string|https URL"
+   },
+   "required": [
+    "root",
+    "path",
+    "url"
+   ],
+   "write": true,
+   "confirm": true,
+   "untrusted": false,
+   "escalates": null
+  },
+  {
+   "id": "files.unzip",
+   "tool": "files",
+   "action": "unzip",
+   "level": "admin",
+   "summary": "Download a zip and extract it into a root (whole theme or plugin, assets). Known text/media types only; existing files are replaced; not syntax-checked.",
+   "params": {
+    "root": "string|See files.list",
+    "url": "string|https URL of a zip",
+    "path": "string|Subfolder to extract into",
+    "strip_top": "bool|Drop the zip top-level folder"
+   },
+   "required": [
+    "root",
+    "url"
    ],
    "write": true,
    "confirm": true,

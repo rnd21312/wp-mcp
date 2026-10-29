@@ -1,6 +1,6 @@
 # Tools reference
 
-Generated from `spec/ops.json` (128 site actions + gateway actions). Every tool is called as `{site, action, args, dry_run?, confirm_token?, idempotency_key?}`.
+Generated from `spec/ops.json` (143 site actions + gateway actions). Every tool is called as `{site, action, args, dry_run?, confirm_token?, idempotency_key?}`.
 
 Levels: **read** < **draft** < **live** < **admin**. `A>B` means the action starts at A and the site raises it to B from the real target (for example editing a published page). **confirm** = two-step: the first call returns a preview and a `confirm_token`, nothing changes until it is repeated with the token. **site content** = the result contains text written on the website (treated as untrusted).
 
@@ -29,6 +29,9 @@ Levels: **read** < **draft** < **live** < **admin**. `A>B` means the action star
 | `delete` | admin | `id*` | Delete permanently. Cannot be undone. *(confirm, write)* |
 | `revisions` | draft | `id*, restore` | List WordPress revisions of an item, or restore one. *(write, site content)* |
 | `bulk` | live | `ids*, status*` | Change the status of up to 50 items at once. *(write)* |
+| `meta_get` | draft>admin | `object*, id*, key` | Read custom fields of a post, user, term or comment (one key or all). Underscore keys and user meta need admin. *(site content)* |
+| `meta_set` | live>admin | `object*, id*, key*, value*` | Set a custom field on a post, user, term or comment. Returns the previous value. *(write)* |
+| `meta_delete` | live>admin | `object*, id*, key*` | Delete a custom field. Returns the previous value. *(write)* |
 | `terms_list` | read | `taxonomy, search, hide_empty, page, per_page` | List categories, tags or any taxonomy terms. *(site content)* |
 | `terms_save` | live | `id, taxonomy, name*, slug, parent, description` | Create or update a term. *(write)* |
 | `terms_delete` | live | `id*, taxonomy` | Delete a term (posts keep existing). *(confirm, write)* |
@@ -60,6 +63,7 @@ Levels: **read** < **draft** < **live** < **admin**. `A>B` means the action star
 | `theme_activate` | admin | `slug*` | Switch the active theme. *(confirm, write)* |
 | `theme_install` | admin | `slug*, activate` | Install a theme from WordPress.org by slug. *(confirm, write)* |
 | `theme_install_zip` | admin | `url*, activate, overwrite` | Install a theme from an https zip URL (GitHub release, your own server; redirects are re-checked). *(confirm, write)* |
+| `theme_delete` | admin | `theme*` | Delete an installed theme that is not active. *(confirm, write)* |
 | `theme_files` | admin | `theme` | List files of the active (or given) theme. |
 | `theme_file_read` | admin | `path*, theme, offset` | Read a theme file. *(site content)* |
 | `theme_file_write` | admin | `path*, content*, theme` | Write a theme file (PHP is syntax-checked; previous content is kept for undo). *(confirm, write)* |
@@ -121,6 +125,8 @@ Levels: **read** < **draft** < **live** < **admin**. `A>B` means the action star
 | `db_optimize` | admin |  | OPTIMIZE TABLE on the site tables. *(write)* |
 | `search_replace` | admin | `search*, replace*, tables, apply` | Serialization-safe search and replace across the database. Always preview first. *(confirm if risky, write)* |
 | `language_install` | admin | `locale*, activate` | Download a language pack (core, plugins, themes), e.g. fa_IR, and optionally make it the site language. *(write)* |
+| `sql` | admin | `query*, limit` | Read-only SQL: one SELECT/SHOW/DESCRIBE/EXPLAIN. {prefix} stands for the table prefix. *(site content)* |
+| `sql_write` | admin | `query*` | One INSERT/UPDATE/DELETE/REPLACE/CREATE/ALTER/DROP/TRUNCATE. Confirmed; not undoable (take maintain.backup_create first). *(confirm, write)* |
 | `cron_list` | admin |  | Scheduled events. |
 | `cron_run` | admin | `hook*` | Run a scheduled hook now. *(write)* |
 | `maintenance_mode` | admin | `enabled*, message` | Serve a 503 maintenance page to visitors (admins and the bridge still see the site). *(write)* |
@@ -182,6 +188,9 @@ Levels: **read** < **draft** < **live** < **admin**. `A>B` means the action star
 | `orders_list` | admin | `status, page, per_page` | Orders (customer data included). *(site content)* |
 | `order_get` | admin | `id*` | One order with billing and shipping details. *(site content)* |
 | `order_update` | admin | `id*, status, note` | Change order status or add a note. *(confirm, write)* |
+| `gateways_list` | admin |  | Payment gateways (Zarinpal, bank transfer, COD…): enabled state and non-secret settings. |
+| `gateway_set` | admin | `id*, enabled, settings` | Turn a payment gateway on/off and edit non-secret settings (keys and merchant codes are entered by the owner in WooCommerce). *(confirm, write)* |
+| `shipping_zones` | admin |  | Shipping zones with locations and methods. |
 
 ## forms: Forms
 
@@ -200,6 +209,12 @@ Levels: **read** < **draft** < **live** < **admin**. `A>B` means the action star
 | `read` | admin | `root*, path*, offset` | Read a file: text as text, other types as base64 (2 MB max). *(site content)* |
 | `write` | admin | `root*, path*, content, data_base64` | Create or replace a file; missing theme/plugin/mu-plugins folders are created. Text types in themes/plugins/mu-plugins, media types in uploads. PHP is syntax-checked and the front page probed; previous content is kept for undo. *(confirm, write)* |
 | `write_many` | admin | `root*, files*` | Write up to 60 files into one root in one call (a theme or plugin skeleton). New themes/<slug>, plugins/<slug>, mu-plugins and uploads folders are created. Each file is undoable. *(confirm, write)* |
+| `mkdir` | admin | `root*, path*` | Create a folder inside a root (themes/<slug>, plugins/<slug>, mu-plugins, uploads). *(write)* |
+| `rmdir` | admin | `root*, path*` | Delete a folder and everything in it. Not undoable. *(confirm, write)* |
+| `move` | admin | `root*, from*, to*` | Move or rename a file inside a root (2 MB max, undoable). *(confirm, write)* |
+| `copy` | admin | `root*, from*, to*` | Copy a file inside a root (2 MB max). *(write)* |
+| `fetch` | admin | `root*, path*, url*` | Download an https file (font, image, script; 20 MB max) straight into a root. Redirects are re-checked. *(confirm, write)* |
+| `unzip` | admin | `root*, url*, path, strip_top` | Download a zip and extract it into a root (whole theme or plugin, assets). Known text/media types only; existing files are replaced; not syntax-checked. *(confirm, write)* |
 | `delete` | admin | `root*, path*` | Delete a file permanently. *(confirm, write)* |
 
 ## transfer: Export and import content

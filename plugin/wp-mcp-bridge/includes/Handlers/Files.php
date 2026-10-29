@@ -424,4 +424,252 @@ final class Files {
 
         return "Removed $root/$path (it did not exist before).";
     }
+
+    /** Folder path inside a root: plain segments only. */
+    private static function dir_full( string $dir, string $path ): string {
+        $path = trim( str_replace( '\\', '/', $path ), '/' );
+        if ( '' === $path || strlen( $path ) > 240 || str_contains( $path, "\0" ) || str_contains( $path, 'wpmcp-backups' ) || preg_match( '#(^|/)\.#', $path ) || preg_match( '#[^A-Za-z0-9_./ -]#', $path ) ) {
+            throw new BridgeError( 'bad_path', 'Folder path not allowed (letters, digits, dash, underscore, dot inside names; no dot folders).', 400 );
+        }
+
+        return $dir . '/' . $path;
+    }
+
+    /**
+     * @param array<string, mixed> $a Arguments.
+     * @return array<string, mixed>
+     */
+    public static function op_mkdir( array $a, Context $c ): array {
+        $root = (string) $a['root'];
+        self::guard_self( $root );
+        if ( self::is_core( $root ) ) {
+            throw new BridgeError( 'forbidden', 'Folders cannot be created in the core root.', 403 );
+        }
+        [ $dir ] = self::root( $root, 'create' );
+        $full    = self::dir_full( $dir, (string) $a['path'] );
+        if ( ! wp_mkdir_p( $full ) ) {
+            throw new BridgeError( 'write_failed', 'The folder could not be created (permissions?).', 500 );
+        }
+        $c->summary = "created folder $root/" . trim( (string) $a['path'], '/' );
+
+        return array( 'root' => $root, 'path' => trim( (string) $a['path'], '/' ), 'created' => true );
+    }
+
+    private static function is_core( string $root ): bool {
+        return 'core' === trim( str_replace( '\\', '/', $root ), '/' );
+    }
+
+    /**
+     * @param array<string, mixed> $a Arguments.
+     * @return array<string, mixed>
+     */
+    public static function preview_rmdir( array $a, Context $c ): array {
+        [ $dir ] = self::root( (string) $a['root'] );
+        $full    = self::dir_full( $dir, (string) $a['path'] );
+        $n       = 0;
+        if ( is_dir( $full ) ) {
+            foreach ( new \RecursiveIteratorIterator( new \RecursiveDirectoryIterator( $full, \FilesystemIterator::SKIP_DOTS ) ) as $f ) {
+                ++$n;
+            }
+        }
+
+        return array( 'will_delete_folder' => $a['path'], 'exists' => is_dir( $full ), 'files_inside' => $n, 'undo' => 'not possible', 'warning' => 'Removes the folder and everything inside it.' );
+    }
+
+    /**
+     * Deletes a folder (recursively). Not undoable.
+     *
+     * @param array<string, mixed> $a Arguments.
+     * @return array<string, mixed>
+     */
+    public static function op_rmdir( array $a, Context $c ): array {
+        $root = (string) $a['root'];
+        self::guard_self( $root );
+        if ( self::is_core( $root ) ) {
+            throw new BridgeError( 'forbidden', 'Folders cannot be removed from the core root.', 403 );
+        }
+        [ $dir ] = self::root( $root );
+        $full    = self::dir_full( $dir, (string) $a['path'] );
+        $real    = realpath( $full );
+        if ( false === $real || ! is_dir( $real ) || ! str_starts_with( wp_normalize_path( $real ) . '/', $dir . '/' ) || wp_normalize_path( $real ) === $dir ) {
+            throw new BridgeError( 'not_found', 'No such folder inside the root.', 404 );
+        }
+        $it = new \RecursiveIteratorIterator( new \RecursiveDirectoryIterator( $real, \FilesystemIterator::SKIP_DOTS ), \RecursiveIteratorIterator::CHILD_FIRST );
+        foreach ( $it as $f ) {
+            $f->isDir() && ! $f->isLink() ? rmdir( $f->getPathname() ) : unlink( $f->getPathname() );
+        }
+        rmdir( $real );
+        $c->summary = "removed folder $root/" . trim( (string) $a['path'], '/' );
+
+        return array( 'deleted' => trim( (string) $a['path'], '/' ) );
+    }
+
+    /**
+     * @param array<string, mixed> $a Arguments.
+     * @return array<string, mixed>
+     */
+    public static function preview_move( array $a, Context $c ): array {
+        return array( 'will_move' => $a['from'], 'to' => $a['to'], 'root' => $a['root'] );
+    }
+
+    /**
+     * Moves or renames a file inside a root (undoable).
+     *
+     * @param array<string, mixed> $a Arguments.
+     * @return array<string, mixed>
+     */
+    public static function op_move( array $a, Context $c ): array {
+        $read = self::op_read( array( 'root' => $a['root'], 'path' => $a['from'] ), $c );
+        $data = 'base64' === $read['encoding'] ? array( 'data_base64' => $read['data_base64'] ) : array( 'content' => $read['content'] );
+        if ( ! empty( $read['truncated'] ) ) {
+            throw new BridgeError( 'too_large', 'The file is larger than 2 MB; use FTP or a zip for big files.', 400 );
+        }
+        $written = self::op_write( array( 'root' => $a['root'], 'path' => $a['to'] ) + $data, $c );
+        self::op_delete( array( 'root' => $a['root'], 'path' => $a['from'] ), $c );
+        $c->summary = "moved {$a['root']}/{$a['from']} to {$a['to']}";
+
+        return array( 'from' => $a['from'], 'to' => $written['path'] );
+    }
+
+    /**
+     * @param array<string, mixed> $a Arguments.
+     * @return array<string, mixed>
+     */
+    public static function preview_copy( array $a, Context $c ): array {
+        return array( 'will_copy' => $a['from'], 'to' => $a['to'], 'root' => $a['root'] );
+    }
+
+    /**
+     * Copies a file inside a root.
+     *
+     * @param array<string, mixed> $a Arguments.
+     * @return array<string, mixed>
+     */
+    public static function op_copy( array $a, Context $c ): array {
+        $read = self::op_read( array( 'root' => $a['root'], 'path' => $a['from'] ), $c );
+        if ( ! empty( $read['truncated'] ) ) {
+            throw new BridgeError( 'too_large', 'The file is larger than 2 MB.', 400 );
+        }
+        $data = 'base64' === $read['encoding'] ? array( 'data_base64' => $read['data_base64'] ) : array( 'content' => $read['content'] );
+        $w    = self::op_write( array( 'root' => $a['root'], 'path' => $a['to'] ) + $data, $c );
+        $c->summary = "copied {$a['root']}/{$a['from']} to {$a['to']}";
+
+        return array( 'from' => $a['from'], 'to' => $w['path'] );
+    }
+
+    /**
+     * @param array<string, mixed> $a Arguments.
+     * @return array<string, mixed>
+     */
+    public static function preview_fetch( array $a, Context $c ): array {
+        $problem = Policy::url_problem( (string) $a['url'] );
+
+        return array( 'will_download' => (string) $a['url'], 'into' => $a['root'] . '/' . $a['path'], 'allowed' => null === $problem, 'problem' => $problem, 'rules' => 'https only, redirects re-checked, no private addresses, max 20 MB, allowed file types only' );
+    }
+
+    /**
+     * Downloads an https file straight into a root (fonts, images, scripts for a theme).
+     *
+     * @param array<string, mixed> $a Arguments.
+     * @return array<string, mixed>
+     */
+    public static function op_fetch( array $a, Context $c ): array {
+        $root = (string) $a['root'];
+        self::guard_self( $root );
+        [ $dir, $up ] = self::root( $root, 'plan' );
+        $path         = trim( str_replace( '\\', '/', (string) $a['path'] ), '/' );
+        $full         = self::full( $dir, $up, $path, false, true );
+        $got          = Util::download( (string) $a['url'], 20971521 );
+        if ( strlen( $got['body'] ) > 20971520 || '' === $got['body'] ) {
+            throw new BridgeError( 'bad_size', 'The download is empty or larger than 20 MB.', 400 );
+        }
+        if ( null !== ( $problem = self::php_problem( $path, $got['body'] ) ) ) {
+            throw new BridgeError( 'syntax_error', $problem . ' Nothing was written.', 400 );
+        }
+        $before = self::snapshot( $root, $path, $full );
+        self::put( $full, $got['body'] );
+        Revisions::record( $c, 'xfile', "$root|$path", $before );
+        $c->summary = "downloaded into $root/$path (" . strlen( $got['body'] ) . ' bytes)';
+
+        return array( 'root' => $root, 'path' => $path, 'bytes' => strlen( $got['body'] ), 'source' => $got['url'] );
+    }
+
+    /**
+     * @param array<string, mixed> $a Arguments.
+     * @return array<string, mixed>
+     */
+    public static function preview_unzip( array $a, Context $c ): array {
+        $problem = Policy::url_problem( (string) $a['url'] );
+
+        return array( 'will_download' => (string) $a['url'], 'extract_into' => $a['root'] . '/' . ( $a['path'] ?? '' ), 'allowed' => null === $problem, 'problem' => $problem, 'warning' => 'Extracted PHP files are not syntax-checked or health-probed. Only known text and media types are extracted; others are skipped and listed.' );
+    }
+
+    /**
+     * Downloads a zip and extracts it into a root (a whole theme, a plugin, assets). Existing files are replaced.
+     *
+     * @param array<string, mixed> $a Arguments.
+     * @return array<string, mixed>
+     */
+    public static function op_unzip( array $a, Context $c ): array {
+        if ( ! class_exists( '\ZipArchive' ) ) {
+            throw new BridgeError( 'no_zip', 'PHP ZipArchive is not available on this server.', 501 );
+        }
+        $root = (string) $a['root'];
+        self::guard_self( $root );
+        if ( self::is_core( $root ) ) {
+            throw new BridgeError( 'forbidden', 'Zips cannot be extracted into the core root.', 403 );
+        }
+        [ $dir, $up ] = self::root( $root, 'plan' );
+        $sub          = trim( str_replace( '\\', '/', (string) ( $a['path'] ?? '' ) ), '/' );
+        $strip        = ! empty( $a['strip_top'] );
+        $tmp          = wp_tempnam( 'wpm-unzip.zip' );
+        try {
+            Util::download( (string) $a['url'], 83886080, $tmp );
+            $zip = new \ZipArchive();
+            if ( true !== $zip->open( $tmp ) ) {
+                throw new BridgeError( 'not_zip', 'The download is not a valid zip file.', 400 );
+            }
+            if ( $zip->numFiles > 4000 ) {
+                throw new BridgeError( 'too_many', 'The zip holds more than 4000 files.', 400 );
+            }
+            self::root( $root, 'create' );
+            $top = '';
+            if ( $strip ) {
+                $first = (string) $zip->getNameIndex( 0 );
+                $top   = str_contains( $first, '/' ) ? substr( $first, 0, strpos( $first, '/' ) + 1 ) : '';
+            }
+            $written = 0;
+            $skipped = array();
+            $total   = 0;
+            for ( $i = 0; $i < $zip->numFiles; $i++ ) {
+                $name = str_replace( '\\', '/', (string) $zip->getNameIndex( $i ) );
+                if ( '' !== $top && str_starts_with( $name, $top ) ) {
+                    $name = substr( $name, strlen( $top ) );
+                }
+                if ( '' === $name || str_ends_with( $name, '/' ) || str_starts_with( $name, '__MACOSX/' ) ) {
+                    continue;
+                }
+                $rel = '' === $sub ? $name : $sub . '/' . $name;
+                if ( ! Policy::files_path_ok( $rel, $up ) ) {
+                    $skipped[] = $name;
+                    continue;
+                }
+                $stat = $zip->statIndex( $i );
+                $size = (int) ( $stat['size'] ?? 0 );
+                $total += $size;
+                if ( $size > 20971520 || $total > 209715200 ) {
+                    throw new BridgeError( 'too_large', 'The zip expands to more than 200 MB (or a file is over 20 MB).', 400 );
+                }
+                $full = self::full( $dir, $up, $rel, false, true );
+                self::put( $full, (string) $zip->getFromIndex( $i ) );
+                ++$written;
+            }
+            $zip->close();
+        } finally {
+            @unlink( $tmp ); // phpcs:ignore WordPress.PHP.NoSilencedErrors
+        }
+        $c->summary = "extracted $written files into $root" . ( '' !== $sub ? "/$sub" : '' );
+
+        return array( 'root' => $root, 'extracted' => $written, 'skipped' => array_slice( $skipped, 0, 50 ), 'skipped_count' => count( $skipped ), 'note' => 'Not undoable with activity.undo; delete the folder with files.rmdir to roll back.' );
+    }
 }

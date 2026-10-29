@@ -633,6 +633,40 @@ final class Design {
         return array( 'installed' => $slug, 'activated' => ! empty( $a['activate'] ) && '' !== $slug );
     }
 
+    /**
+     * @param array<string, mixed> $a Arguments.
+     * @return array<string, mixed>
+     */
+    public static function preview_theme_delete( array $a, Context $c ): array {
+        $slug = sanitize_key( (string) $a['theme'] );
+
+        return array( 'will_delete' => $slug, 'active' => get_stylesheet() === $slug || get_template() === $slug, 'warning' => 'Removes the theme folder and every file in it.' );
+    }
+
+    /**
+     * @param array<string, mixed> $a Arguments.
+     * @return array<string, mixed>
+     */
+    public static function op_theme_delete( array $a, Context $c ): array {
+        require_once ABSPATH . 'wp-admin/includes/file.php';
+        require_once ABSPATH . 'wp-admin/includes/theme.php';
+        $slug = sanitize_key( (string) $a['theme'] );
+        if ( ! wp_get_theme( $slug )->exists() ) {
+            throw new BridgeError( 'not_found', 'No such theme.', 404 );
+        }
+        if ( get_stylesheet() === $slug || get_template() === $slug ) {
+            throw new BridgeError( 'active_theme', 'Activate another theme first; the active theme (or its parent) cannot be deleted.', 409 );
+        }
+        Maintain::require_direct_fs();
+        $res = delete_theme( $slug );
+        if ( is_wp_error( $res ) || ! $res ) {
+            throw new BridgeError( 'delete_failed', is_wp_error( $res ) ? $res->get_error_message() : 'The theme could not be deleted.', 500 );
+        }
+        $c->summary = "deleted theme $slug";
+
+        return array( 'deleted' => $slug );
+    }
+
     /* ------------------------------------------------------------- theme files */
 
     private static function theme_dir( string $slug ): string {

@@ -36,6 +36,9 @@ op('content.restore', 'live', 'Restore from trash.', { 'id*': 'int|ID' }, { w: 1
 op('content.delete', 'admin', 'Delete permanently. Cannot be undone.', { 'id*': 'int|ID' }, { w: 1, c: 1 });
 op('content.revisions', 'draft', 'List WordPress revisions of an item, or restore one.', { 'id*': 'int|Post ID', restore: 'int|Revision ID to restore (needs live)' }, { w: 1, u: 1 });
 op('content.bulk', 'live', 'Change the status of up to 50 items at once.', { 'ids*': 'array|Post IDs', 'status*': 'string|publish, draft, pending, private or trash' }, { w: 1 });
+op('content.meta_get', 'draft', 'Read custom fields of a post, user, term or comment (one key or all). Underscore keys and user meta need admin.', { 'object*': 'enum:post,term,comment,user|Kind', 'id*': 'int|Object ID', key: 'string|One key; omit for all' }, { u: 1, e: 'admin' });
+op('content.meta_set', 'live', 'Set a custom field on a post, user, term or comment. Returns the previous value.', { 'object*': 'enum:post,term,comment,user|Kind', 'id*': 'int|Object ID', 'key*': 'string|Meta key', 'value*': 'any|Value' }, { w: 1, e: 'admin' });
+op('content.meta_delete', 'live', 'Delete a custom field. Returns the previous value.', { 'object*': 'enum:post,term,comment,user|Kind', 'id*': 'int|Object ID', 'key*': 'string|Meta key' }, { w: 1, e: 'admin' });
 op('content.terms_list', 'read', 'List categories, tags or any taxonomy terms.', { taxonomy: 'string|Default category', search: 'string|Search', hide_empty: 'bool|Default false', ...PAGE }, { u: 1 });
 op('content.terms_save', 'live', 'Create or update a term.', { id: 'int|Omit to create', taxonomy: 'string|Default category', 'name*': 'string|Name', slug: 'string|Slug', parent: 'int|Parent term', description: 'string|Description' }, { w: 1 });
 op('content.terms_delete', 'live', 'Delete a term (posts keep existing).', { 'id*': 'int|Term ID', taxonomy: 'string|Default category' }, { w: 1, c: 1 });
@@ -64,6 +67,7 @@ op('design.themes_list', 'draft', 'Installed themes and which is active.');
 op('design.theme_activate', 'admin', 'Switch the active theme.', { 'slug*': 'string|Theme directory' }, { w: 1, c: 1 });
 op('design.theme_install', 'admin', 'Install a theme from WordPress.org by slug.', { 'slug*': 'string|WordPress.org slug', activate: 'bool|Activate after install' }, { w: 1, c: 1 });
 op('design.theme_install_zip', 'admin', 'Install a theme from an https zip URL (GitHub release, your own server; redirects are re-checked).', { 'url*': 'string|https URL of a zip', activate: 'bool|Activate after install', overwrite: 'bool|Replace an existing theme folder' }, { w: 1, c: 1 });
+op('design.theme_delete', 'admin', 'Delete an installed theme that is not active.', { 'theme*': 'string|Theme folder' }, { w: 1, c: 1 });
 op('design.theme_files', 'admin', 'List files of the active (or given) theme.', { theme: 'string|Theme directory' });
 op('design.theme_file_read', 'admin', 'Read a theme file.', { 'path*': 'string|Path inside the theme', theme: 'string|Theme directory', offset: 'int|Byte offset' }, { u: 1 });
 op('design.theme_file_write', 'admin', 'Write a theme file (PHP is syntax-checked; previous content is kept for undo).', { 'path*': 'string|Path inside the theme (php, css, js, json, html)', 'content*': 'string|File content', theme: 'string|Theme directory' }, { w: 1, c: 1 });
@@ -113,6 +117,8 @@ op('maintain.db_cleanup', 'admin', 'Clean revisions, expired transients, spam, t
 op('maintain.db_optimize', 'admin', 'OPTIMIZE TABLE on the site tables.', {}, { w: 1 });
 op('maintain.search_replace', 'admin', 'Serialization-safe search and replace across the database. Always preview first.', { 'search*': 'string|Text to find', 'replace*': 'string|Replacement', tables: 'array|Limit to these tables', apply: 'bool|false (default) only counts' }, { w: 1, c: 'maybe' });
 op('maintain.language_install', 'admin', 'Download a language pack (core, plugins, themes), e.g. fa_IR, and optionally make it the site language.', { 'locale*': 'string|e.g. fa_IR, ar, de_DE', activate: 'bool|Also set it as the site language' }, { w: 1 });
+op('maintain.sql', 'admin', 'Read-only SQL: one SELECT/SHOW/DESCRIBE/EXPLAIN. {prefix} stands for the table prefix.', { 'query*': 'string|SQL', limit: 'int|Max rows (default 200, max 1000)' }, { u: 1 });
+op('maintain.sql_write', 'admin', 'One INSERT/UPDATE/DELETE/REPLACE/CREATE/ALTER/DROP/TRUNCATE. Confirmed; not undoable (take maintain.backup_create first).', { 'query*': 'string|SQL; {prefix} stands for the table prefix' }, { w: 1, c: 1 });
 op('maintain.cron_list', 'admin', 'Scheduled events.');
 op('maintain.cron_run', 'admin', 'Run a scheduled hook now.', { 'hook*': 'string|Registered hook name' }, { w: 1 });
 op('maintain.maintenance_mode', 'admin', 'Serve a 503 maintenance page to visitors (admins and the bridge still see the site).', { 'enabled*': 'bool|On or off', message: 'string|Visitor message' }, { w: 1 });
@@ -159,6 +165,9 @@ op('shop.coupon_save', 'live', 'Create or update a coupon.', { id: 'int|', 'code
 op('shop.orders_list', 'admin', 'Orders (customer data included).', { status: 'string|', ...PAGE }, { u: 1 });
 op('shop.order_get', 'admin', 'One order with billing and shipping details.', { 'id*': 'int|' }, { u: 1 });
 op('shop.order_update', 'admin', 'Change order status or add a note.', { 'id*': 'int|', status: 'string|', note: 'string|Private note' }, { w: 1, c: 1 });
+op('shop.gateways_list', 'admin', 'Payment gateways (Zarinpal, bank transfer, COD…): enabled state and non-secret settings.');
+op('shop.gateway_set', 'admin', 'Turn a payment gateway on/off and edit non-secret settings (keys and merchant codes are entered by the owner in WooCommerce).', { 'id*': 'string|Gateway id, e.g. cod, bacs', enabled: 'bool|On or off', settings: 'object|Non-secret settings' }, { w: 1, c: 1 });
+op('shop.shipping_zones', 'admin', 'Shipping zones with locations and methods.');
 
 /* forms */
 op('forms.list', 'live', 'Forms from Contact Form 7, Gravity Forms, WPForms or Fluent Forms.');
@@ -171,6 +180,12 @@ op('files.list', 'admin', 'List files under a root (root "themes" or "plugins" l
 op('files.read', 'admin', 'Read a file: text as text, other types as base64 (2 MB max).', { 'root*': 'string|See files.list', 'path*': 'string|File path inside the root', offset: 'int|Byte offset' }, { u: 1 });
 op('files.write', 'admin', 'Create or replace a file; missing theme/plugin/mu-plugins folders are created. Text types in themes/plugins/mu-plugins, media types in uploads. PHP is syntax-checked and the front page probed; previous content is kept for undo.', { 'root*': 'string|See files.list', 'path*': 'string|File path inside the root', content: 'string|Text content', data_base64: 'string|Binary content (instead of content)' }, { w: 1, c: 1 });
 op('files.write_many', 'admin', 'Write up to 60 files into one root in one call (a theme or plugin skeleton). New themes/<slug>, plugins/<slug>, mu-plugins and uploads folders are created. Each file is undoable.', { 'root*': 'string|See files.list', 'files*': 'array|[{path, content | data_base64}]' }, { w: 1, c: 1 });
+op('files.mkdir', 'admin', 'Create a folder inside a root (themes/<slug>, plugins/<slug>, mu-plugins, uploads).', { 'root*': 'string|See files.list', 'path*': 'string|Folder path inside the root' }, { w: 1 });
+op('files.rmdir', 'admin', 'Delete a folder and everything in it. Not undoable.', { 'root*': 'string|See files.list', 'path*': 'string|Folder path inside the root' }, { w: 1, c: 1 });
+op('files.move', 'admin', 'Move or rename a file inside a root (2 MB max, undoable).', { 'root*': 'string|See files.list', 'from*': 'string|Current path', 'to*': 'string|New path' }, { w: 1, c: 1 });
+op('files.copy', 'admin', 'Copy a file inside a root (2 MB max).', { 'root*': 'string|See files.list', 'from*': 'string|Source path', 'to*': 'string|Target path' }, { w: 1 });
+op('files.fetch', 'admin', 'Download an https file (font, image, script; 20 MB max) straight into a root. Redirects are re-checked.', { 'root*': 'string|See files.list', 'path*': 'string|Target path inside the root', 'url*': 'string|https URL' }, { w: 1, c: 1 });
+op('files.unzip', 'admin', 'Download a zip and extract it into a root (whole theme or plugin, assets). Known text/media types only; existing files are replaced; not syntax-checked.', { 'root*': 'string|See files.list', 'url*': 'string|https URL of a zip', path: 'string|Subfolder to extract into', strip_top: 'bool|Drop the zip top-level folder' }, { w: 1, c: 1 });
 op('files.delete', 'admin', 'Delete a file permanently.', { 'root*': 'string|See files.list', 'path*': 'string|File path inside the root' }, { w: 1, c: 1 });
 
 /* transfer (building blocks; site.transfer in the gateway chains them between two sites) */

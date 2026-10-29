@@ -323,4 +323,75 @@ final class Shop {
 
         return self::order_view( (array) self::wc( 'GET', '/orders/' . $id ), false );
     }
+
+    /**
+     * Payment gateways with their non-secret settings.
+     *
+     * @param array<string, mixed> $a Arguments.
+     * @return array<string, mixed>
+     */
+    public static function op_gateways_list( array $a, Context $c ): array {
+        if ( ! function_exists( 'WC' ) ) {
+            throw new BridgeError( 'no_woocommerce', 'WooCommerce is not active.', 400 );
+        }
+        $out = array();
+        foreach ( WC()->payment_gateways()->payment_gateways() as $id => $g ) {
+            $settings = array();
+            foreach ( (array) $g->settings as $k => $v ) {
+                $settings[ $k ] = preg_match( '/key|secret|token|password|merchant/i', (string) $k ) ? '(hidden)' : $v;
+            }
+            $out[] = array( 'id' => $id, 'title' => $g->get_method_title(), 'enabled' => 'yes' === $g->enabled, 'settings' => $settings );
+        }
+
+        return array( 'gateways' => $out );
+    }
+
+    /**
+     * Turns a gateway on or off and edits non-secret settings (secret fields are entered by the owner in WooCommerce).
+     *
+     * @param array<string, mixed> $a Arguments.
+     * @return array<string, mixed>
+     */
+    public static function op_gateway_set( array $a, Context $c ): array {
+        if ( ! function_exists( 'WC' ) ) {
+            throw new BridgeError( 'no_woocommerce', 'WooCommerce is not active.', 400 );
+        }
+        $id = sanitize_key( (string) $a['id'] );
+        $gw = WC()->payment_gateways()->payment_gateways()[ $id ] ?? null;
+        if ( ! $gw ) {
+            throw new BridgeError( 'not_found', 'No such payment gateway.', 404 );
+        }
+        $opts = (array) get_option( $gw->get_option_key(), array() );
+        if ( isset( $a['enabled'] ) ) {
+            $opts['enabled'] = $a['enabled'] ? 'yes' : 'no';
+        }
+        foreach ( (array) ( $a['settings'] ?? array() ) as $k => $v ) {
+            if ( preg_match( '/key|secret|token|password|merchant/i', (string) $k ) ) {
+                throw new BridgeError( 'forbidden', "Setting \"$k\" looks like a secret; the site owner enters it in WooCommerce settings.", 403 );
+            }
+            $opts[ sanitize_key( (string) $k ) ] = is_scalar( $v ) ? sanitize_text_field( (string) $v ) : $v;
+        }
+        update_option( $gw->get_option_key(), $opts );
+        $c->summary = "updated gateway $id";
+
+        return array( 'id' => $id, 'enabled' => 'yes' === ( $opts['enabled'] ?? 'no' ) );
+    }
+
+    /**
+     * Shipping zones with their methods.
+     *
+     * @param array<string, mixed> $a Arguments.
+     * @return array<string, mixed>
+     */
+    public static function op_shipping_zones( array $a, Context $c ): array {
+        if ( ! class_exists( '\WC_Shipping_Zones' ) ) {
+            throw new BridgeError( 'no_woocommerce', 'WooCommerce is not active.', 400 );
+        }
+        $out = array();
+        foreach ( \WC_Shipping_Zones::get_zones() as $z ) {
+            $out[] = array( 'id' => $z['id'], 'name' => $z['zone_name'], 'locations' => wp_list_pluck( (array) $z['zone_locations'], 'code' ), 'methods' => array_map( static fn( $m ) => array( 'instance' => $m->get_instance_id(), 'id' => $m->id, 'title' => $m->get_title(), 'enabled' => 'yes' === $m->enabled ), array_values( (array) $z['shipping_methods'] ) ) );
+        }
+
+        return array( 'zones' => $out );
+    }
 }

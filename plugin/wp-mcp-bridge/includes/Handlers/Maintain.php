@@ -834,4 +834,56 @@ final class Maintain {
 
         return $state + array( 'note' => 'Visitors get HTTP 503. Signed-in administrators and the bridge still see the site.' );
     }
+
+    /**
+     * Read-only SQL: one SELECT/SHOW/DESCRIBE/EXPLAIN. {prefix} is replaced by the table prefix.
+     *
+     * @param array<string, mixed> $a Arguments.
+     * @return array<string, mixed>
+     */
+    public static function op_sql( array $a, Context $c ): array {
+        global $wpdb;
+        $q = rtrim( trim( str_replace( '{prefix}', $wpdb->prefix, (string) $a['query'] ) ), "; \t\n\r" );
+        if ( ! preg_match( '/^(select|show|describe|desc|explain)\b/i', $q ) || str_contains( $q, ';' ) || preg_match( '/\b(into\s+outfile|into\s+dumpfile|load_file)\b/i', $q ) ) {
+            throw new BridgeError( 'read_only', 'maintain.sql runs one SELECT/SHOW/DESCRIBE/EXPLAIN. Use maintain.sql_write for changes.', 400 );
+        }
+        $limit = max( 1, min( 1000, (int) ( $a['limit'] ?? 200 ) ) );
+        $rows  = (array) $wpdb->get_results( $q, ARRAY_A ); // phpcs:ignore WordPress.DB
+        if ( '' !== $wpdb->last_error ) {
+            throw new BridgeError( 'sql_error', $wpdb->last_error, 400 );
+        }
+        $total = count( $rows );
+
+        return array( 'rows' => array_slice( $rows, 0, $limit ), 'count' => $total, 'truncated' => $total > $limit, 'prefix' => $wpdb->prefix );
+    }
+
+    /**
+     * @param array<string, mixed> $a Arguments.
+     * @return array<string, mixed>
+     */
+    public static function preview_sql_write( array $a, Context $c ): array {
+        global $wpdb;
+
+        return array( 'will_run' => str_replace( '{prefix}', $wpdb->prefix, (string) $a['query'] ), 'warning' => 'Changes the database directly and cannot be undone with activity.undo. Take maintain.backup_create first.' );
+    }
+
+    /**
+     * @param array<string, mixed> $a Arguments.
+     * @return array<string, mixed>
+     */
+    public static function op_sql_write( array $a, Context $c ): array {
+        global $wpdb;
+        $q = rtrim( trim( str_replace( '{prefix}', $wpdb->prefix, (string) $a['query'] ) ), "; \t\n\r" );
+        if ( '' === $q || str_contains( $q, ';' ) || ! preg_match( '/^(insert|update|delete|replace|create|alter|drop|truncate)\b/i', $q ) || preg_match( '/\b(into\s+outfile|into\s+dumpfile|load_file)\b/i', $q ) ) {
+            throw new BridgeError( 'bad_query', 'One INSERT/UPDATE/DELETE/REPLACE/CREATE/ALTER/DROP/TRUNCATE statement per call.', 400 );
+        }
+        $res = $wpdb->query( $q ); // phpcs:ignore WordPress.DB
+        if ( false === $res || '' !== $wpdb->last_error ) {
+            throw new BridgeError( 'sql_error', $wpdb->last_error ?: 'The statement failed.', 400 );
+        }
+        wp_cache_flush();
+        $c->summary = 'sql: ' . substr( $q, 0, 80 );
+
+        return array( 'affected' => (int) $res, 'insert_id' => (int) $wpdb->insert_id );
+    }
 }

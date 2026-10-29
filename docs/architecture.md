@@ -21,7 +21,7 @@ spec/build-spec.mjs ──► spec/ops.json ──► gateway/src/generated/ops.
                                       └─► plugin/wp-mcp-bridge/ops.json
 ```
 
-`ops.json` is the single definition of the 128 site actions: minimum level, arguments, whether they write, whether they need confirmation, whether results contain site text. A test fails when the copies differ, and a PHP test fails when an action has no handler (or a handler has no action).
+`ops.json` is the single definition of the 143 site actions: minimum level, arguments, whether they write, whether they need confirmation, whether results contain site text. A test fails when the copies differ, and a PHP test fails when an action has no handler (or a handler has no action).
 
 ### Gateway (`gateway/`, TypeScript, Node ≥ 22.13, no runtime dependencies)
 

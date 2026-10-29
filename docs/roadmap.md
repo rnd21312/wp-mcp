@@ -6,7 +6,7 @@ This is a plan, not code. Everything below is open to change after the questions
 
 ## What exists today (version 1)
 
-* A gateway (Node) with an MCP server and a local panel, and a WordPress plugin ("bridge") with 128 actions. It manages **existing** WordPress sites: content, design, SEO, maintenance, plugins, shop, files, copy between sites, visual editor, URL inspector.
+* A gateway (Node) with an MCP server and a local panel, and a WordPress plugin ("bridge") with 143 actions. It manages **existing** WordPress sites: content, design, SEO, maintenance, plugins, shop, files, copy between sites, visual editor, URL inspector.
 * Missing for the goal: creating the site (hosting setup, WordPress install, non-WordPress stacks), building and deploying code projects, and a generic host-side component that is not tied to WordPress.
 
 ## Shape of version 2
