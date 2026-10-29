@@ -1,4 +1,4 @@
-import { ExternalLinkIcon, GlobeIcon, PlusIcon, RefreshCwIcon, Trash2Icon } from 'lucide-react';
+import { DownloadIcon, ExternalLinkIcon, GlobeIcon, PlusIcon, RefreshCwIcon, Trash2Icon } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { Empty, LevelBadge, PageTitle, Pick, StatusBadge } from '@/components/bits';
@@ -26,9 +26,24 @@ export function Sites({ state, reload }: { state: State; reload: () => Promise<v
     setBusy('');
   };
 
+  const downloadPlugin = async (): Promise<void> => {
+    const r = await api.post<{ ok: boolean; filename: string; version: string; base64: string }>('plugin/zip');
+    const bytes = Uint8Array.from(atob(r.base64), (c) => c.charCodeAt(0));
+    const url = URL.createObjectURL(new Blob([bytes], { type: 'application/zip' }));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = r.filename;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success(t(`Plugin ${r.version} downloaded. Upload it in Plugins → Add New (replace the old one).`, `افزونه ${r.version} دانلود شد. در «افزونه‌ها ← افزودن» آپلود و جایگزین کنید.`));
+  };
+
   return (
     <>
       <PageTitle title={t('Sites', 'سایت‌ها')} hint={t('Every WordPress site the AI can work on. Names are unique and shown in every result.', 'همه‌ی سایت‌های وردپرسی که هوش مصنوعی می‌تواند رویشان کار کند. نام‌ها یکتا هستند و در هر نتیجه تکرار می‌شوند.')}>
+        <Button variant="outline" onClick={downloadPlugin}>
+          <DownloadIcon /> {t('Download plugin', 'دانلود افزونه')}
+        </Button>
         <Button onClick={() => setAdding(true)}>
           <PlusIcon /> {t('Connect a site', 'اتصال سایت')}
         </Button>

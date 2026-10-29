@@ -1,4 +1,4 @@
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { AgentError, type RemoteSite, type Release } from './agentclient.ts';
 import type { App, Reply } from './context.ts';
@@ -7,7 +7,7 @@ import { buildStatus, hasBuildScript, startBuild } from './build.ts';
 import * as projects from './projects.ts';
 import { FRAMEWORKS } from './templates.ts';
 import { approve, pageMain, preview, publish, runStage, startBuilder, STAGES, stateView, BuilderError, type Stage } from './builder.ts';
-import { createWordPress, type DbSpec } from './wordpress.ts';
+import { buildBridgeZip, bridgeSourceDir, createWordPress, type DbSpec } from './wordpress.ts';
 import { ProjectError } from './projects.ts';
 
 const json = (status: number, body: unknown): Reply => ({ status, json: body, headers: { 'cache-control': 'no-store' } });
@@ -27,6 +27,11 @@ export async function studioApi(app: App, method: string, route: string, body: R
     const str = (key: string): string => String(body[key] ?? '');
 
     switch (route) {
+      case 'plugin/zip': {
+        const zip = buildBridgeZip();
+        const version = /Version:\s*([\d.]+)/.exec(readFileSync(join(bridgeSourceDir(), 'wp-mcp-bridge.php'), 'utf8'))?.[1] ?? '';
+        return json(200, { ok: true, filename: 'wp-mcp-bridge.zip', version, bytes: zip.length, base64: zip.toString('base64') });
+      }
       case 'agent/zip': {
         const built = buildAgentZip();
         return json(200, { ok: true, filename: 'wpm-agent.zip', setup_code: built.setupCode, files: built.files, base64: built.zip.toString('base64') });
