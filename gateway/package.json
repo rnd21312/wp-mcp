@@ -1,6 +1,6 @@
 {
   "name": "wp-mcp-gateway",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "Multi-site MCP gateway for WordPress (Streamable HTTP, OAuth 2.1, API keys)",
   "type": "module",
   "license": "MIT",

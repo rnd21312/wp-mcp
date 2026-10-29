@@ -148,7 +148,7 @@ final class PluginOps {
     public static function preview_install_zip( array $a, Context $c ): array {
         $problem = Policy::url_problem( (string) $a['url'] );
 
-        return array( 'will_download' => (string) $a['url'], 'host' => wp_parse_url( (string) $a['url'], PHP_URL_HOST ), 'allowed' => null === $problem, 'problem' => $problem, 'warning' => 'A plugin runs PHP code with full access to this site. Only install from a source the person trusts.', 'rules' => 'https only, no redirects, no private addresses, max 40 MB' );
+        return array( 'will_download' => (string) $a['url'], 'host' => wp_parse_url( (string) $a['url'], PHP_URL_HOST ), 'allowed' => null === $problem, 'problem' => $problem, 'warning' => 'A plugin runs PHP code with full access to this site. Only install from a source the person trusts.', 'rules' => 'https only, redirects re-checked, no private addresses, max 40 MB' );
     }
 
     /**
@@ -163,10 +163,11 @@ final class PluginOps {
         }
         Maintain::require_direct_fs();
         $tmp = wp_tempnam( 'wpm-plugin.zip' );
-        $res = wp_safe_remote_get( $url, array( 'timeout' => 60, 'redirection' => 0, 'stream' => true, 'filename' => $tmp, 'limit_response_size' => 41943040, 'user-agent' => 'WP-MCP-Bridge/' . WPMCP_VERSION ) );
-        if ( is_wp_error( $res ) || 200 !== (int) wp_remote_retrieve_response_code( $res ) ) {
+        try {
+            Util::download( $url, 41943040, $tmp );
+        } catch ( BridgeError $e ) {
             @unlink( $tmp ); // phpcs:ignore WordPress.PHP.NoSilencedErrors
-            throw new BridgeError( 'download_failed', is_wp_error( $res ) ? $res->get_error_message() : 'The server answered HTTP ' . wp_remote_retrieve_response_code( $res ) . ' (redirects are not followed).', 502 );
+            throw $e;
         }
         $head = (string) file_get_contents( $tmp, false, null, 0, 4 );
         if ( "PK\x03\x04" !== $head ) {

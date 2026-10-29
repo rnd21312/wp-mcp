@@ -87,6 +87,37 @@ export function signature(op: OpSpec): string {
   return `${op.action}(${names.join(',')})`;
 }
 
+/** Names models often use for an argument the operation calls something else. */
+const ARG_ALIASES: Record<string, string[]> = {
+  options: ['values'],
+  option: ['values'],
+  settings: ['values'],
+  route: ['path'],
+  endpoint: ['path'],
+  url: ['path'],
+  file: ['path'],
+  filepath: ['path'],
+  html: ['content'],
+  body_html: ['content'],
+  text: ['content'],
+  id_or_slug: ['id'],
+  post_id: ['id'],
+};
+
+function listToObject(list: unknown[]): Record<string, unknown> | undefined {
+  if (!list.length) return undefined;
+  const out: Record<string, unknown> = {};
+  for (const item of list) {
+    if (!item || typeof item !== 'object') return undefined;
+    const it = item as Record<string, unknown>;
+    const key = it.slug ?? it.name ?? it.key;
+    const val = it.color ?? it.value ?? it.size ?? it.fontFamily ?? it.font_family;
+    if (typeof key !== 'string' || val === undefined) return undefined;
+    out[key] = val;
+  }
+  return out;
+}
+
 export interface Checked {
   args: Record<string, unknown>;
   errors: string[];
@@ -95,7 +126,13 @@ export interface Checked {
 /** Validates and gently coerces arguments (LLMs often send "5" or "true"). */
 export function checkArgs(op: OpSpec, input: unknown): Checked {
   const errors: string[] = [];
-  const source = input && typeof input === 'object' && !Array.isArray(input) ? (input as Record<string, unknown>) : {};
+  const raw = input && typeof input === 'object' && !Array.isArray(input) ? (input as Record<string, unknown>) : {};
+  const source: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(raw)) {
+    if (key === 'dry_run' || key === 'confirm_token' || key === 'idempotency_key') continue; // top-level controls, not operation arguments
+    const alias = op.params[key] ? undefined : ARG_ALIASES[key]?.find((a) => op.params[a] && raw[a] === undefined);
+    source[alias ?? key] = value;
+  }
   const args: Record<string, unknown> = {};
   for (const [name, value] of Object.entries(source)) {
     const def = op.params[name];
@@ -124,6 +161,7 @@ export function checkArgs(op: OpSpec, input: unknown): Checked {
         if (typeof v === 'string') {
           try { v = JSON.parse(v); } catch { /* reported below */ }
         }
+        if (Array.isArray(v)) v = listToObject(v) ?? v; // [{slug, color|value|size}] -> {slug: value}
         if (!v || typeof v !== 'object' || Array.isArray(v)) errors.push(`"${name}" must be an object.`);
         break;
       case 'array':
@@ -141,6 +179,15 @@ export function checkArgs(op: OpSpec, input: unknown): Checked {
     args[name] = v;
   }
   for (const name of op.required) if (args[name] === undefined) errors.push(`Missing required argument "${name}".`);
+  if (op.id === 'site.transfer_files' && typeof args.root === 'string' && typeof args.path === 'string') {
+    // root "themes" + path "my-theme/inc" means root "themes/my-theme", path "inc"
+    const m = /^(themes|plugins)$/.exec(args.root.replace(/^\/+|\/+$/g, ''));
+    if (m) {
+      const [first, ...rest] = args.path.replace(/^\/+|\/+$/g, '').split('/');
+      args.root = `${m[1]}/${first}`;
+      if (rest.length) args.path = rest.join('/'); else delete args.path;
+    }
+  }
   return { args, errors };
 }
 

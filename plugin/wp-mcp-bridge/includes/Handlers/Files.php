@@ -33,7 +33,7 @@ final class Files {
      *
      * @return array{0: string, 1: bool} Directory and whether it is the uploads area.
      */
-    private static function root( string $root ): array {
+    private static function root( string $root, string $mode = 'read' ): array {
         self::$core = false;
         $root  = trim( str_replace( '\\', '/', $root ), '/' );
         $parts = explode( '/', $root, 2 );
@@ -55,13 +55,19 @@ final class Files {
                     throw new BridgeError( 'bad_root', 'Use path for subfolders of mu-plugins.', 400 );
                 }
 
-                return array( wp_normalize_path( WPMU_PLUGIN_DIR ), false );
+                $mu = wp_normalize_path( WPMU_PLUGIN_DIR );
+
+                return is_dir( $mu ) || 'read' === $mode ? array( $mu, false ) : self::make( $mu, $mode );
             case 'themes':
-                $dir = wp_normalize_path( get_theme_root() . '/' . sanitize_file_name( $rest ) );
-                break;
             case 'plugins':
-                $dir = wp_normalize_path( WP_PLUGIN_DIR . '/' . sanitize_file_name( $rest ) );
-                break;
+                $base = 'themes' === $kind ? get_theme_root() : WP_PLUGIN_DIR;
+                $segs = array_values( array_filter( array_map( 'sanitize_file_name', explode( '/', $rest ) ), 'strlen' ) );
+                if ( ! $segs ) {
+                    throw new BridgeError( 'bad_root', "Use $kind/<folder-name> as the root (for example $kind/my-folder), then path for files inside it.", 400 );
+                }
+                $dir = wp_normalize_path( $base . '/' . implode( '/', $segs ) );
+
+                return is_dir( $dir ) || 'read' === $mode ? ( is_dir( $dir ) ? array( $dir, false ) : self::missing( $root ) ) : self::make( $dir, $mode );
             case 'uploads':
                 $base = wp_normalize_path( (string) wp_upload_dir( null, false )['basedir'] );
                 $dir  = '' === $rest ? $base : wp_normalize_path( $base . '/' . $rest );
@@ -69,15 +75,27 @@ final class Files {
                     throw new BridgeError( 'forbidden', 'Backups are not browsable.', 403 );
                 }
 
-                return is_dir( $dir ) ? array( $dir, true ) : self::missing( $root );
+                if ( is_dir( $dir ) ) {
+                    return array( $dir, true );
+                }
+
+                return 'read' === $mode ? self::missing( $root ) : self::make( $dir, $mode, true );
             default:
                 throw new BridgeError( 'bad_root', 'Root must be core, themes/<slug>, plugins/<slug>, mu-plugins or uploads.', 400 );
         }
-        if ( '' === $rest || str_contains( $rest, '/' ) ) {
-            throw new BridgeError( 'bad_root', "Use $kind/<folder-name> as the root, then path for anything deeper.", 400 );
+    }
+
+    /**
+     * A root that does not exist yet: planned (preview) or created (write). New theme, plugin, mu-plugins and uploads folders are allowed.
+     *
+     * @return array{0: string, 1: bool}
+     */
+    private static function make( string $dir, string $mode, bool $uploads = false ): array {
+        if ( 'create' === $mode && ! wp_mkdir_p( $dir ) ) {
+            throw new BridgeError( 'write_failed', 'The folder could not be created (permissions?).', 500 );
         }
 
-        return is_dir( $dir ) ? array( $dir, false ) : self::missing( $root );
+        return array( $dir, $uploads );
     }
 
     /** @return never */
@@ -107,6 +125,9 @@ final class Files {
             throw new BridgeError( 'bad_path', 'File path not allowed (no .., no dot files, only known text or media types; PHP is not allowed in uploads).', 400 );
         }
         $full = $dir . '/' . $path;
+        if ( ! $must_exist && ! is_dir( $dir ) ) {
+            return $full; // planned root, created on write
+        }
         if ( $must_exist ) {
             $real = realpath( $full );
             if ( false === $real || ! str_starts_with( wp_normalize_path( $real ), $dir . '/' ) ) {
@@ -138,6 +159,16 @@ final class Files {
      * @return array<string, mixed>
      */
     public static function op_list( array $a, Context $c ): array {
+        $kind = trim( str_replace( '\\', '/', (string) $a['root'] ), '/' );
+        if ( 'themes' === $kind || 'plugins' === $kind ) {
+            $folders = array();
+            foreach ( (array) glob( ( 'themes' === $kind ? get_theme_root() : WP_PLUGIN_DIR ) . '/*', GLOB_ONLYDIR ) as $d ) {
+                $folders[] = basename( (string) $d );
+            }
+            sort( $folders );
+
+            return array( 'root' => $kind, 'folders' => $folders, 'hint' => "Use $kind/<folder> as the root to list or write files." );
+        }
         [ $dir ]  = self::root( (string) $a['root'] );
         $start    = $dir;
         if ( ! empty( $a['path'] ) ) {
@@ -194,7 +225,7 @@ final class Files {
      * @return array<string, mixed>
      */
     public static function preview_write( array $a, Context $c ): array {
-        [ $dir, $up ] = self::root( (string) $a['root'] );
+        [ $dir, $up ] = self::root( (string) $a['root'], 'plan' );
         self::guard_self( (string) $a['root'] );
         $full  = self::full( $dir, $up, (string) $a['path'], false, true );
         $bytes = self::payload( $a );
@@ -290,6 +321,56 @@ final class Files {
      * @param array<string, mixed> $a Arguments.
      * @return array<string, mixed>
      */
+    public static function preview_write_many( array $a, Context $c ): array {
+        $out = array();
+        foreach ( self::batch( $a ) as $f ) {
+            $out[] = self::preview_write( array( 'root' => $a['root'] ) + $f, $c );
+        }
+
+        return array( 'files' => $out, 'count' => count( $out ) );
+    }
+
+    /**
+     * Writes several files in one call (a whole theme or plugin skeleton).
+     *
+     * @param array<string, mixed> $a Arguments.
+     * @return array<string, mixed>
+     */
+    public static function op_write_many( array $a, Context $c ): array {
+        $done = array();
+        foreach ( self::batch( $a ) as $f ) {
+            try {
+                $done[] = self::op_write( array( 'root' => $a['root'] ) + $f, $c ) + array( 'ok' => true );
+            } catch ( BridgeError $e ) {
+                $done[] = array( 'path' => $f['path'], 'ok' => false, 'error' => $e->getMessage() );
+            }
+        }
+        $c->summary = 'wrote ' . count( array_filter( $done, static fn( $d ) => ! empty( $d['ok'] ) ) ) . ' files to ' . $a['root'];
+
+        return array( 'root' => $a['root'], 'files' => $done );
+    }
+
+    /** @return list<array<string, mixed>> */
+    private static function batch( array $a ): array {
+        $files = $a['files'] ?? null;
+        if ( ! is_array( $files ) || array() === $files || count( $files ) > 60 ) {
+            throw new BridgeError( 'bad_arguments', 'files must be a list of 1-60 items like {path, content | data_base64}.', 400 );
+        }
+        $out = array();
+        foreach ( $files as $f ) {
+            if ( ! is_array( $f ) || empty( $f['path'] ) ) {
+                throw new BridgeError( 'bad_arguments', 'Every file needs a path.', 400 );
+            }
+            $out[] = array_intersect_key( $f, array_flip( array( 'path', 'content', 'data_base64' ) ) );
+        }
+
+        return $out;
+    }
+
+    /**
+     * @param array<string, mixed> $a Arguments.
+     * @return array<string, mixed>
+     */
     public static function preview_delete( array $a, Context $c ): array {
         [ $dir, $up ] = self::root( (string) $a['root'] );
         self::guard_self( (string) $a['root'] );
@@ -326,7 +407,7 @@ final class Files {
     public static function restore( array $before ): string {
         $root = (string) ( $before['root'] ?? '' );
         self::guard_self( $root );
-        [ $dir, $up ] = self::root( $root );
+        [ $dir, $up ] = self::root( $root, 'create' );
         $path         = (string) ( $before['path'] ?? '' );
         $full         = self::full( $dir, $up, $path, false, true );
         if ( ! empty( $before['exists'] ) ) {

@@ -1,6 +1,6 @@
 # WP MCP
 
-**Let an AI run your WordPress sites, from zero to production, over MCP only.** No visual editor, no plugin UI to learn: the AI gets 16 well-described tools (123 site actions) for design, SEO, maintenance, plugins, content, shop and forms, with permission levels, two-step confirmation, undo and an activity log.
+**Let an AI run your WordPress sites, from zero to production, over MCP only.** No visual editor, no plugin UI to learn: the AI gets 16 well-described tools (128 site actions) for design, SEO, maintenance, plugins, content, shop and forms, with permission levels, two-step confirmation, undo and an activity log.
 
 🇮🇷 [راهنمای فارسی](README.fa.md)
 

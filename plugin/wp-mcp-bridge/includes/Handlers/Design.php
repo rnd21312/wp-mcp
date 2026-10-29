@@ -586,6 +586,53 @@ final class Design {
         return array( 'installed' => $slug, 'activated' => ! empty( $a['activate'] ) );
     }
 
+    /**
+     * @param array<string, mixed> $a Arguments.
+     * @return array<string, mixed>
+     */
+    public static function preview_theme_install_zip( array $a, Context $c ): array {
+        $problem = Policy::url_problem( (string) $a['url'] );
+
+        return array( 'will_download' => (string) $a['url'], 'host' => wp_parse_url( (string) $a['url'], PHP_URL_HOST ), 'allowed' => null === $problem, 'problem' => $problem, 'warning' => 'A theme runs PHP code with full access to this site.', 'rules' => 'https only, redirects re-checked, no private addresses, max 40 MB' );
+    }
+
+    /**
+     * Installs a theme from an https zip URL (GitHub release, own server).
+     *
+     * @param array<string, mixed> $a Arguments.
+     * @return array<string, mixed>
+     */
+    public static function op_theme_install_zip( array $a, Context $c ): array {
+        require_once ABSPATH . 'wp-admin/includes/file.php';
+        require_once ABSPATH . 'wp-admin/includes/misc.php';
+        require_once ABSPATH . 'wp-admin/includes/theme.php';
+        require_once ABSPATH . 'wp-admin/includes/class-wp-upgrader.php';
+        Maintain::require_direct_fs();
+        $tmp = wp_tempnam( 'wpm-theme.zip' );
+        try {
+            Util::download( (string) $a['url'], 41943040, $tmp );
+            if ( "PK" !== (string) file_get_contents( $tmp, false, null, 0, 4 ) ) {
+                throw new BridgeError( 'not_zip', 'The download is not a zip file.', 400 );
+            }
+            $upgrader = new \Theme_Upgrader( new \Automatic_Upgrader_Skin() );
+            $result   = $upgrader->install( $tmp, array( 'overwrite_package' => ! empty( $a['overwrite'] ) ) );
+        } finally {
+            @unlink( $tmp ); // phpcs:ignore WordPress.PHP.NoSilencedErrors
+        }
+        if ( is_wp_error( $result ) || ! $result ) {
+            throw new BridgeError( 'install_failed', is_wp_error( $result ) ? $result->get_error_message() : 'Installation failed (a theme with this folder may already exist: pass overwrite:true).', 500 );
+        }
+        $slug = (string) ( $upgrader->theme_info() ? $upgrader->theme_info()->get_stylesheet() : '' );
+        if ( ! empty( $a['activate'] ) && '' !== $slug ) {
+            $from = get_stylesheet();
+            switch_theme( $slug );
+            Revisions::record( $c, 'theme', $slug, $from );
+        }
+        $c->summary = "installed theme $slug from zip";
+
+        return array( 'installed' => $slug, 'activated' => ! empty( $a['activate'] ) && '' !== $slug );
+    }
+
     /* ------------------------------------------------------------- theme files */
 
     private static function theme_dir( string $slug ): string {

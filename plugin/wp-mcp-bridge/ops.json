@@ -650,6 +650,25 @@
    "escalates": null
   },
   {
+   "id": "design.theme_install_zip",
+   "tool": "design",
+   "action": "theme_install_zip",
+   "level": "admin",
+   "summary": "Install a theme from an https zip URL (GitHub release, your own server; redirects are re-checked).",
+   "params": {
+    "url": "string|https URL of a zip",
+    "activate": "bool|Activate after install",
+    "overwrite": "bool|Replace an existing theme folder"
+   },
+   "required": [
+    "url"
+   ],
+   "write": true,
+   "confirm": true,
+   "untrusted": false,
+   "escalates": null
+  },
+  {
    "id": "design.theme_files",
    "tool": "design",
    "action": "theme_files",
@@ -1355,6 +1374,24 @@
    ],
    "write": true,
    "confirm": "maybe",
+   "untrusted": false,
+   "escalates": null
+  },
+  {
+   "id": "maintain.language_install",
+   "tool": "maintain",
+   "action": "language_install",
+   "level": "admin",
+   "summary": "Download a language pack (core, plugins, themes), e.g. fa_IR, and optionally make it the site language.",
+   "params": {
+    "locale": "string|e.g. fa_IR, ar, de_DE",
+    "activate": "bool|Also set it as the site language"
+   },
+   "required": [
+    "locale"
+   ],
+   "write": true,
+   "confirm": false,
    "untrusted": false,
    "escalates": null
   },
@@ -2066,7 +2103,7 @@
    "tool": "files",
    "action": "list",
    "level": "admin",
-   "summary": "List files under a root: core (WordPress folder, read-only except .htaccess and robots.txt), themes/<slug>, plugins/<slug>, mu-plugins, uploads[/sub].",
+   "summary": "List files under a root (root \"themes\" or \"plugins\" lists folders): core (WordPress folder, read-only except .htaccess and robots.txt), themes/<slug>, plugins/<slug>, mu-plugins, uploads[/sub].",
    "params": {
     "root": "string|e.g. themes/twentytwentyfive, plugins/akismet, mu-plugins, uploads/2026",
     "path": "string|Subfolder inside the root",
@@ -2105,7 +2142,7 @@
    "tool": "files",
    "action": "write",
    "level": "admin",
-   "summary": "Create or replace a file. Text types in themes/plugins/mu-plugins, media types in uploads. PHP is syntax-checked and the front page probed; previous content is kept for undo.",
+   "summary": "Create or replace a file; missing theme/plugin/mu-plugins folders are created. Text types in themes/plugins/mu-plugins, media types in uploads. PHP is syntax-checked and the front page probed; previous content is kept for undo.",
    "params": {
     "root": "string|See files.list",
     "path": "string|File path inside the root",
@@ -2115,6 +2152,25 @@
    "required": [
     "root",
     "path"
+   ],
+   "write": true,
+   "confirm": true,
+   "untrusted": false,
+   "escalates": null
+  },
+  {
+   "id": "files.write_many",
+   "tool": "files",
+   "action": "write_many",
+   "level": "admin",
+   "summary": "Write up to 60 files into one root in one call (a theme or plugin skeleton). New themes/<slug>, plugins/<slug>, mu-plugins and uploads folders are created. Each file is undoable.",
+   "params": {
+    "root": "string|See files.list",
+    "files": "array|[{path, content | data_base64}]"
+   },
+   "required": [
+    "root",
+    "files"
    ],
    "write": true,
    "confirm": true,

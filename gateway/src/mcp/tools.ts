@@ -172,7 +172,8 @@ export async function callTool(app: App, principal: Principal, toolName: string,
   const blocked = gates.find((gate) => !gate.ok);
   if (blocked) return fail('rate_limited', `Too many requests. Wait ${blocked.retryAfter}s and retry.`, { retry_after: blocked.retryAfter });
 
-  const dryRun = input.dry_run === true || input.dry_run === 'true';
+  const inner = input.args && typeof input.args === 'object' ? (input.args as Record<string, unknown>).dry_run : undefined; // models often put dry_run inside args
+  const dryRun = input.dry_run === true || input.dry_run === 'true' || inner === true || inner === 'true';
   const argsHash = sha256(canonical(checked.args));
 
   /* two-step confirmation: always for destructive actions, and for "maybe" actions when the site says the arguments are risky */

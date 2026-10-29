@@ -1,7 +1,7 @@
 {
   "name": "wp-mcp",
   "private": true,
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "MCP gateway and WordPress bridge plugin: let an AI run WordPress sites safely",
   "license": "MIT",
   "scripts": {

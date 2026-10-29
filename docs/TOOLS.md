@@ -1,6 +1,6 @@
 # Tools reference
 
-Generated from `spec/ops.json` (123 site actions + gateway actions). Every tool is called as `{site, action, args, dry_run?, confirm_token?, idempotency_key?}`.
+Generated from `spec/ops.json` (128 site actions + gateway actions). Every tool is called as `{site, action, args, dry_run?, confirm_token?, idempotency_key?}`.
 
 Levels: **read** < **draft** < **live** < **admin**. `A>B` means the action starts at A and the site raises it to B from the real target (for example editing a published page). **confirm** = two-step: the first call returns a preview and a `confirm_token`, nothing changes until it is repeated with the token. **site content** = the result contains text written on the website (treated as untrusted).
 
@@ -59,6 +59,7 @@ Levels: **read** < **draft** < **live** < **admin**. `A>B` means the action star
 | `themes_list` | draft |  | Installed themes and which is active. |
 | `theme_activate` | admin | `slug*` | Switch the active theme. *(confirm, write)* |
 | `theme_install` | admin | `slug*, activate` | Install a theme from WordPress.org by slug. *(confirm, write)* |
+| `theme_install_zip` | admin | `url*, activate, overwrite` | Install a theme from an https zip URL (GitHub release, your own server; redirects are re-checked). *(confirm, write)* |
 | `theme_files` | admin | `theme` | List files of the active (or given) theme. |
 | `theme_file_read` | admin | `path*, theme, offset` | Read a theme file. *(site content)* |
 | `theme_file_write` | admin | `path*, content*, theme` | Write a theme file (PHP is syntax-checked; previous content is kept for undo). *(confirm, write)* |
@@ -69,9 +70,11 @@ Levels: **read** < **draft** < **live** < **admin**. `A>B` means the action star
 |---|---|---|---|
 | `list` | read | `search, mime, page, per_page` | Media library items with URLs, sizes and alt text. *(site content)* |
 | `get` | read | `id*` | One attachment with all sizes. *(site content)* |
-| `upload` | draft | `filename*, data_base64*, title, alt, caption, attach_to` | Upload a file from base64 data. *(write)* |
+| `upload` | draft | `filename*, data_base64*, title, alt, caption, description, attach_to, featured, optimize` | Upload a file from base64 data (max 10 MB; bigger: put it in uploads and use media.register). *(write)* |
 | `import_url` | live | `url*, filename, title, alt, attach_to` | Download an image/file from an https URL (no redirects, no private addresses). *(confirm, write)* |
-| `update` | draft | `id*, alt, title, caption, description` | Update alt text, title, caption. *(write)* |
+| `register` | draft | `paths, scan, attach_to, featured, title, alt, caption, description, limit, optimize` | Add files that already lie in wp-content/uploads (copied by FTP/files.write) to the media library: makes sizes, alt text, optional featured image. scan:true finds all unregistered files. *(write)* |
+| `optimize` | live | `id, ids, max_width, quality, format, fix_links` | Shrink and/or convert existing library images (jpeg/png/webp/avif) or videos (ffmpeg needed) to save space. Replaces the file for good; links in posts are rewritten. *(confirm, write)* |
+| `update` | draft | `id*, alt, title, caption, description, slug` | Edit metadata of one item: alt text, title, caption, description, slug. *(write)* |
 | `delete` | admin | `id*` | Delete an attachment and its files permanently. *(confirm, write)* |
 
 ## seo: SEO
@@ -117,6 +120,7 @@ Levels: **read** < **draft** < **live** < **admin**. `A>B` means the action star
 | `db_cleanup` | admin | `targets*, keep_revisions` | Clean revisions, expired transients, spam, trash, auto-drafts, orphan meta. *(confirm, write)* |
 | `db_optimize` | admin |  | OPTIMIZE TABLE on the site tables. *(write)* |
 | `search_replace` | admin | `search*, replace*, tables, apply` | Serialization-safe search and replace across the database. Always preview first. *(confirm if risky, write)* |
+| `language_install` | admin | `locale*, activate` | Download a language pack (core, plugins, themes), e.g. fa_IR, and optionally make it the site language. *(write)* |
 | `cron_list` | admin |  | Scheduled events. |
 | `cron_run` | admin | `hook*` | Run a scheduled hook now. *(write)* |
 | `maintenance_mode` | admin | `enabled*, message` | Serve a 503 maintenance page to visitors (admins and the bridge still see the site). *(write)* |
@@ -192,9 +196,10 @@ Levels: **read** < **draft** < **live** < **admin**. `A>B` means the action star
 
 | Action | Level | Arguments (* required) | What it does |
 |---|---|---|---|
-| `list` | admin | `root*, path, depth` | List files under a root: core (WordPress folder, read-only except .htaccess and robots.txt), themes/<slug>, plugins/<slug>, mu-plugins, uploads[/sub]. |
+| `list` | admin | `root*, path, depth` | List files under a root (root "themes" or "plugins" lists folders): core (WordPress folder, read-only except .htaccess and robots.txt), themes/<slug>, plugins/<slug>, mu-plugins, uploads[/sub]. |
 | `read` | admin | `root*, path*, offset` | Read a file: text as text, other types as base64 (2 MB max). *(site content)* |
-| `write` | admin | `root*, path*, content, data_base64` | Create or replace a file. Text types in themes/plugins/mu-plugins, media types in uploads. PHP is syntax-checked and the front page probed; previous content is kept for undo. *(confirm, write)* |
+| `write` | admin | `root*, path*, content, data_base64` | Create or replace a file; missing theme/plugin/mu-plugins folders are created. Text types in themes/plugins/mu-plugins, media types in uploads. PHP is syntax-checked and the front page probed; previous content is kept for undo. *(confirm, write)* |
+| `write_many` | admin | `root*, files*` | Write up to 60 files into one root in one call (a theme or plugin skeleton). New themes/<slug>, plugins/<slug>, mu-plugins and uploads folders are created. Each file is undoable. *(confirm, write)* |
 | `delete` | admin | `root*, path*` | Delete a file permanently. *(confirm, write)* |
 
 ## transfer: Export and import content

@@ -150,6 +150,40 @@ final class Util {
         return array( 'status' => (int) wp_remote_retrieve_response_code( $res ), 'headers' => $headers, 'body' => (string) wp_remote_retrieve_body( $res ) );
     }
 
+    /**
+     * Downloads a public https file, following up to 5 redirects; every hop must pass the same SSRF rules.
+     *
+     * @param string      $to Optional file path to stream into (for big files); body is then empty.
+     * @return array{url: string, body: string}
+     */
+    public static function download( string $url, int $limit, string $to = '' ): array {
+        for ( $hop = 0; $hop <= 5; $hop++ ) {
+            if ( null !== ( $problem = Policy::url_problem( $url ) ) ) {
+                throw new BridgeError( 'blocked_url', $problem, 400 );
+            }
+            $args = array( 'timeout' => 60, 'redirection' => 0, 'limit_response_size' => $limit, 'user-agent' => 'WP-MCP-Bridge/' . WPMCP_VERSION );
+            if ( '' !== $to ) {
+                $args['stream']   = true;
+                $args['filename'] = $to;
+            }
+            $res = wp_safe_remote_get( $url, $args );
+            if ( is_wp_error( $res ) ) {
+                throw new BridgeError( 'download_failed', $res->get_error_message(), 502 );
+            }
+            $code = (int) wp_remote_retrieve_response_code( $res );
+            if ( $code >= 300 && $code < 400 && '' !== (string) wp_remote_retrieve_header( $res, 'location' ) ) {
+                $url = (string) \WP_Http::make_absolute_url( (string) wp_remote_retrieve_header( $res, 'location' ), $url );
+                continue;
+            }
+            if ( 200 !== $code ) {
+                throw new BridgeError( 'download_failed', "The server answered HTTP $code.", 502 );
+            }
+
+            return array( 'url' => $url, 'body' => '' === $to ? (string) wp_remote_retrieve_body( $res ) : '' );
+        }
+        throw new BridgeError( 'download_failed', 'Too many redirects.', 502 );
+    }
+
     /** Absolute URL on this site from a path or URL. */
     public static function own_url( string $path ): string {
         if ( str_starts_with( $path, 'http' ) ) {

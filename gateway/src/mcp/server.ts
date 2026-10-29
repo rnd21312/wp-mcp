@@ -4,7 +4,7 @@ import { INSTRUCTIONS, opsMarkdown, PROMPTS, resourceList, resourceTemplates, TO
 import { callTool, listTools, type Input } from './tools.ts';
 
 export const PROTOCOLS = ['2025-06-18', '2025-03-26', '2024-11-05'];
-export const VERSION = '2.0.0';
+export const VERSION = '2.1.0';
 
 type Message = { jsonrpc?: string; id?: string | number | null; method?: string; params?: Record<string, unknown> };
 type Response = { jsonrpc: '2.0'; id: string | number | null; result?: unknown; error?: { code: number; message: string } };

@@ -63,6 +63,7 @@ op('design.branding_set', 'live', 'Site title, tagline, logo and site icon.', { 
 op('design.themes_list', 'draft', 'Installed themes and which is active.');
 op('design.theme_activate', 'admin', 'Switch the active theme.', { 'slug*': 'string|Theme directory' }, { w: 1, c: 1 });
 op('design.theme_install', 'admin', 'Install a theme from WordPress.org by slug.', { 'slug*': 'string|WordPress.org slug', activate: 'bool|Activate after install' }, { w: 1, c: 1 });
+op('design.theme_install_zip', 'admin', 'Install a theme from an https zip URL (GitHub release, your own server; redirects are re-checked).', { 'url*': 'string|https URL of a zip', activate: 'bool|Activate after install', overwrite: 'bool|Replace an existing theme folder' }, { w: 1, c: 1 });
 op('design.theme_files', 'admin', 'List files of the active (or given) theme.', { theme: 'string|Theme directory' });
 op('design.theme_file_read', 'admin', 'Read a theme file.', { 'path*': 'string|Path inside the theme', theme: 'string|Theme directory', offset: 'int|Byte offset' }, { u: 1 });
 op('design.theme_file_write', 'admin', 'Write a theme file (PHP is syntax-checked; previous content is kept for undo).', { 'path*': 'string|Path inside the theme (php, css, js, json, html)', 'content*': 'string|File content', theme: 'string|Theme directory' }, { w: 1, c: 1 });
@@ -111,6 +112,7 @@ op('maintain.db_info', 'admin', 'Table sizes, overhead, autoload size, counts of
 op('maintain.db_cleanup', 'admin', 'Clean revisions, expired transients, spam, trash, auto-drafts, orphan meta.', { 'targets*': 'array|revisions, transients, spam, trash, auto_drafts, orphan_meta', keep_revisions: 'int|Revisions to keep per post (default 5)' }, { w: 1, c: 1 });
 op('maintain.db_optimize', 'admin', 'OPTIMIZE TABLE on the site tables.', {}, { w: 1 });
 op('maintain.search_replace', 'admin', 'Serialization-safe search and replace across the database. Always preview first.', { 'search*': 'string|Text to find', 'replace*': 'string|Replacement', tables: 'array|Limit to these tables', apply: 'bool|false (default) only counts' }, { w: 1, c: 'maybe' });
+op('maintain.language_install', 'admin', 'Download a language pack (core, plugins, themes), e.g. fa_IR, and optionally make it the site language.', { 'locale*': 'string|e.g. fa_IR, ar, de_DE', activate: 'bool|Also set it as the site language' }, { w: 1 });
 op('maintain.cron_list', 'admin', 'Scheduled events.');
 op('maintain.cron_run', 'admin', 'Run a scheduled hook now.', { 'hook*': 'string|Registered hook name' }, { w: 1 });
 op('maintain.maintenance_mode', 'admin', 'Serve a 503 maintenance page to visitors (admins and the bridge still see the site).', { 'enabled*': 'bool|On or off', message: 'string|Visitor message' }, { w: 1 });
@@ -165,9 +167,10 @@ op('forms.save', 'live', 'Create or update a Contact Form 7 form (other provider
 op('forms.entries', 'admin', 'Submitted entries (personal data).', { 'id*': 'any|Form ID', provider: 'string|', ...PAGE }, { u: 1 });
 
 /* files (wp-content) */
-op('files.list', 'admin', 'List files under a root: core (WordPress folder, read-only except .htaccess and robots.txt), themes/<slug>, plugins/<slug>, mu-plugins, uploads[/sub].', { 'root*': 'string|e.g. themes/twentytwentyfive, plugins/akismet, mu-plugins, uploads/2026', path: 'string|Subfolder inside the root', depth: 'int|1-4 (default 2)' });
+op('files.list', 'admin', 'List files under a root (root "themes" or "plugins" lists folders): core (WordPress folder, read-only except .htaccess and robots.txt), themes/<slug>, plugins/<slug>, mu-plugins, uploads[/sub].', { 'root*': 'string|e.g. themes/twentytwentyfive, plugins/akismet, mu-plugins, uploads/2026', path: 'string|Subfolder inside the root', depth: 'int|1-4 (default 2)' });
 op('files.read', 'admin', 'Read a file: text as text, other types as base64 (2 MB max).', { 'root*': 'string|See files.list', 'path*': 'string|File path inside the root', offset: 'int|Byte offset' }, { u: 1 });
-op('files.write', 'admin', 'Create or replace a file. Text types in themes/plugins/mu-plugins, media types in uploads. PHP is syntax-checked and the front page probed; previous content is kept for undo.', { 'root*': 'string|See files.list', 'path*': 'string|File path inside the root', content: 'string|Text content', data_base64: 'string|Binary content (instead of content)' }, { w: 1, c: 1 });
+op('files.write', 'admin', 'Create or replace a file; missing theme/plugin/mu-plugins folders are created. Text types in themes/plugins/mu-plugins, media types in uploads. PHP is syntax-checked and the front page probed; previous content is kept for undo.', { 'root*': 'string|See files.list', 'path*': 'string|File path inside the root', content: 'string|Text content', data_base64: 'string|Binary content (instead of content)' }, { w: 1, c: 1 });
+op('files.write_many', 'admin', 'Write up to 60 files into one root in one call (a theme or plugin skeleton). New themes/<slug>, plugins/<slug>, mu-plugins and uploads folders are created. Each file is undoable.', { 'root*': 'string|See files.list', 'files*': 'array|[{path, content | data_base64}]' }, { w: 1, c: 1 });
 op('files.delete', 'admin', 'Delete a file permanently.', { 'root*': 'string|See files.list', 'path*': 'string|File path inside the root' }, { w: 1, c: 1 });
 
 /* transfer (building blocks; site.transfer in the gateway chains them between two sites) */

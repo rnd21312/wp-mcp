@@ -786,6 +786,42 @@ final class Maintain {
     /* -------------------------------------------------------------- maintenance */
 
     /**
+     * Downloads a WordPress language pack (core, plugins, themes) and optionally makes it the site language.
+     *
+     * @param array<string, mixed> $a Arguments.
+     * @return array<string, mixed>
+     */
+    public static function op_language_install( array $a, Context $c ): array {
+        require_once ABSPATH . 'wp-admin/includes/file.php';
+        require_once ABSPATH . 'wp-admin/includes/misc.php';
+        require_once ABSPATH . 'wp-admin/includes/translation-install.php';
+        require_once ABSPATH . 'wp-admin/includes/class-wp-upgrader.php';
+        $locale = preg_replace( '/[^A-Za-z_]/', '', (string) $a['locale'] );
+        if ( '' === $locale ) {
+            throw new BridgeError( 'bad_arguments', 'locale must look like fa_IR.', 400 );
+        }
+        self::require_direct_fs();
+        $got = 'en_US' === $locale ? $locale : wp_download_language_pack( $locale );
+        if ( ! $got ) {
+            throw new BridgeError( 'not_found', "WordPress.org has no language pack \"$locale\" (or the download failed).", 404 );
+        }
+        // Plugin and theme packs.
+        $upgrader = new \Language_Pack_Upgrader( new \Automatic_Upgrader_Skin() );
+        wp_clean_update_cache();
+        wp_update_themes();
+        wp_update_plugins();
+        $upgrader->bulk_upgrade();
+        $before = get_option( 'WPLANG' );
+        if ( ! empty( $a['activate'] ) ) {
+            update_option( 'WPLANG', 'en_US' === $locale ? '' : $locale );
+            Revisions::record( $c, 'option', 'WPLANG', array( 'key' => 'WPLANG', 'value' => $before, 'exists' => false !== $before ) );
+        }
+        $c->summary = "installed language $locale";
+
+        return array( 'locale' => $locale, 'installed' => true, 'activated' => ! empty( $a['activate'] ) );
+    }
+
+    /**
      * @param array<string, mixed> $a Arguments.
      * @return array<string, mixed>
      */

@@ -79,7 +79,7 @@ function spec() {
 function state(app: App) {
   const clients = app.store.clients().filter((c) => c.grant_level).map((c) => ({ id: c.id, name: c.name, level: c.grant_level, sites: parseScope(c.grant_sites!), last_used: c.last_used }));
   return {
-    version: '2.0.0',
+    version: '2.1.0',
     levels: LEVELS,
     stdio: { level: stdioLevel(app), from: app.store.setting('stdio_level') ? 'panel' : process.env.WPMCP_STDIO_LEVEL ? 'environment' : 'default' },
     publicUrl: app.config.publicUrl,
