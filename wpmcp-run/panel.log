@@ -1,8 +1,0 @@
-WP MCP gateway listening on 127.0.0.1:8787
-MCP endpoint: http://127.0.0.1:8787/mcp
-Admin panel:  http://127.0.0.1:8787/admin
-WARNING: WPMCP_PUBLIC_URL is not https. Put the gateway behind HTTPS before connecting Claude.ai or real sites.
-WP MCP gateway listening on 127.0.0.1:8787
-MCP endpoint: http://127.0.0.1:8787/mcp
-Admin panel:  http://127.0.0.1:8787/admin
-WARNING: WPMCP_PUBLIC_URL is not https. Put the gateway behind HTTPS before connecting Claude.ai or real sites.
