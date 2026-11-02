@@ -1,4 +1,4 @@
-import { ActivityIcon, ArrowLeftRightIcon, BotIcon, BrushIcon, ChartLineIcon, CodeIcon, FileTextIcon, FolderGit2Icon, GlobeIcon, ImageIcon, KeyRoundIcon, LayoutDashboardIcon, MoonIcon, PlugIcon, PlugZapIcon, ScanSearchIcon, SearchCheckIcon, ServerIcon, ShoppingBagIcon, SparklesIcon, SunIcon, TerminalSquareIcon, WrenchIcon, type LucideIcon } from 'lucide-react';
+import { ActivityIcon, ArrowLeftRightIcon, MousePointerClickIcon, BotIcon, BrushIcon, ChartLineIcon, CodeIcon, FileTextIcon, FolderGit2Icon, GlobeIcon, ImageIcon, KeyRoundIcon, LayoutDashboardIcon, MoonIcon, PlugIcon, PlugZapIcon, ScanSearchIcon, SearchCheckIcon, ServerIcon, ShoppingBagIcon, SparklesIcon, SunIcon, TerminalSquareIcon, WrenchIcon, type LucideIcon } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { useCallback, useEffect, useState, type ReactElement } from 'react';
 import { Pick } from '@/components/bits';
@@ -29,6 +29,7 @@ import { SearchConsole } from '@/pages/SearchConsole';
 import { Seo } from '@/pages/Seo';
 import { Shop } from '@/pages/Shop';
 import { Sites } from '@/pages/Sites';
+import { Visual } from '@/pages/Visual';
 import { Workbench } from '@/pages/Workbench';
 
 const useHash = (): [string, URLSearchParams, (h: string) => void] => {
@@ -58,6 +59,7 @@ function Shell({ state, spec, reload }: { state: State; spec: ToolSpec[]; reload
       { path: '/content', label: t('Content', 'محتوا'), icon: FileTextIcon },
       { path: '/media', label: t('Media', 'رسانه'), icon: ImageIcon },
       { path: '/shop', label: t('Shop', 'فروشگاه'), icon: ShoppingBagIcon, hide: overview ? !overview.woocommerce : false },
+      { path: '/visual', label: t('Visual editor', 'ویرایشگر بصری'), icon: MousePointerClickIcon },
       { path: '/design', label: t('Design', 'طراحی'), icon: BrushIcon },
     ] },
     { title: t('Search', 'جستجو'), items: [
@@ -106,6 +108,7 @@ function Shell({ state, spec, reload }: { state: State; spec: ToolSpec[]; reload
   else if (path === '/inspector') page = <Inspector key={site?.name} />;
   else if (path === '/search-console') page = <SearchConsole />;
   else if (path === '/seo') page = siteOnly(<Seo key={site?.name} />);
+  else if (path === '/visual') page = siteOnly(<Visual key={site?.name} />);
   else if (path === '/design') page = siteOnly(<Design key={site?.name} />);
   else if (path === '/maintenance') page = siteOnly(<Maintenance key={site?.name} />);
   else if (path === '/plugins') page = siteOnly(<Plugins key={site?.name} />);
@@ -166,7 +169,7 @@ function Shell({ state, spec, reload }: { state: State; spec: ToolSpec[]; reload
             <Button variant="outline" size="icon-sm" aria-label="theme" onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}>{resolvedTheme === 'dark' ? <SunIcon /> : <MoonIcon />}</Button>
           </div>
         </header>
-        <main className="p-4 md:p-8"><div className="mx-auto max-w-6xl">{page}</div></main>
+        <main className="p-4 md:p-8"><div className={path === '/visual' ? '' : 'mx-auto max-w-6xl'}>{page}</div></main>
       </SidebarInset>
       <Toaster position="top-center" />
     </SidebarProvider>

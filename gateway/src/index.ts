@@ -6,6 +6,7 @@ import { loadConfig } from './config.ts';
 import { createApp } from './context.ts';
 import { hashPassword } from './crypto.ts';
 import { startServer } from './http.ts';
+import { startPreview } from './preview.ts';
 import { isLevel } from './levels.ts';
 import { handleMessage } from './mcp/server.ts';
 import { addSite } from './siteadmin.ts';
@@ -49,6 +50,7 @@ async function main(): Promise<void> {
     case 'serve': {
       const token = config.localPanel ? null : prepareSetup(app);
       const server = await startServer(app);
+      if (config.localPanel) await startPreview(app, config.port);
       console.log(`WP MCP gateway listening on ${config.host}:${config.port}`);
       console.log(`MCP endpoint: ${config.publicUrl}/mcp`);
       console.log(`Admin panel:  ${config.publicUrl}/admin`);
