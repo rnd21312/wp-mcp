@@ -14,7 +14,7 @@ import { DEVICES, OVERRIDE_SECTION, overridesToCss, parseOverrides, type Overrid
 const CodeBox = lazy(() => import('@/components/CodeBox'));
 
 /** A place the markup came from, as reported by the bridge markers. */
-interface Src { k: 'part' | 'template' | 'file' | 'post'; slug?: string; f?: string; id?: number; label?: string }
+interface Src { k: 'part' | 'template' | 'file' | 'post' | 'sc' | 'bl'; slug?: string; f?: string; id?: number; label?: string; tag?: string; name?: string }
 interface Doc { src: Src; title: string; lang: string; value: string; original: string }
 
 const langOf = (path: string): string => {
@@ -28,7 +28,7 @@ const rootOf = (f: string): { root: string; path: string } => {
 
   return { root: p.slice(0, n).join('/'), path: p.slice(n).join('/') };
 };
-const srcTitle = (s: Src): string => (s.k === 'part' ? `part · ${s.slug}` : s.k === 'template' ? `template · ${s.slug}` : s.k === 'file' ? s.f ?? '' : `${s.label ?? 'post'} #${s.id}`);
+const srcTitle = (s: Src): string => (s.k === 'part' ? `part · ${s.slug}` : s.k === 'template' ? `template · ${s.slug}` : s.k === 'file' ? `${s.label ? `${s.label} · ` : ''}${s.f ?? ''}` : `${s.label ?? 'post'} #${s.id}`);
 
 /* ------------------------------------------------------------ builder trees */
 
@@ -102,6 +102,7 @@ export function Visual() {
   const { t } = useI18n();
   const { run, site, state } = useSite();
   const pages = useAction<any>('content', 'list', { post_type: 'page', per_page: 100 });
+  const posts = useAction<any>('content', 'list', { post_type: 'post', per_page: 30 });
   const css = useAction<any>('design', 'css_get');
   const frame = useRef<HTMLIFrameElement>(null);
 
@@ -118,6 +119,16 @@ export function Visual() {
   const [kind, setKind] = useState('heading');
   const [extra, setExtra] = useState({ prop: '', value: '' });
   const [doc, setDoc] = useState<Doc | null>(null);
+  const [typed, setTyped] = useState('');
+  const goTo = (): void => {
+    const raw = typed.trim();
+    if (!raw || !site) return;
+    try {
+      const next = new URL(raw, site.url.replace(/\/?$/, '/'));
+      if (next.host !== new URL(site.url).host) { toast.error(t('Only pages of the connected site can be opened.', 'فقط صفحه‌های سایت متصل باز می‌شوند.')); return; }
+      setUrl(next.href); setTyped('');
+    } catch { toast.error(t('Not a valid address.', 'آدرس معتبر نیست.')); }
+  };
 
   const media = DEVICES[device].media;
   const src = `${state.preview.base}/page?u=${encodeURIComponent(url)}&t=${state.preview.token}&s=${encodeURIComponent(site?.name ?? '')}&n=${nonce}`;
@@ -260,11 +271,18 @@ export function Visual() {
   };
   const page = info?.page as { block_theme: boolean; template: string; template_file: string } | null | undefined;
   const sources: Src[] = useMemo(() => {
-    const list: Src[] = [...((info?.chain ?? []) as Src[])];
+    const list: Src[] = [];
+    for (const s of (info?.chain ?? []) as Src[]) {
+      // A plugin's shortcode or block lives in two places: the plugin code that renders it and the content that uses it.
+      if (s.k === 'sc' || s.k === 'bl') {
+        if (s.f) list.push({ k: 'file', f: s.f, label: `${s.k === 'sc' ? 'shortcode' : 'block'} ${s.tag ?? s.name}` });
+        if (s.id) list.push({ k: 'post', id: s.id, label: `${s.k === 'sc' ? `[${s.tag}]` : s.name} in content` });
+      } else list.push(s);
+    }
     if (page?.block_theme && page.template) list.push({ k: 'template', slug: page.template });
     else if (page?.template_file) list.push({ k: 'file', f: page.template_file });
 
-    return list;
+    return list.filter((s, i) => list.findIndex((o) => srcTitle(o) === srcTitle(s)) === i);
   }, [info, page]);
 
   const isContainer = !!source && source.elType !== 'widget';
@@ -273,7 +291,11 @@ export function Visual() {
   return (
     <div className="-m-4 flex h-[calc(100svh-3.5rem)] flex-col md:-m-8">
       <div className="flex flex-wrap items-center gap-2 border-b px-3 py-2">
-        <div className="w-56"><Pick size="sm" value={url} onChange={setUrl} options={[{ value: site?.url ?? '', label: t('Home', 'صفحهٔ اصلی') }, ...((pages.data?.items ?? pages.data?.posts ?? []) as any[]).filter((p) => p.url && p.url !== site?.url).map((p) => ({ value: p.url as string, label: p.title as string }))]} /></div>
+        <div className="w-56"><Pick size="sm" value={url} onChange={setUrl} options={[{ value: site?.url ?? '', label: t('Home', 'صفحهٔ اصلی') }, ...[...((pages.data?.items ?? []) as any[]), ...((posts.data?.items ?? []) as any[])].filter((p) => p.url && p.url !== site?.url).map((p) => ({ value: p.url as string, label: p.title as string })), ...(url && ![site?.url, ...((pages.data?.items ?? []) as any[]).map((p) => p.url), ...((posts.data?.items ?? []) as any[]).map((p) => p.url)].includes(url) ? [{ value: url, label: url.replace(/^https?:\/\/[^/]+/, '') || url }] : [])]} /></div>
+        <form className="flex gap-1" onSubmit={(e) => { e.preventDefault(); goTo(); }}>
+          <Input dir="ltr" className="h-8 w-44 text-xs" placeholder={t('/cart/ or any page URL', '/cart/ یا آدرس هر صفحه')} value={typed} onChange={(e) => setTyped(e.target.value)} />
+          <Button size="sm" variant="outline" type="submit">{t('Open', 'باز کن')}</Button>
+        </form>
         <div className="flex rounded-lg border p-0.5">
           {[MonitorIcon, TabletIcon, SmartphoneIcon].map((Icon, i) => <Button key={i} size="icon-sm" variant={device === i ? 'secondary' : 'ghost'} aria-label={DEVICES[i].key} onClick={() => setDevice(i)}><Icon /></Button>)}
         </div>

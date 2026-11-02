@@ -264,6 +264,12 @@ final class Frontend {
         add_action( 'wp_after_load_template', array( self::class, 'mark_after' ), 10, 0 );
         add_action( 'wp_body_open', array( self::class, 'mark_body_open' ), 0 );
         add_filter( 'render_block', array( self::class, 'mark_block' ), 10, 2 );
+        add_filter( 'do_shortcode_tag', array( self::class, 'mark_shortcode' ), 10, 2 );
+        // WooCommerce includes its templates itself, so load_template hooks never see them.
+        add_action( 'woocommerce_before_template_part', static function ( $name, $path, $located ): void {
+            self::mark_before( $located );
+        }, 10, 3 );
+        add_action( 'woocommerce_after_template_part', array( self::class, 'mark_after' ), 10, 0 );
         add_filter( 'template_include', static function ( $file ) {
             self::$main = (string) $file;
 
@@ -275,6 +281,25 @@ final class Frontend {
     /** @param array<string, mixed> $m */
     private static function open( array $m ): string {
         return '<!--wpm:o:' . rtrim( strtr( base64_encode( (string) wp_json_encode( $m ) ), '+/', '-_' ), '=' ) . '-->';
+    }
+
+    /** File (relative to wp-content) that defines a callback: where a shortcode or block of a plugin lives. */
+    private static function callable_file( $cb ): string {
+        try {
+            if ( is_array( $cb ) ) {
+                $r = new \ReflectionMethod( $cb[0], (string) $cb[1] );
+            } elseif ( $cb instanceof \Closure || is_string( $cb ) ) {
+                $r = new \ReflectionFunction( $cb );
+            } elseif ( is_object( $cb ) ) {
+                $r = new \ReflectionMethod( $cb, '__invoke' );
+            } else {
+                return '';
+            }
+
+            return self::rel( (string) $r->getFileName() );
+        } catch ( \Throwable $e ) {
+            return '';
+        }
     }
 
     /** Path relative to wp-content, or '' when the file is elsewhere. */
@@ -332,9 +357,23 @@ final class Frontend {
             $m = array( 'k' => 'post', 'id' => (int) get_the_ID(), 'label' => 'post content' );
         } elseif ( in_array( $name, array( 'core/block', 'core/navigation' ), true ) && ! empty( $at['ref'] ) ) {
             $m = array( 'k' => 'post', 'id' => (int) $at['ref'], 'label' => 'core/block' === $name ? 'reusable block' : 'navigation' );
+        } elseif ( '' !== $name && ! str_starts_with( $name, 'core/' ) ) {
+            $type = \WP_Block_Type_Registry::get_instance()->get_registered( $name );
+            $m    = array( 'k' => 'bl', 'name' => $name, 'f' => $type ? self::callable_file( $type->render_callback ) : '', 'id' => (int) get_the_ID() );
         }
 
         return $m ? self::open( $m ) . $html . '<!--wpm:c-->' : (string) $html;
+    }
+
+    /**
+     * @param string $output Shortcode output.
+     * @param string $tag    Shortcode name.
+     */
+    public static function mark_shortcode( $output, $tag ): string {
+        global $shortcode_tags;
+        $m = array( 'k' => 'sc', 'tag' => sanitize_key( (string) $tag ), 'f' => self::callable_file( $shortcode_tags[ $tag ] ?? null ), 'id' => (int) get_the_ID() );
+
+        return self::open( $m ) . $output . '<!--wpm:c-->';
     }
 
     public static function mark_page(): void {

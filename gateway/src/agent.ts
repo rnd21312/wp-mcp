@@ -101,9 +101,13 @@ export const AGENT_JS = String.raw`(function () {
     var stack = [], n;
     while ((n = w.nextNode())) {
       if (n.nodeType === 8) {
-        if (n.nodeValue.indexOf('wpm:o:') === 0) stack.push(n.nodeValue.slice(6));
-        else if (n.nodeValue === 'wpm:c') stack.pop();
-      } else if (stack.length && !n.hasAttribute('data-wpm-reg')) n.setAttribute('data-wpm-reg', stack[stack.length - 1]);
+        if (n.nodeValue.indexOf('wpm:o:') === 0) stack.push({ v: n.nodeValue.slice(6), parent: n.parentNode });
+        else if (n.nodeValue === 'wpm:c') {
+          var region = stack.pop();
+          // A container opened inside the region but still open at its end (the #page div of a header file) is not part of it.
+          if (region) for (var a = n.parentNode; a && a !== region.parent && a.nodeType === 1; a = a.parentNode) if (a.getAttribute('data-wpm-reg') === region.v) a.removeAttribute('data-wpm-reg');
+        }
+      } else if (stack.length && !n.hasAttribute('data-wpm-reg')) n.setAttribute('data-wpm-reg', stack[stack.length - 1].v);
     }
   }
   function chain(el) {
