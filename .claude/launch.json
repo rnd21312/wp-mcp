@@ -4,7 +4,7 @@
     {
       "name": "studio-local",
       "runtimeExecutable": "cmd",
-      "runtimeArgs": ["/c", "set WPMCP_DATA_DIR=D:\\wpmcp-data&& set WPMCP_PUBLIC_URL=http://127.0.0.1:8787&& node gateway\\dist\\index.js local"],
+      "runtimeArgs": ["/c", "set WPMCP_PUBLIC_URL=http://127.0.0.1:8787&& node gateway\\dist\\index.js local"],
       "port": 8787
     }
   ]

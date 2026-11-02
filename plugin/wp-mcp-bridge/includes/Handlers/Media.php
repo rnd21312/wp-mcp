@@ -11,6 +11,7 @@ namespace WPMCP\Bridge\Handlers;
 
 use WPMCP\Bridge\BridgeError;
 use WPMCP\Bridge\Context;
+use WPMCP\Bridge\Optimizer;
 use WPMCP\Bridge\Policy;
 use WPMCP\Bridge\Revisions;
 use WPMCP\Bridge\Util;
@@ -154,7 +155,7 @@ final class Media {
         if ( false === file_put_contents( $tmp, $bytes ) ) {
             throw new BridgeError( 'upload_failed', 'The server could not write a temporary file (check the temp folder and disk space).', 500 );
         }
-        $file  = array( 'name' => $filename, 'tmp_name' => $tmp, 'type' => $type['type'], 'error' => 0, 'size' => strlen( $bytes ) );
+        $file  = array( 'name' => $filename, 'tmp_name' => $tmp, 'type' => $type['type'], 'error' => 0, 'size' => strlen( $bytes ) ); // wp_handle_sideload() takes $file by reference
         $moved = wp_handle_sideload( $file, array( 'test_form' => false ) );
         if ( ! empty( $moved['error'] ) ) {
             @unlink( $tmp ); // phpcs:ignore WordPress.PHP.NoSilencedErrors
@@ -434,10 +435,17 @@ final class Media {
         if ( null !== ( $problem = Policy::url_problem( $url ) ) ) {
             throw new BridgeError( 'blocked_url', $problem, 400 );
         }
-        $got  = Util::download( $url, self::MAX_BYTES + 1 );
-        $name = (string) ( $a['filename'] ?? basename( (string) wp_parse_url( $got['url'], PHP_URL_PATH ) ) );
+        $res = wp_safe_remote_get( $url, array( 'timeout' => 25, 'redirection' => 0, 'limit_response_size' => self::MAX_BYTES + 1, 'user-agent' => 'WP-MCP-Bridge/' . WPMCP_VERSION ) );
+        if ( is_wp_error( $res ) ) {
+            throw new BridgeError( 'download_failed', $res->get_error_message(), 502 );
+        }
+        $code = (int) wp_remote_retrieve_response_code( $res );
+        if ( 200 !== $code ) {
+            throw new BridgeError( 'download_failed', $code >= 300 && $code < 400 ? 'The URL redirects; redirects are not followed. Use the final URL.' : "The server answered HTTP $code.", 502 );
+        }
+        $name = (string) ( $a['filename'] ?? basename( (string) wp_parse_url( $url, PHP_URL_PATH ) ) );
 
-        return self::store( $got['body'], '' !== $name ? $name : 'download', $a, $c );
+        return self::store( (string) wp_remote_retrieve_body( $res ), '' !== $name ? $name : 'download', $a, $c );
     }
 
     /**

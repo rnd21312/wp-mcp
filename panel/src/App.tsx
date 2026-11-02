@@ -1,34 +1,35 @@
-import { ChartLineIcon, SparklesIcon, FolderGit2Icon, ServerIcon, ActivityIcon, ArrowLeftRightIcon, BotIcon, BrushIcon, MousePointerClickIcon, ScanSearchIcon, CodeIcon, FileTextIcon, GlobeIcon, ImageIcon, KeyRoundIcon, LayoutDashboardIcon, MoonIcon, PlugIcon, PlugZapIcon, SearchCheckIcon, ShoppingBagIcon, SunIcon, TerminalSquareIcon, WrenchIcon, type LucideIcon } from 'lucide-react';
+import { ActivityIcon, ArrowLeftRightIcon, BotIcon, BrushIcon, ChartLineIcon, CodeIcon, FileTextIcon, FolderGit2Icon, GlobeIcon, ImageIcon, KeyRoundIcon, LayoutDashboardIcon, MoonIcon, PlugIcon, PlugZapIcon, ScanSearchIcon, SearchCheckIcon, ServerIcon, ShoppingBagIcon, SparklesIcon, SunIcon, TerminalSquareIcon, WrenchIcon, type LucideIcon } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { useCallback, useEffect, useState, type ReactElement } from 'react';
 import { Pick } from '@/components/bits';
+import { NeedSite } from '@/components/common';
+import { Breadcrumb, BreadcrumbItem, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from '@/components/ui/breadcrumb';
 import { Button } from '@/components/ui/button';
+import { Separator } from '@/components/ui/separator';
+import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupLabel, SidebarHeader, SidebarInset, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider, SidebarRail, SidebarTrigger } from '@/components/ui/sidebar';
 import { Toaster } from '@/components/ui/sonner';
 import { api, type State, type ToolSpec } from '@/lib/api';
 import { useI18n } from '@/lib/i18n';
 import { SiteProvider, useSite } from '@/lib/site';
-import { cn } from '@/lib/utils';
 import { Access } from '@/pages/Access';
-import { AiPage } from '@/pages/Ai';
 import { ActivityPage } from '@/pages/ActivityPage';
+import { AiPage } from '@/pages/Ai';
+import { Builder } from '@/pages/Builder';
 import { Maintenance, Plugins } from '@/pages/Care';
 import { Connect } from '@/pages/Connect';
 import { ContentEditor, ContentList } from '@/pages/Content';
 import { Design } from '@/pages/Design';
 import { Developer, Transfer } from '@/pages/Dev';
+import { Hosts } from '@/pages/Hosts';
+import { Inspector } from '@/pages/Inspector';
 import { MediaPage } from '@/pages/Media';
 import { Overview } from '@/pages/Overview';
-import { Seo } from '@/pages/Seo';
+import { Projects } from '@/pages/Projects';
 import { SearchConsole } from '@/pages/SearchConsole';
-import { Inspector } from '@/pages/Inspector';
-import { CodeEditor } from '@/pages/Editor';
+import { Seo } from '@/pages/Seo';
 import { Shop } from '@/pages/Shop';
 import { Sites } from '@/pages/Sites';
-import { Hosts } from '@/pages/Hosts';
-import { Builder } from '@/pages/Builder';
-import { Projects } from '@/pages/Projects';
 import { Workbench } from '@/pages/Workbench';
-import { NeedSite } from '@/components/common';
 
 const useHash = (): [string, URLSearchParams, (h: string) => void] => {
   const read = (): string => location.hash || '#/';
@@ -52,31 +53,32 @@ function Shell({ state, spec, reload }: { state: State; spec: ToolSpec[]; reload
   const [path, query, go] = useHash();
 
   const groups: { title: string; items: NavItem[] }[] = [
+    { title: t('Site', 'سایت'), items: [
+      { path: '/', label: t('Overview', 'نمای کلی'), icon: LayoutDashboardIcon },
+      { path: '/content', label: t('Content', 'محتوا'), icon: FileTextIcon },
+      { path: '/media', label: t('Media', 'رسانه'), icon: ImageIcon },
+      { path: '/shop', label: t('Shop', 'فروشگاه'), icon: ShoppingBagIcon, hide: overview ? !overview.woocommerce : false },
+      { path: '/design', label: t('Design', 'طراحی'), icon: BrushIcon },
+    ] },
+    { title: t('Search', 'جستجو'), items: [
+      { path: '/seo', label: t('SEO', 'سئو'), icon: SearchCheckIcon },
+      { path: '/search-console', label: t('Search Console', 'سرچ کنسول گوگل'), icon: ChartLineIcon },
+      { path: '/inspector', label: t('URL Inspector', 'بازرس URL'), icon: ScanSearchIcon },
+    ] },
     { title: t('Build & publish', 'ساخت و انتشار'), items: [
       { path: '/builder', label: t('AI site builder', 'سازنده‌ی سایت با AI'), icon: SparklesIcon },
       { path: '/projects', label: t('Projects', 'پروژه‌ها'), icon: FolderGit2Icon },
       { path: '/hosts', label: t('Hosts', 'هاست‌ها'), icon: ServerIcon },
-    ] },
-    { title: t('Manage', 'مدیریت'), items: [
-      { path: '/', label: t('Overview', 'نمای کلی'), icon: LayoutDashboardIcon },
-      { path: '/ai', label: t('AI assistant', 'دستیار هوش مصنوعی'), icon: BotIcon },
-      { path: '/content', label: t('Content', 'محتوا'), icon: FileTextIcon },
-      { path: '/media', label: t('Media', 'رسانه'), icon: ImageIcon },
-      { path: '/shop', label: t('Shop', 'فروشگاه'), icon: ShoppingBagIcon, hide: overview ? !overview.woocommerce : false },
-      { path: '/editor', label: t('Code & visual editor', 'ویرایشگر کد و بصری'), icon: MousePointerClickIcon },
-      { path: '/seo', label: t('SEO', 'سئو'), icon: SearchCheckIcon },
-      { path: '/search-console', label: t('Search Console', 'سرچ کنسول گوگل'), icon: ChartLineIcon },
-      { path: '/inspector', label: t('URL Inspector', 'بازرس URL'), icon: ScanSearchIcon },
-      { path: '/design', label: t('Design', 'طراحی'), icon: BrushIcon },
     ] },
     { title: t('Care', 'نگهداری'), items: [
       { path: '/maintenance', label: t('Maintenance', 'نگهداری'), icon: WrenchIcon },
       { path: '/plugins', label: t('Plugins', 'افزونه‌ها'), icon: PlugIcon },
       { path: '/transfer', label: t('Copy between sites', 'کپی بین سایت‌ها'), icon: ArrowLeftRightIcon },
     ] },
-    { title: t('Developer', 'برنامه‌نویس'), items: [
-      { path: '/dev', label: t('Theme & REST', 'پوسته و REST'), icon: CodeIcon },
+    { title: t('AI & developer', 'هوش مصنوعی و برنامه‌نویس'), items: [
+      { path: '/ai', label: t('AI assistant', 'دستیار هوش مصنوعی'), icon: BotIcon },
       { path: '/workbench', label: t('Workbench', 'میز کار'), icon: TerminalSquareIcon },
+      { path: '/dev', label: t('Theme & REST', 'پوسته و REST'), icon: CodeIcon },
     ] },
     { title: t('Setup', 'تنظیمات'), items: [
       { path: '/sites', label: t('Sites', 'سایت‌ها'), icon: GlobeIcon },
@@ -101,7 +103,6 @@ function Shell({ state, spec, reload }: { state: State; spec: ToolSpec[]; reload
   else if (path === '/media') page = siteOnly(<MediaPage key={site?.name} />);
   else if (path === '/shop') page = siteOnly(<Shop key={site?.name} />);
   else if (path === '/ai') page = <AiPage key={site?.name} />;
-  else if (path === '/editor') page = siteOnly(<CodeEditor key={site?.name} go={go} />);
   else if (path === '/inspector') page = <Inspector key={site?.name} />;
   else if (path === '/search-console') page = <SearchConsole />;
   else if (path === '/seo') page = siteOnly(<Seo key={site?.name} />);
@@ -111,46 +112,64 @@ function Shell({ state, spec, reload }: { state: State; spec: ToolSpec[]; reload
   else if (path === '/dev') page = siteOnly(<Developer key={site?.name} go={go} />);
   else if (path === '/transfer') page = <Transfer />;
 
-  if (path === '/editor' && site) return <><CodeEditor key={site.name} go={go} /><Toaster position="top-center" /></>;
-
   const active = (p: string): boolean => (p === '/' ? path === '/' : path === p || path.startsWith(`${p}/`));
+  const current = groups.flatMap((g) => g.items.map((n) => ({ ...n, group: g.title }))).find((n) => active(n.path));
 
   return (
-    <div className="min-h-svh bg-background text-foreground md:flex">
-      <aside className="border-b md:sticky md:top-0 md:h-svh md:w-60 md:shrink-0 md:overflow-y-auto md:border-e md:border-b-0">
-        <div className="flex flex-col gap-4 px-3 py-3 md:py-5">
-          <div className="flex items-center justify-between">
-            <a href="#/" className="flex items-center gap-2 font-semibold tracking-tight"><span className="grid size-8 place-items-center rounded-lg bg-primary text-primary-foreground">W</span>WP MCP</a>
-            <div className="flex gap-1 md:hidden">
-              <Button variant="outline" size="sm" onClick={() => setLang(lang === 'fa' ? 'en' : 'fa')}>{lang === 'fa' ? 'EN' : 'فا'}</Button>
-            </div>
+    <SidebarProvider>
+      <Sidebar collapsible="icon" side={lang === 'fa' ? 'right' : 'left'}>
+        <SidebarHeader className="gap-3">
+          <a href="#/" className="flex items-center gap-2 px-1 font-semibold tracking-tight">
+            <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-primary text-primary-foreground">W</span>
+            <span className="truncate group-data-[collapsible=icon]:hidden">WP MCP</span>
+          </a>
+          <div className="group-data-[collapsible=icon]:hidden">
+            {state.sites.length > 0
+              ? <Pick value={site?.name ?? ''} onChange={setSite} options={state.sites.map((s) => ({ value: s.name, label: s.name }))} />
+              : <span className="px-1 text-sm text-muted-foreground">{t('No site connected', 'سایتی وصل نیست')}</span>}
           </div>
-          <nav className="flex gap-1 overflow-x-auto md:flex-col md:gap-4 md:overflow-visible">
-            {groups.map((g) => (
-              <div key={g.title} className="flex gap-1 md:flex-col">
-                <div className="hidden px-3 pb-1 text-xs font-medium text-muted-foreground md:block">{g.title}</div>
+        </SidebarHeader>
+        <SidebarContent>
+          {groups.map((g) => (
+            <SidebarGroup key={g.title}>
+              <SidebarGroupLabel>{g.title}</SidebarGroupLabel>
+              <SidebarMenu>
                 {g.items.filter((n) => !n.hide).map((n) => (
-                  <a key={n.path} href={`#${n.path}`} className={cn('flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm whitespace-nowrap transition-colors hover:bg-muted', active(n.path) ? 'bg-muted font-medium' : 'text-muted-foreground')}><n.icon className="size-4" /> {n.label}</a>
+                  <SidebarMenuItem key={n.path}>
+                    <SidebarMenuButton isActive={active(n.path)} tooltip={n.label} render={<a href={`#${n.path}`} />}>
+                      <n.icon />
+                      <span>{n.label}</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
                 ))}
-              </div>
-            ))}
-          </nav>
-        </div>
-      </aside>
-      <div className="min-w-0 flex-1">
-        <header className="sticky top-0 z-10 flex flex-wrap items-center gap-2 border-b bg-background/85 px-4 py-2 backdrop-blur md:px-8">
-          <div className="w-48">{state.sites.length > 0 ? <Pick size="sm" value={site?.name ?? ''} onChange={setSite} options={state.sites.map((s) => ({ value: s.name, label: s.name }))} /> : <span className="text-sm text-muted-foreground">{t('No site connected', 'سایتی وصل نیست')}</span>}</div>
-          <div className="w-32" title={t('Level the panel acts at', 'سطحی که پنل با آن کار می‌کند')}><Pick size="sm" value={level} onChange={setLevel} options={state.levels.map((l) => ({ value: l, label: l }))} /></div>
-          {site && <a dir="ltr" href={site.url} target="_blank" rel="noreferrer" className="hidden truncate text-xs text-muted-foreground hover:underline sm:block">{site.url}</a>}
-          <div className="ms-auto hidden gap-1 md:flex">
+              </SidebarMenu>
+            </SidebarGroup>
+          ))}
+        </SidebarContent>
+        <SidebarRail />
+      </Sidebar>
+      <SidebarInset>
+        <header className="sticky top-0 z-10 flex h-14 shrink-0 items-center gap-2 border-b bg-background/85 px-4 backdrop-blur">
+          <SidebarTrigger />
+          <Separator orientation="vertical" className="mx-1 h-5" />
+          <Breadcrumb className="min-w-0">
+            <BreadcrumbList>
+              {current && <BreadcrumbItem className="hidden sm:block">{current.group}</BreadcrumbItem>}
+              {current && <BreadcrumbSeparator className="hidden sm:block" />}
+              <BreadcrumbItem><BreadcrumbPage className="truncate">{current?.label ?? t('Content', 'محتوا')}</BreadcrumbPage></BreadcrumbItem>
+            </BreadcrumbList>
+          </Breadcrumb>
+          <div className="ms-auto flex items-center gap-2">
+            {site && <a dir="ltr" href={site.url} target="_blank" rel="noreferrer" className="hidden max-w-56 truncate text-xs text-muted-foreground hover:underline lg:block">{site.url}</a>}
+            <div className="w-28" title={t('Level the panel acts at', 'سطحی که پنل با آن کار می‌کند')}><Pick size="sm" value={level} onChange={setLevel} options={state.levels.map((l) => ({ value: l, label: l }))} /></div>
             <Button variant="outline" size="sm" onClick={() => setLang(lang === 'fa' ? 'en' : 'fa')}>{lang === 'fa' ? 'EN' : 'فا'}</Button>
             <Button variant="outline" size="icon-sm" aria-label="theme" onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}>{resolvedTheme === 'dark' ? <SunIcon /> : <MoonIcon />}</Button>
           </div>
         </header>
-        <main className="p-4 md:p-8"><div className={path === '/visual' ? '' : 'mx-auto max-w-6xl'}>{page}</div></main>
-      </div>
+        <main className="p-4 md:p-8"><div className="mx-auto max-w-6xl">{page}</div></main>
+      </SidebarInset>
       <Toaster position="top-center" />
-    </div>
+    </SidebarProvider>
   );
 }
 

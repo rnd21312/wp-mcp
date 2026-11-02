@@ -8,7 +8,6 @@ import { callTool } from './mcp/tools.ts';
 import { OPS, TOOLS } from './registry.ts';
 import { chat, PRESETS, sealKey } from './ai.ts';
 import { authUrl, disconnect, GscError, gscStatus, handleCallback, runGsc, saveClient } from './gsc.ts';
-import { previewInfo } from './preview.ts';
 import * as ws from './workspace.ts';
 import { addSite, testSite } from './siteadmin.ts';
 import { parseScope } from './store.ts';
@@ -85,7 +84,6 @@ function state(app: App) {
     publicUrl: app.config.publicUrl,
     dataDir: app.config.dataDir,
     entry: ENTRY,
-    preview: previewInfo(app),
     sites: app.store.sites().map(toSite),
     keys: app.store.keys().filter((k) => !k.revoked).map((k) => ({ id: k.id, name: k.name, prefix: k.prefix, level: k.level, sites: parseScope(k.sites), created: k.created, last_used: k.last_used, expires: k.expires })),
     clients,

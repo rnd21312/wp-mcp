@@ -45,6 +45,8 @@ final class Spec {
             'site'     => 'Site',
             'content'  => 'Content',
             'design'   => 'Design',
+            'builder'  => 'Builder',
+            'fields'   => 'Fields',
             'media'    => 'Media',
             'seo'      => 'Seo',
             'inspect'  => 'Inspect',

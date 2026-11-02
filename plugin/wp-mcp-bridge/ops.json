@@ -804,6 +804,211 @@
    "escalates": null
   },
   {
+   "id": "builder.detect",
+   "tool": "builder",
+   "action": "detect",
+   "level": "read",
+   "summary": "Which page builders are active, and (with id) which one made a page.",
+   "params": {
+    "id": "int|Post/page ID"
+   },
+   "required": [],
+   "write": false,
+   "confirm": false,
+   "untrusted": false,
+   "escalates": null
+  },
+  {
+   "id": "builder.get",
+   "tool": "builder",
+   "action": "get",
+   "level": "draft",
+   "summary": "Read a page built with Elementor or Bricks as an element tree (outline:true gives a short overview, element returns one subtree). Divi, WPBakery, Avada: returns the markup.",
+   "params": {
+    "id": "int|Post/page ID",
+    "outline": "bool|Compact tree: id, type, short text",
+    "element": "string|One element id"
+   },
+   "required": [
+    "id"
+   ],
+   "write": false,
+   "confirm": false,
+   "untrusted": true,
+   "escalates": "draft"
+  },
+  {
+   "id": "builder.set",
+   "tool": "builder",
+   "action": "set",
+   "level": "draft",
+   "summary": "Replace a whole page: data = full element tree (Elementor: nested elements; Bricks: flat list with parent/children), or content = markup for Divi/WPBakery/Avada. Needs live on published pages. Undo with activity.undo.",
+   "params": {
+    "id": "int|Post/page ID",
+    "data": "any|Element tree (array or JSON string)",
+    "content": "string|Markup builders: new post_content",
+    "builder": "enum:elementor,bricks|Default: the builder the page already uses"
+   },
+   "required": [
+    "id"
+   ],
+   "write": true,
+   "confirm": false,
+   "untrusted": false,
+   "escalates": "live"
+  },
+  {
+   "id": "builder.element_update",
+   "tool": "builder",
+   "action": "element_update",
+   "level": "live",
+   "summary": "Merge settings into one element by id (a null value removes that setting). Elementor and Bricks.",
+   "params": {
+    "id": "int|Post/page ID",
+    "element": "string|Element id",
+    "settings": "object|{setting: value}",
+    "builder": "enum:elementor,bricks|Default: the builder the page already uses"
+   },
+   "required": [
+    "id",
+    "element",
+    "settings"
+   ],
+   "write": true,
+   "confirm": false,
+   "untrusted": false,
+   "escalates": null
+  },
+  {
+   "id": "builder.element_add",
+   "tool": "builder",
+   "action": "element_add",
+   "level": "live",
+   "summary": "Add an element under a parent (or at the top). Elementor needs elType; Bricks needs name.",
+   "params": {
+    "id": "int|Post/page ID",
+    "element": "object|{elType|name, widgetType, settings, elements}; id is generated",
+    "parent": "string|Parent element id; omit for top level",
+    "position": "int|Index among siblings; default last",
+    "builder": "enum:elementor,bricks|Default: the builder the page already uses"
+   },
+   "required": [
+    "id",
+    "element"
+   ],
+   "write": true,
+   "confirm": false,
+   "untrusted": false,
+   "escalates": null
+  },
+  {
+   "id": "builder.element_remove",
+   "tool": "builder",
+   "action": "element_remove",
+   "level": "live",
+   "summary": "Remove an element and everything inside it.",
+   "params": {
+    "id": "int|Post/page ID",
+    "element": "string|Element id",
+    "builder": "enum:elementor,bricks|Default: the builder the page already uses"
+   },
+   "required": [
+    "id",
+    "element"
+   ],
+   "write": true,
+   "confirm": false,
+   "untrusted": false,
+   "escalates": null
+  },
+  {
+   "id": "builder.regenerate",
+   "tool": "builder",
+   "action": "regenerate",
+   "level": "live",
+   "summary": "Clear the builder CSS cache (Elementor) so changes show on the front end.",
+   "params": {
+    "id": "int|Post/page ID"
+   },
+   "required": [],
+   "write": true,
+   "confirm": false,
+   "untrusted": false,
+   "escalates": null
+  },
+  {
+   "id": "fields.groups",
+   "tool": "fields",
+   "action": "groups",
+   "level": "read",
+   "summary": "Field groups and their fields (names, types, choices) of ACF or Meta Box.",
+   "params": {
+    "plugin": "enum:acf,metabox|Default: the first active one"
+   },
+   "required": [],
+   "write": false,
+   "confirm": false,
+   "untrusted": false,
+   "escalates": null
+  },
+  {
+   "id": "fields.get",
+   "tool": "fields",
+   "action": "get",
+   "level": "draft",
+   "summary": "Read custom field values of a post, term, user or options page (one field or all).",
+   "params": {
+    "object": "enum:post,term,user,option|Default post (user and option need admin)",
+    "id": "int|Object ID (not needed for option)",
+    "field": "string|Field name; omit for all",
+    "plugin": "enum:acf,metabox|Default: the first active one"
+   },
+   "required": [],
+   "write": false,
+   "confirm": false,
+   "untrusted": true,
+   "escalates": "draft"
+  },
+  {
+   "id": "fields.set",
+   "tool": "fields",
+   "action": "set",
+   "level": "live",
+   "summary": "Set a custom field value the right way for the plugin (ACF keeps its field reference). Returns the previous value; post changes can be undone.",
+   "params": {
+    "object": "enum:post,term,user,option|Default post (user and option need admin)",
+    "id": "int|Object ID (not needed for option)",
+    "field": "string|Field name",
+    "value": "any|Value (repeaters/groups: arrays)",
+    "plugin": "enum:acf,metabox|Default: the first active one"
+   },
+   "required": [
+    "field",
+    "value"
+   ],
+   "write": true,
+   "confirm": false,
+   "untrusted": false,
+   "escalates": "admin"
+  },
+  {
+   "id": "fields.group_save",
+   "tool": "fields",
+   "action": "group_save",
+   "level": "admin",
+   "summary": "Create or update an ACF field group from the ACF export format {key?, title, fields[], location[[]]}.",
+   "params": {
+    "group": "object|ACF field group"
+   },
+   "required": [
+    "group"
+   ],
+   "write": true,
+   "confirm": false,
+   "untrusted": false,
+   "escalates": null
+  },
+  {
    "id": "media.list",
    "tool": "media",
    "action": "list",

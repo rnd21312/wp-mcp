@@ -41,6 +41,8 @@ export const TOOLS: ToolInfo[] = [
   { name: 'site', title: 'Site overview and connections', intro: 'START HERE. Which sites exist, what a site contains (theme, plugins, content types, SEO plugin, WooCommerce), who you are, and the schema of any action.' },
   { name: 'content', title: 'Posts, pages, terms, comments', intro: 'Blog posts, pages, custom post types, categories/tags, comments. Content is block markup or HTML.' },
   { name: 'design', title: 'Design: templates, CSS, tokens, menus, themes', intro: 'Header/footer and templates (block themes), additional CSS in named sections, design tokens, menus, homepage, branding, themes and theme files.' },
+  { name: 'builder', title: 'Page builders', intro: 'Read and edit pages built with Elementor or Bricks as element trees (get, set, update/add/remove an element); Divi, WPBakery and Avada as markup. Use detect first.' },
+  { name: 'fields', title: 'Custom fields (ACF, Meta Box)', intro: 'Field groups, field values of posts/terms/users/options, and ACF group creation.' },
   { name: 'media', title: 'Media library', intro: 'List, upload (base64 or https URL), register files already in uploads, shrink/convert, edit metadata and delete images and files.' },
   { name: 'seo', title: 'SEO', intro: 'Per-page SEO fields (Yoast, Rank Math, AIOSEO, SEOPress or built-in), page audit, robots.txt, sitemap, redirects, JSON-LD schema.' },
   { name: 'inspect', title: 'Inspect rendered pages', intro: 'See what visitors get: rendered HTML, structure outline, stylesheets. No browser: for pixels use a browser tool.' },

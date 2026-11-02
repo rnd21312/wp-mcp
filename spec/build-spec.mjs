@@ -72,6 +72,25 @@ op('design.theme_files', 'admin', 'List files of the active (or given) theme.', 
 op('design.theme_file_read', 'admin', 'Read a theme file.', { 'path*': 'string|Path inside the theme', theme: 'string|Theme directory', offset: 'int|Byte offset' }, { u: 1 });
 op('design.theme_file_write', 'admin', 'Write a theme file (PHP is syntax-checked; previous content is kept for undo).', { 'path*': 'string|Path inside the theme (php, css, js, json, html)', 'content*': 'string|File content', theme: 'string|Theme directory' }, { w: 1, c: 1 });
 
+/* builder */
+const BID = 'int|Post/page ID';
+const BUILDER = 'enum:elementor,bricks|Default: the builder the page already uses';
+op('builder.detect', 'read', 'Which page builders are active, and (with id) which one made a page.', { id: BID });
+op('builder.get', 'draft', 'Read a page built with Elementor or Bricks as an element tree (outline:true gives a short overview, element returns one subtree). Divi, WPBakery, Avada: returns the markup.', { 'id*': BID, outline: 'bool|Compact tree: id, type, short text', element: 'string|One element id' }, { u: 1, e: 'draft' });
+op('builder.set', 'draft', 'Replace a whole page: data = full element tree (Elementor: nested elements; Bricks: flat list with parent/children), or content = markup for Divi/WPBakery/Avada. Needs live on published pages. Undo with activity.undo.', { 'id*': BID, data: 'any|Element tree (array or JSON string)', content: 'string|Markup builders: new post_content', builder: BUILDER }, { w: 1, e: 'live' });
+op('builder.element_update', 'live', 'Merge settings into one element by id (a null value removes that setting). Elementor and Bricks.', { 'id*': BID, 'element*': 'string|Element id', 'settings*': 'object|{setting: value}', builder: BUILDER }, { w: 1 });
+op('builder.element_add', 'live', 'Add an element under a parent (or at the top). Elementor needs elType; Bricks needs name.', { 'id*': BID, 'element*': 'object|{elType|name, widgetType, settings, elements}; id is generated', parent: 'string|Parent element id; omit for top level', position: 'int|Index among siblings; default last', builder: BUILDER }, { w: 1 });
+op('builder.element_remove', 'live', 'Remove an element and everything inside it.', { 'id*': BID, 'element*': 'string|Element id', builder: BUILDER }, { w: 1 });
+op('builder.regenerate', 'live', 'Clear the builder CSS cache (Elementor) so changes show on the front end.', { id: BID }, { w: 1 });
+
+/* fields (ACF / Meta Box) */
+const FPLUGIN = 'enum:acf,metabox|Default: the first active one';
+const FOBJ = 'enum:post,term,user,option|Default post (user and option need admin)';
+op('fields.groups', 'read', 'Field groups and their fields (names, types, choices) of ACF or Meta Box.', { plugin: FPLUGIN });
+op('fields.get', 'draft', 'Read custom field values of a post, term, user or options page (one field or all).', { object: FOBJ, id: 'int|Object ID (not needed for option)', field: 'string|Field name; omit for all', plugin: FPLUGIN }, { u: 1, e: 'draft' });
+op('fields.set', 'live', 'Set a custom field value the right way for the plugin (ACF keeps its field reference). Returns the previous value; post changes can be undone.', { object: FOBJ, id: 'int|Object ID (not needed for option)', 'field*': 'string|Field name', 'value*': 'any|Value (repeaters/groups: arrays)', plugin: FPLUGIN }, { w: 1, e: 'admin' });
+op('fields.group_save', 'admin', 'Create or update an ACF field group from the ACF export format {key?, title, fields[], location[[]]}.', { 'group*': 'object|ACF field group' }, { w: 1 });
+
 /* media */
 op('media.list', 'read', 'Media library items with URLs, sizes and alt text.', { search: 'string|Text', mime: 'string|e.g. image, image/png, application/pdf', ...PAGE }, { u: 1 });
 op('media.get', 'read', 'One attachment with all sizes.', { 'id*': 'int|Attachment ID' }, { u: 1 });
