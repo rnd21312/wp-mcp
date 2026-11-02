@@ -25,7 +25,8 @@ describe('preview origin for the visual editor', () => {
     const out = rewriteCss(css, 'https://site.test/wp-content/themes/t/css/main.css', O);
     expect(out).toContain(`@import url("${O}/css?u=${encodeURIComponent('https://site.test/wp-content/themes/t/css/reset.css')}`);
     expect(out).toContain('url(https://site.test/wp-content/themes/t/img/a.png)');
-    expect(out).toContain('url("https://site.test/wp-content/themes/t/css/f.woff2")');
+    expect(out).toContain(`url("${O}/asset?u=${encodeURIComponent('https://site.test/wp-content/themes/t/css/f.woff2')}&t=${previewToken}")`); // fonts go through the proxy: the site sends no CORS headers
+    expect(rewriteHtml('<html><head><style>@font-face{src:url(/f/a.woff2)}</style></head><body></body></html>', 'https://site.test/', O, 'http://127.0.0.1:1')).toContain(`${O}/asset?u=${encodeURIComponent('https://site.test/f/a.woff2')}`);
     expect(out).toContain('url(data:image/png;base64,AA)');
   });
 

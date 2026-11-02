@@ -219,5 +219,71 @@ foreach ( $ops as $id => $op ) {
 }
 check( '"maybe" confirmations all have a preview that decides' . ( $maybe ? ' (missing: ' . implode( ', ', $maybe ) . ')' : '' ), array() === $maybe );
 
+/* ------------------------------------------------------- page builder trees */
+function wp_strip_all_tags( $s ) { return strip_tags( (string) $s ); }
+if ( ! function_exists( 'mb_substr' ) ) {
+    function mb_substr( $s, $a, $l = null ) { return substr( (string) $s, $a, $l ); } // WordPress ships the same fallback.
+}
+$B    = \WPMCP\Bridge\Handlers\Builder::class;
+$call = static function ( string $fn, array $args ) use ( $B ) {
+    $m = new ReflectionMethod( $B, $fn );
+    $m->setAccessible( true );
+
+    return $m->invokeArgs( null, $args );
+};
+$el = array(
+    array( 'id' => 'a1', 'elType' => 'container', 'settings' => array(), 'elements' => array(
+        array( 'id' => 'b2', 'elType' => 'widget', 'widgetType' => 'heading', 'settings' => array( 'title' => 'Hello' ), 'elements' => array() ),
+        array( 'id' => 'c3', 'elType' => 'widget', 'widgetType' => 'button', 'settings' => array( 'text' => 'Go' ), 'elements' => array() ),
+    ) ),
+);
+$edit = Closure::bind(
+    static function ( array &$tree, string $id, string $b ): bool {
+        $hit = &self::find_ref( $tree, $id, $b );
+        if ( null === $hit ) {
+            return false;
+        }
+        $hit['settings']['title'] = 'Changed';
+
+        return true;
+    },
+    null,
+    $B
+);
+check( 'builder: nested element is found and edited in place', $edit( $el, 'b2', 'elementor' ) && 'Changed' === $el[0]['elements'][0]['settings']['title'] );
+check( 'builder: unknown element id is not found', false === $edit( $el, 'zz', 'elementor' ) );
+check( 'builder: count walks the tree', 3 === $call( 'count', array( $el ) ) );
+check( 'builder: drop removes a nested element only', true === $call_drop = ( function () use ( &$el, $B ) {
+    $m = new ReflectionMethod( $B, 'drop' );
+    $m->setAccessible( true );
+    $args = array( &$el, 'c3' );
+
+    return $m->invokeArgs( null, $args );
+} )() && 2 === $call( 'count', array( $el ) ) );
+$threw = static function ( callable $f ): bool {
+    try {
+        $f();
+    } catch ( \WPMCP\Bridge\BridgeError $e ) {
+        return true;
+    }
+
+    return false;
+};
+check( 'builder: duplicate ids are refused', $threw( fn() => $call( 'check_tree', array( array( array( 'id' => 'x', 'elType' => 'container' ), array( 'id' => 'x', 'elType' => 'container' ) ), 'elementor' ) ) ) );
+check( 'builder: an element without elType is refused for elementor', $threw( fn() => $call( 'check_tree', array( array( array( 'id' => 'x' ) ), 'elementor' ) ) ) );
+check( 'builder: a bricks element needs a name', $threw( fn() => $call( 'check_tree', array( array( array( 'id' => 'x', 'settings' => array() ) ), 'bricks' ) ) ) );
+check( 'builder: a valid tree passes', ! $threw( fn() => $call( 'check_tree', array( $el, 'elementor' ) ) ) );
+$flat    = array(
+    array( 'id' => 'r1', 'name' => 'section', 'parent' => 0, 'children' => array( 'r2' ), 'settings' => array() ),
+    array( 'id' => 'r2', 'name' => 'heading', 'parent' => 'r1', 'children' => array(), 'settings' => array( 'text' => 'Hi <b>there</b>' ) ),
+);
+$outline = $call( 'outline', array( $flat, 'bricks' ) );
+check( 'builder: bricks outline nests children under their parent', 1 === count( $outline ) && 'r2' === ( $outline[0]['children'][0]['id'] ?? '' ) && 'Hi there' === ( $outline[0]['children'][0]['text'] ?? '' ) );
+$ids = array();
+for ( $i = 0; $i < 50; $i++ ) {
+    $ids[ $call( 'new_id', array() ) ] = 1;
+}
+check( 'builder: generated element ids are unique 7-char hex', 50 === count( $ids ) && 1 === preg_match( '/^[0-9a-f]{7}$/', (string) array_key_first( $ids ) ) );
+
 echo "\n" . $pass . ' passed, ' . count( $failed ) . " failed\n";
 exit( $failed ? 1 : 0 );

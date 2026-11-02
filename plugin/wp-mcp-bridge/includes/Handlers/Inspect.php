@@ -22,6 +22,14 @@ final class Inspect {
      * @param array<string, mixed> $a Arguments.
      * @return array<string, mixed>
      */
+    public static function op_ticket( array $a, Context $c ): array {
+        return array( 'header' => \WPMCP\Bridge\Frontend::inspect_header(), 'valid_seconds' => 50 );
+    }
+
+    /**
+     * @param array<string, mixed> $a Arguments.
+     * @return array<string, mixed>
+     */
     public static function op_page( array $a, Context $c ): array {
         $url  = Util::own_url( (string) $a['path'] );
         $page = Util::fetch_own( $url );

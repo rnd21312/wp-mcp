@@ -23,6 +23,7 @@ final class Frontend {
         add_filter( 'wp_robots', array( self::class, 'robots' ), 20 );
         add_filter( 'robots_txt', array( self::class, 'robots_txt' ), 20, 2 );
         add_filter( 'wp_theme_json_data_user', array( self::class, 'theme_json' ) );
+        add_action( 'plugins_loaded', array( self::class, 'marks' ) ); // wp_salt() is pluggable: not defined while plugins load.
         add_filter( 'wp_sitemaps_enabled', static fn ( $on ) => 'off' === get_option( 'wpm_sitemap', 'default' ) ? false : $on );
     }
 
@@ -236,6 +237,118 @@ final class Frontend {
         $custom = (string) get_option( 'wpm_robots_txt', '' );
 
         return '' !== trim( $custom ) ? $custom : $output;
+    }
+
+
+    /* ------------------------------------------------------- editor source markers */
+
+    /** @var array<int, bool|string> */
+    private static array $stack = array();
+
+    /** @var array<string, mixed>|null Header region waiting for wp_body_open (a doctype must stay first). */
+    private static ?array $pending = null;
+
+    private static bool $pending_open = false;
+
+    private static string $main = '';
+
+    /**
+     * The visual editor loads a page with a signed header plus X-WPM-Mark; then template parts, theme files and
+     * post content are wrapped in HTML comments the editor reads. Nothing is added for anyone else.
+     */
+    public static function marks(): void {
+        if ( empty( $_SERVER['HTTP_X_WPM_MARK'] ) || ! self::inspect_header_ok() ) {
+            return;
+        }
+        add_action( 'wp_before_load_template', array( self::class, 'mark_before' ), 10, 1 );
+        add_action( 'wp_after_load_template', array( self::class, 'mark_after' ), 10, 0 );
+        add_action( 'wp_body_open', array( self::class, 'mark_body_open' ), 0 );
+        add_filter( 'render_block', array( self::class, 'mark_block' ), 10, 2 );
+        add_filter( 'template_include', static function ( $file ) {
+            self::$main = (string) $file;
+
+            return $file;
+        }, 99 );
+        add_action( 'wp_footer', array( self::class, 'mark_page' ), 9999 );
+    }
+
+    /** @param array<string, mixed> $m */
+    private static function open( array $m ): string {
+        return '<!--wpm:o:' . rtrim( strtr( base64_encode( (string) wp_json_encode( $m ) ), '+/', '-_' ), '=' ) . '-->';
+    }
+
+    /** Path relative to wp-content, or '' when the file is elsewhere. */
+    private static function rel( string $file ): string {
+        $root = trailingslashit( wp_normalize_path( WP_CONTENT_DIR ) );
+        $f    = wp_normalize_path( $file );
+
+        return str_starts_with( $f, $root ) ? substr( $f, strlen( $root ) ) : '';
+    }
+
+    public static function mark_before( $file ): void {
+        $rel = self::rel( (string) $file );
+        if ( '' === $rel ) {
+            self::$stack[] = false;
+
+            return;
+        }
+        $m = array( 'k' => 'file', 'f' => $rel );
+        if ( str_starts_with( basename( (string) $file ), 'header' ) && ! did_action( 'wp_body_open' ) ) {
+            self::$pending = $m;
+            self::$stack[] = 'pending';
+
+            return;
+        }
+        echo self::open( $m ); // phpcs:ignore WordPress.Security.EscapeOutput
+        self::$stack[] = true;
+    }
+
+    public static function mark_after(): void {
+        $s = array_pop( self::$stack );
+        if ( true === $s || ( 'pending' === $s && self::$pending_open ) ) {
+            echo '<!--wpm:c-->';
+        }
+    }
+
+    public static function mark_body_open(): void {
+        if ( self::$pending ) {
+            echo self::open( self::$pending ); // phpcs:ignore WordPress.Security.EscapeOutput
+            self::$pending_open = true;
+            self::$pending      = null;
+        }
+    }
+
+    /**
+     * @param string               $html  Block output.
+     * @param array<string, mixed> $block Parsed block.
+     */
+    public static function mark_block( $html, $block ): string {
+        $name = (string) ( $block['blockName'] ?? '' );
+        $at   = (array) ( $block['attrs'] ?? array() );
+        $m    = null;
+        if ( 'core/template-part' === $name && ! empty( $at['slug'] ) ) {
+            $m = array( 'k' => 'part', 'slug' => sanitize_key( (string) $at['slug'] ) );
+        } elseif ( 'core/post-content' === $name && get_the_ID() ) {
+            $m = array( 'k' => 'post', 'id' => (int) get_the_ID(), 'label' => 'post content' );
+        } elseif ( in_array( $name, array( 'core/block', 'core/navigation' ), true ) && ! empty( $at['ref'] ) ) {
+            $m = array( 'k' => 'post', 'id' => (int) $at['ref'], 'label' => 'core/block' === $name ? 'reusable block' : 'navigation' );
+        }
+
+        return $m ? self::open( $m ) . $html . '<!--wpm:c-->' : (string) $html;
+    }
+
+    public static function mark_page(): void {
+        global $_wp_current_template_id;
+        $block = function_exists( 'wp_is_block_theme' ) && wp_is_block_theme();
+        $id    = (string) ( $_wp_current_template_id ?? '' );
+        $data  = array(
+            'block_theme'   => $block,
+            'template'      => $block && str_contains( $id, '//' ) ? substr( $id, strpos( $id, '//' ) + 2 ) : '',
+            'template_file' => self::rel( self::$main ),
+            'post'          => (int) get_queried_object_id(),
+            'theme'         => get_stylesheet(),
+        );
+        echo '<script type="application/json" id="wpm-page">' . wp_json_encode( $data, JSON_HEX_TAG | JSON_HEX_AMP ) . '</script>'; // phpcs:ignore WordPress.Security.EscapeOutput
     }
 
     /* ------------------------------------------------------------- maintenance */

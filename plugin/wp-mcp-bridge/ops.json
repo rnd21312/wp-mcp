@@ -1372,6 +1372,19 @@
    "escalates": null
   },
   {
+   "id": "inspect.ticket",
+   "tool": "inspect",
+   "action": "ticket",
+   "level": "live",
+   "summary": "Short-lived header that lets the visual editor load a page with source markers (template parts, theme files, post content).",
+   "params": {},
+   "required": [],
+   "write": false,
+   "confirm": false,
+   "untrusted": false,
+   "escalates": null
+  },
+  {
    "id": "inspect.page",
    "tool": "inspect",
    "action": "page",

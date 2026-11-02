@@ -1,5 +1,5 @@
-import { ChevronDownIcon, ChevronRightIcon, MonitorIcon, MousePointerClickIcon, RefreshCwIcon, SaveIcon, SmartphoneIcon, TabletIcon, Trash2Icon } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ChevronDownIcon, ChevronRightIcon, MonitorIcon, MousePointerClickIcon, RefreshCwIcon, SaveIcon, SmartphoneIcon, TabletIcon, Trash2Icon, XIcon } from 'lucide-react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { Pick } from '@/components/bits';
 import { Badge } from '@/components/ui/badge';
@@ -10,6 +10,25 @@ import { Textarea } from '@/components/ui/textarea';
 import { useI18n } from '@/lib/i18n';
 import { useAction, useSite } from '@/lib/site';
 import { DEVICES, OVERRIDE_SECTION, overridesToCss, parseOverrides, type Overrides } from '@/lib/visualCss';
+
+const CodeBox = lazy(() => import('@/components/CodeBox'));
+
+/** A place the markup came from, as reported by the bridge markers. */
+interface Src { k: 'part' | 'template' | 'file' | 'post'; slug?: string; f?: string; id?: number; label?: string }
+interface Doc { src: Src; title: string; lang: string; value: string; original: string }
+
+const langOf = (path: string): string => {
+  const ext = path.split('.').pop()?.toLowerCase() ?? '';
+
+  return ext === 'php' ? 'php' : ext === 'css' ? 'css' : ext === 'js' || ext === 'ts' ? 'js' : ext === 'json' ? 'json' : 'html';
+};
+const rootOf = (f: string): { root: string; path: string } => {
+  const p = f.split('/');
+  const n = p[0] === 'themes' || p[0] === 'plugins' ? 2 : 1;
+
+  return { root: p.slice(0, n).join('/'), path: p.slice(n).join('/') };
+};
+const srcTitle = (s: Src): string => (s.k === 'part' ? `part · ${s.slug}` : s.k === 'template' ? `template · ${s.slug}` : s.k === 'file' ? s.f ?? '' : `${s.label ?? 'post'} #${s.id}`);
 
 /* ------------------------------------------------------------ builder trees */
 
@@ -98,9 +117,10 @@ export function Visual() {
   const [settings, setSettings] = useState<Record<string, string>>({});
   const [kind, setKind] = useState('heading');
   const [extra, setExtra] = useState({ prop: '', value: '' });
+  const [doc, setDoc] = useState<Doc | null>(null);
 
   const media = DEVICES[device].media;
-  const src = `${state.preview.base}/page?u=${encodeURIComponent(url)}&t=${state.preview.token}&n=${nonce}`;
+  const src = `${state.preview.base}/page?u=${encodeURIComponent(url)}&t=${state.preview.token}&s=${encodeURIComponent(site?.name ?? '')}&n=${nonce}`;
   const send = useCallback((m: Record<string, unknown>): void => { frame.current?.contentWindow?.postMessage({ wpm: 1, ...m }, '*'); }, []);
   const source = info?.source as { builder: string; element: string; post: number; widget: string; elType: string } | undefined;
   const sel: string = info?.selectors?.[selIndex] ?? '';
@@ -221,6 +241,32 @@ export function Visual() {
     if (r.ok) afterBuilder();
   };
 
+  /* code of a template, part, theme/plugin file or post behind the selected element */
+  const openSource = async (s: Src): Promise<void> => {
+    let value: string | undefined;
+    if (s.k === 'part' || s.k === 'template') value = ((await run('design', 'template_get', { slug: s.slug, kind: s.k }, { quiet: true })).data as any)?.content;
+    else if (s.k === 'file') { const { root, path } = rootOf(s.f ?? ''); value = ((await run('files', 'read', { root, path }, { quiet: true })).data as any)?.content; }
+    else value = ((await run('content', 'get', { id: s.id }, { quiet: true })).data as any)?.content;
+    if (typeof value === 'string') setDoc({ src: s, title: srcTitle(s), lang: s.k === 'file' ? langOf(s.f ?? '') : 'html', value, original: value });
+  };
+  const saveDoc = async (): Promise<void> => {
+    if (!doc) return;
+    const s = doc.src;
+    let r;
+    if (s.k === 'part' || s.k === 'template') r = await run('design', 'template_save', { slug: s.slug, kind: s.k, content: doc.value }, { auto: true });
+    else if (s.k === 'file') { const { root, path } = rootOf(s.f ?? ''); r = await run('files', 'write', { root, path, content: doc.value }, { auto: true }); }
+    else r = await run('content', 'save', { id: s.id, content: doc.value }, { auto: true });
+    if (r.ok) { setDoc({ ...doc, original: doc.value }); setNonce((n) => n + 1); }
+  };
+  const page = info?.page as { block_theme: boolean; template: string; template_file: string } | null | undefined;
+  const sources: Src[] = useMemo(() => {
+    const list: Src[] = [...((info?.chain ?? []) as Src[])];
+    if (page?.block_theme && page.template) list.push({ k: 'template', slug: page.template });
+    else if (page?.template_file) list.push({ k: 'file', f: page.template_file });
+
+    return list;
+  }, [info, page]);
+
   const isContainer = !!source && source.elType !== 'widget';
   const matched: any[] = info?.rules ?? [];
 
@@ -236,14 +282,31 @@ export function Visual() {
         <Button size="sm" className="ms-auto" disabled={!dirty} onClick={() => void saveCss()}><SaveIcon /> {t('Save styles', 'ذخیرهٔ استایل‌ها')}{dirty ? ' •' : ''}</Button>
       </div>
 
-      <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[230px_1fr_330px]">
+      <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[230px_minmax(0,1fr)_330px]">
         <aside className="hidden overflow-auto border-e p-2 lg:block">
           <div className="px-1 pb-1 text-xs font-medium text-muted-foreground">{t('Layers', 'لایه‌ها')}</div>
           {tree ? <Layer n={tree} sel={info?.id ?? 0} pick={(id) => send({ type: 'select', id })} depth={0} /> : <p className="p-2 text-xs text-muted-foreground">…</p>}
         </aside>
 
-        <div className="min-h-0 overflow-auto bg-muted/40 p-3">
-          <iframe ref={frame} key={src} src={src} title="preview" className="mx-auto h-full min-h-[480px] rounded-lg border bg-white shadow-sm" style={{ width: DEVICES[device].width }} />
+        <div className="flex min-h-0 min-w-0 flex-col">
+          <div className="min-h-0 flex-1 overflow-auto bg-muted/40 p-3">
+            <iframe ref={frame} key={src} src={src} title="preview" className="mx-auto h-full min-h-[300px] rounded-lg border bg-white shadow-sm" style={{ width: DEVICES[device].width }} />
+          </div>
+          {doc && (
+            <div className="flex h-[45%] min-h-48 min-w-0 flex-col gap-2 border-t p-2">
+              <div className="flex items-center gap-2">
+                <code dir="ltr" className="truncate text-xs">{doc.title}</code>
+                {doc.value !== doc.original && <Badge variant="secondary">{t('unsaved', 'ذخیره نشده')}</Badge>}
+                <Button size="sm" className="ms-auto" disabled={doc.value === doc.original} onClick={() => void saveDoc()}><SaveIcon /> {t('Save', 'ذخیره')}</Button>
+                <Button size="icon-sm" variant="ghost" aria-label="close" onClick={() => setDoc(null)}><XIcon /></Button>
+              </div>
+              <div className="min-h-0 min-w-0 flex-1 overflow-hidden">
+                <Suspense fallback={<p className="p-2 text-xs text-muted-foreground">…</p>}>
+                  <CodeBox value={doc.value} lang={doc.lang} height="100%" onChange={(v) => setDoc((d) => (d ? { ...d, value: v } : d))} />
+                </Suspense>
+              </div>
+            </div>
+          )}
         </div>
 
         <aside className="min-h-0 overflow-auto border-s p-3">
@@ -258,6 +321,7 @@ export function Visual() {
                 <TabsList className="w-full">
                   <TabsTrigger value="style">{t('Style', 'استایل')}</TabsTrigger>
                   <TabsTrigger value="content">{t('Content', 'محتوا')}</TabsTrigger>
+                  <TabsTrigger value="source">{t('Source', 'منبع')}</TabsTrigger>
                   <TabsTrigger value="rules">{t('Rules', 'قواعد')}</TabsTrigger>
                 </TabsList>
 
@@ -311,6 +375,16 @@ export function Visual() {
                     </>
                   ) : source?.builder ? <p className="text-xs text-muted-foreground">{t('This element is not in the page’s own builder data (it may come from a template or header/footer). Restyle it, or open that template.', 'این عنصر در داده‌ی صفحه‌ساز خود صفحه نیست (شاید از تمپلیت یا هدر/فوتر باشد). استایلش را تغییر دهید یا آن تمپلیت را باز کنید.')}</p>
                     : <p className="text-xs text-muted-foreground">{t('Not made with a page builder. Double-click text in the page to edit it, or restyle it in the Style tab.', 'با صفحه‌ساز ساخته نشده. متن را با دوبار کلیک در صفحه ویرایش کنید یا در تب استایل ظاهرش را عوض کنید.')}</p>}
+                </TabsContent>
+
+                <TabsContent value="source" className="space-y-2 pt-3">
+                  {sources.length === 0 && <p className="text-xs text-muted-foreground">{t('No source markers. Update the bridge plugin on the site (2.2+) and reload.', 'نشانهٔ منبع نیست. افزونهٔ bridge سایت را به‌روز کنید (۲.۲ به بالا) و دوباره بارگذاری کنید.')}</p>}
+                  {sources.map((s, i) => (
+                    <button key={i} dir="ltr" onClick={() => void openSource(s)} className="flex w-full items-center justify-between gap-2 rounded border px-2 py-1.5 text-start text-xs hover:bg-muted">
+                      <span className="truncate font-mono">{srcTitle(s)}</span><span className="shrink-0 text-muted-foreground">{t('Edit code', 'ویرایش کد')}</span>
+                    </button>
+                  ))}
+                  {sources.length > 0 && <p className="text-xs text-muted-foreground">{t('Innermost first: the first row is the piece of the page this element sits in.', 'از داخلی‌ترین: ردیف اول بخشی از صفحه است که این عنصر در آن است.')}</p>}
                 </TabsContent>
 
                 <TabsContent value="rules" className="space-y-2 pt-3">

@@ -115,6 +115,7 @@ op('seo.schema_get', 'read', 'Custom JSON-LD of an item.', { 'id*': 'int|Post ID
 op('seo.schema_set', 'live', 'Set custom JSON-LD for an item (empty removes it).', { 'id*': 'int|Post ID', 'json*': 'any|JSON-LD object or array (or a JSON string)' }, { w: 1 });
 
 /* inspect */
+op('inspect.ticket', 'live', 'Short-lived header that lets the visual editor load a page with source markers (template parts, theme files, post content).');
 op('inspect.page', 'read', 'Rendered HTML of a page of this site (same host only, redirects not followed off-site).', { 'path*': 'string|Path like /about/ or full URL on this site', max_bytes: 'int|Default 60000', offset: 'int|Byte offset' }, { u: 1 });
 op('inspect.render', 'draft', 'Render a post (also drafts) through the_content, without the theme.', { 'id*': 'int|Post ID', max_bytes: 'int|Default 60000' }, { u: 1 });
 op('inspect.outline', 'read', 'Compact structure of a page: headings, landmarks, images, links, forms, meta, scripts, and an element tree (depth-limited).', { 'path*': 'string|Path or URL on this site', selector: 'string|Simple selector (#id, .class, tag) to zoom into', depth: 'int|Tree depth (default 4)' }, { u: 1 });

@@ -92,6 +92,28 @@ export const AGENT_JS = String.raw`(function () {
     }
     return out;
   }
+  /* source markers added by the bridge: <!--wpm:o:BASE64JSON--> ... <!--wpm:c--> around template parts, theme files, post content */
+  var page = null;
+  function scan() {
+    var pg = document.getElementById('wpm-page');
+    if (pg) { try { page = JSON.parse(pg.textContent); } catch (e) {} }
+    var w = document.createTreeWalker(document, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_COMMENT, null);
+    var stack = [], n;
+    while ((n = w.nextNode())) {
+      if (n.nodeType === 8) {
+        if (n.nodeValue.indexOf('wpm:o:') === 0) stack.push(n.nodeValue.slice(6));
+        else if (n.nodeValue === 'wpm:c') stack.pop();
+      } else if (stack.length && !n.hasAttribute('data-wpm-reg')) n.setAttribute('data-wpm-reg', stack[stack.length - 1]);
+    }
+  }
+  function chain(el) {
+    var out = [], seen = {};
+    for (var n = el; n && n.nodeType === 1; n = n.parentElement) {
+      var v = n.getAttribute('data-wpm-reg');
+      if (v && !seen[v]) { seen[v] = 1; try { out.push(JSON.parse(atob(v.replace(/-/g, '+').replace(/_/g, '/')))); } catch (e) {} }
+    }
+    return out;
+  }
   var COMPUTED = ['display','position','top','right','bottom','left','float','z-index','width','height','min-width','max-width','min-height','max-height','margin-top','margin-right','margin-bottom','margin-left','padding-top','padding-right','padding-bottom','padding-left','border-top-width','border-right-width','border-bottom-width','border-left-width','border-style','border-color','border-radius','color','background-color','background-image','font-family','font-size','font-weight','line-height','letter-spacing','text-align','text-decoration','text-transform','opacity','overflow','flex-direction','justify-content','align-items','gap','box-shadow','transform','cursor','visibility'];
   function info(el) {
     rules = []; var acc = [];
@@ -101,7 +123,7 @@ export const AGENT_JS = String.raw`(function () {
     var r = el.getBoundingClientRect();
     var attrs = {}; Array.prototype.forEach.call(el.attributes, function (a) { if (a.name !== 'style' || a.value) attrs[a.name] = a.value.slice(0, 300); });
     var leaf = el.children.length === 0 && (el.textContent || '').trim().length > 0;
-    var sels = selectors(el); return { id: idOf(el), tag: el.tagName.toLowerCase(), label: label(el), selectors: sels, counts: sels.map(count), source: source(el), rect: { w: Math.round(r.width), h: Math.round(r.height), x: Math.round(r.left), y: Math.round(r.top) }, rules: acc, inline: el.getAttribute('style') || '', computed: comp, attrs: attrs, leaf: leaf, text: leaf ? (el.textContent || '').trim() : '', box: { margin: ['Top', 'Right', 'Bottom', 'Left'].map(function (x) { return cs['margin' + x]; }), border: ['Top', 'Right', 'Bottom', 'Left'].map(function (x) { return cs['border' + x + 'Width']; }), padding: ['Top', 'Right', 'Bottom', 'Left'].map(function (x) { return cs['padding' + x]; }), w: Math.round(r.width), h: Math.round(r.height) } };
+    var sels = selectors(el); return { id: idOf(el), tag: el.tagName.toLowerCase(), label: label(el), selectors: sels, counts: sels.map(count), source: source(el), chain: chain(el), page: page, rect: { w: Math.round(r.width), h: Math.round(r.height), x: Math.round(r.left), y: Math.round(r.top) }, rules: acc, inline: el.getAttribute('style') || '', computed: comp, attrs: attrs, leaf: leaf, text: leaf ? (el.textContent || '').trim() : '', box: { margin: ['Top', 'Right', 'Bottom', 'Left'].map(function (x) { return cs['margin' + x]; }), border: ['Top', 'Right', 'Bottom', 'Left'].map(function (x) { return cs['border' + x + 'Width']; }), padding: ['Top', 'Right', 'Bottom', 'Left'].map(function (x) { return cs['padding' + x]; }), w: Math.round(r.width), h: Math.round(r.height) } };
   }
   function tree(el, depth, budget) {
     var kids = [];
@@ -152,5 +174,6 @@ export const AGENT_JS = String.raw`(function () {
     else if (m.type === 'seo') { document.documentElement.classList.toggle('wpm-seo', !!m.on); live('seo', m.on ? ':is(h1,h2,h3,h4,h5,h6){outline:2px solid #8b5cf6!important;outline-offset:2px}img:not([alt]),img[alt=""]{outline:3px solid #ef4444!important}a[rel~=nofollow]{outline:2px dotted #f59e0b!important}' : ''); }
   });
 
-  send({ type: 'ready', title: document.title, url: location.href });
+  function boot() { scan(); send({ type: 'ready', title: document.title, url: location.href }); }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot); else boot();
 })();`;

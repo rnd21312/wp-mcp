@@ -18,7 +18,12 @@ export function rewriteCss(css: string, base: string, origin: string): string {
   const proxied = (u: string): string => `${origin}/css?u=${encodeURIComponent(u)}&t=${previewToken}`;
   return css
     .replace(/@import\s+(?:url\(\s*)?(['"]?)([^'")\s;]+)\1\s*\)?/gi, (_m, _q, u: string) => `@import url("${proxied(abs(u, base))}")`)
-    .replace(/url\(\s*(['"]?)([^'")]+)\1\s*\)/gi, (m, q: string, u: string) => (/^(data:|#|about:)/i.test(u) || /\/css\?u=/.test(u) ? m : `url(${q}${abs(u, base)}${q})`));
+    .replace(/url\(\s*(['"]?)([^'")]+)\1\s*\)/gi, (m, q: string, u: string) => {
+      if (/^(data:|#|about:)/i.test(u) || /\/(css|asset)\?u=/.test(u)) return m;
+      const full = abs(u, base);
+      // The site sends no CORS headers to this origin, and fonts need them: serve fonts through the proxy.
+      return /\.(woff2?|ttf|otf|eot)(\?|#|$)/i.test(full) ? `url(${q}${origin}/asset?u=${encodeURIComponent(full)}&t=${previewToken}${q})` : `url(${q}${full}${q})`;
+    });
 }
 
 export function rewriteHtml(html: string, finalUrl: string, origin: string, panelOrigin: string): string {
@@ -36,6 +41,8 @@ export function rewriteHtml(html: string, finalUrl: string, origin: string, pane
         .replace(/rel=["']?preload["']?/i, 'rel="stylesheet"')
         .replace(/media=["']print["']/i, 'media="all"');
     });
+  // Inline <style> blocks (theme.json fonts, builder CSS) get the same treatment as linked stylesheets.
+  out = out.replace(/(<style\b[^>]*>)([\s\S]*?)(<\/style>)/gi, (_m, open: string, css: string, close: string) => `${open}${rewriteCss(css, finalUrl, origin)}${close}`);
   const head = `<base href="${finalUrl}">`;
   out = /<head[^>]*>/i.test(out) ? out.replace(/<head[^>]*>/i, (h) => `${h}${head}`) : `<head>${head}</head>${out}`;
   out = /<\/body>/i.test(out) ? out.replace(/<\/body>/i, `${agent}</body>`) : `${out}${agent}`;
@@ -62,12 +69,24 @@ export function startPreview(app: App, panelPort: number): Promise<http.Server> 
         return void res.end(AGENT_JS);
       }
       const target = url.searchParams.get('u') ?? '';
-      if (url.pathname === '/page' || url.pathname === '/css') {
+      /* ask the bridge for a short-lived ticket so it adds source markers (template parts, theme files) to this page */
+      let ticket = '';
+      const siteRow = app.store.sites().find((x) => x.name === url.searchParams.get('s'));
+      if (url.pathname === '/page' && siteRow) {
+        try {
+          ticket = String(((await app.sites.call(siteRow, 'inspect.ticket', {}, { level: 'live', actor: 'visual editor', client: 'panel', requestId: 'preview', write: false })).data as { header?: string }).header ?? '');
+        } catch { /* older bridge: no markers */ }
+      }
+      if (url.pathname === '/page' || url.pathname === '/css' || url.pathname === '/asset') {
         let next = target;
         for (let hop = 0; hop < 6; hop++) {
-          const r = await safeRequest(next, policy, { headers: { 'user-agent': UA, accept: url.pathname === '/css' ? 'text/css,*/*' : 'text/html,*/*', 'accept-language': 'fa,en;q=0.8' }, maxBytes: 6 * 1024 * 1024, timeoutMs: 25000 });
+          const r = await safeRequest(next, policy, { headers: { ...(ticket && siteRow && new URL(next).host === new URL(siteRow.url).host ? { 'x-wpm-inspect': ticket, 'x-wpm-mark': '1' } : {}), 'user-agent': UA, accept: url.pathname === '/css' ? 'text/css,*/*' : 'text/html,*/*', 'accept-language': 'fa,en;q=0.8' }, maxBytes: 6 * 1024 * 1024, timeoutMs: 25000 });
           const loc = typeof r.headers.location === 'string' ? abs(r.headers.location, next) : '';
           if (r.status >= 300 && r.status < 400 && loc) { next = loc; continue; }
+          if (url.pathname === '/asset') {
+            res.writeHead(r.status, { ...common, 'content-type': String(r.headers['content-type'] ?? 'application/octet-stream'), 'access-control-allow-origin': '*' });
+            return void res.end(r.body);
+          }
           if (url.pathname === '/css') {
             res.writeHead(200, { ...common, 'content-type': 'text/css; charset=utf-8' });
             return void res.end(rewriteCss(r.body.toString('utf8'), next, origin));
