@@ -40,7 +40,7 @@ nginx: proxy to `127.0.0.1:8787`, pass `Host` and `X-Forwarded-For`, set `client
 |---|---|---|
 | `WPMCP_PUBLIC_URL` | `http://localhost:PORT` | The address clients use. **Must be the real public https URL** in production: it appears in OAuth metadata and redirects. |
 | `PORT` / `WPMCP_HOST` | `8787` / `0.0.0.0` | Listen address |
-| `WPMCP_DATA_DIR` | `./data` | SQLite database and `master.key` |
+| `WPMCP_DATA_DIR` | `wpmcp-data` next to the project | SQLite database and `master.key` |
 | `WPMCP_MASTER_KEY` | generated in `data/master.key` | 32 bytes (64 hex or base64) encrypting site secrets and signing cookies and confirmation tokens |
 | `WPMCP_ADMIN_PASSWORD` | none | Create the owner at start-up (12+ chars) instead of using the setup token |
 | `WPMCP_TRUST_PROXY` | off | `1` to trust `X-Forwarded-For` |

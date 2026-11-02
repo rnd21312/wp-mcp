@@ -1,6 +1,7 @@
 import { randomBytes } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 export interface Config {
   publicUrl: string;
@@ -41,8 +42,11 @@ function masterKey(dataDir: string, env: NodeJS.ProcessEnv): Buffer {
   return key;
 }
 
+/** One fixed folder next to the project (gateway/dist -> ../../wpmcp-data), never the current directory, so every way of starting WP MCP sees the same sites. */
+const DEFAULT_DATA_DIR = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', 'wpmcp-data');
+
 export function loadConfig(env: NodeJS.ProcessEnv = process.env, overrides: Partial<Config> = {}): Config {
-  const dataDir = resolve(overrides.dataDir ?? env.WPMCP_DATA_DIR ?? './data');
+  const dataDir = resolve(overrides.dataDir ?? env.WPMCP_DATA_DIR ?? DEFAULT_DATA_DIR);
   mkdirSync(dataDir, { recursive: true });
   const port = overrides.port ?? num(env.PORT ?? env.WPMCP_PORT, 8787);
   const publicUrl = (overrides.publicUrl ?? env.WPMCP_PUBLIC_URL ?? `http://localhost:${port}`).replace(/\/+$/, '');
