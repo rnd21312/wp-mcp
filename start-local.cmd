@@ -1,9 +1,11 @@
 @echo off
 setlocal
 rem Starts the WP MCP panel on this computer only (http://127.0.0.1:8787/admin) and opens it in your browser.
-rem First run installs the packages and builds everything (a few minutes). After updating the code run: start-local.cmd rebuild
+rem Stop it with stop-local.cmd (or start-local.cmd stop). First run installs the packages and builds everything (a few minutes). After updating the code run: start-local.cmd rebuild
 rem Data folder: %WPMCP_DATA_DIR% if set, else .\wpmcp-data next to this file (your connected sites live there).
 cd /d "%~dp0"
+
+if /i "%~1"=="stop" goto stop
 
 where node >nul 2>nul
 if errorlevel 1 goto nonode
@@ -30,7 +32,7 @@ if errorlevel 1 goto fail
 set WPMCP_PUBLIC_URL=http://127.0.0.1:8787
 netstat -ano | findstr /r /c:":8787 .*LISTENING" >nul
 if errorlevel 1 goto free
-echo WP MCP is already running. Opening it in your browser.
+echo WP MCP is already running. Opening it in your browser. Stop it with stop-local.cmd.
 start "" http://127.0.0.1:8787/admin
 timeout /t 3 >nul
 exit /b 0
@@ -43,12 +45,35 @@ goto end
 
 :start
 echo Starting WP MCP at http://127.0.0.1:8787/admin
-echo Leave this window open while you use it. Press Ctrl+C to stop.
+echo Leave this window open while you use it. Press Ctrl+C here or run stop-local.cmd to stop.
 start "" powershell -NoProfile -WindowStyle Hidden -Command "Start-Sleep 4; Start-Process 'http://127.0.0.1:8787/admin'"
 node "%~dp0gateway\dist\index.js" local
 echo.
 echo WP MCP stopped.
 goto end
+
+:stop
+set FOUND=0
+call :killport 8787
+call :killport 8788
+if "%FOUND%"=="0" echo WP MCP is not running.
+goto end
+
+:killport
+for /f "tokens=5" %%I in ('netstat -ano ^| findstr /r /c:":%1 .*LISTENING"') do call :killpid %%I
+goto :eof
+
+:killpid
+tasklist /FI "PID eq %1" /FI "IMAGENAME eq node.exe" 2>nul | findstr /i "node.exe" >nul
+if errorlevel 1 goto notnode
+taskkill /PID %1 /F /T >nul 2>nul
+set FOUND=1
+echo Stopped WP MCP, process %1.
+goto :eof
+
+:notnode
+echo Port %1 is used by a program that is not Node, so it was left alone.
+goto :eof
 
 :nonode
 echo Node.js 20 or newer is required. Install it from https://nodejs.org and run this file again.
