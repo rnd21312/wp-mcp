@@ -10,7 +10,7 @@ Google only hands data to an app you own, so you create a private sign-in once. 
 2. Enable the [Google Search Console API](https://console.cloud.google.com/apis/library/searchconsole.googleapis.com).
 3. Open [Google Auth platform](https://console.cloud.google.com/auth/overview): choose **External**, fill the app name and your email. Under **Audience** add your Google email as a test user, then press **Publish app**. While an app stays in *Testing*, Google expires the sign-in after 7 days. Google shows "unverified app" when you sign in: that is expected for your own app (Advanced, continue).
 4. Open [Clients](https://console.cloud.google.com/auth/clients), **Create client**, type **Desktop app**. Copy the Client ID and Client secret.
-5. Open the local panel (`start-local.cmd`), page **Search Console**, paste both, press **Save**, then **Connect with Google** and sign in with the account that owns the property in Search Console.
+5. Open the local panel (`wpmcp.cmd`), page **Search Console**, paste both, press **Save**, then **Connect with Google** and sign in with the account that owns the property in Search Console.
 
 Only the scope `webmasters.readonly` (plus your email address for display) is requested. The refresh token and the client secret are stored encrypted with the gateway master key in the data folder.
 
@@ -32,6 +32,6 @@ Data lags about two days, so default ranges end three days ago. Google allows ab
 
 ## Notes
 
-- Works in local mode (`start-local.cmd` or `node gateway/dist/index.js local`). The Google sign-in returns to `http://127.0.0.1:<port>/admin/gsc/callback`, which only answers on this computer. The stdio MCP server reads the same stored sign-in from the shared data folder.
+- Works in local mode (`wpmcp.cmd` or `node gateway/dist/index.js local`). The Google sign-in returns to `http://127.0.0.1:<port>/admin/gsc/callback`, which only answers on this computer. The stdio MCP server reads the same stored sign-in from the shared data folder.
 - Not available through the API: the Core Web Vitals report and the Merchant listings report. Use `coverage`/`inspect` for indexing and rich-result problems per URL.
 - Disconnect in the panel, and remove the app at <https://myaccount.google.com/permissions> to revoke the token on Google's side.

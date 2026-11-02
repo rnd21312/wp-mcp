@@ -445,6 +445,18 @@ async function releaseScreen() {
 
 async function main() {
   startInput();
+  const missing = !built() || !existsSync(join(ROOT, 'gateway', 'node_modules')) || !existsSync(join(ROOT, 'panel', 'node_modules'));
+  if (missing) {
+    clear();
+    out(bold(cyan('WP MCP')));
+    out('First run: the packages are not installed or built yet.');
+    if (await confirm('Install and build now? It takes a few minutes.')) {
+      const ok = await rebuild();
+      out();
+      out(ok ? green('Ready.') : red('Build failed. Read the messages above; the menu has Rebuild to try again.'));
+      await pause();
+    }
+  }
   for (;;) {
     const up = await isUp();
     const header = [up ? green(`● running  ${BASE}/admin`) : yellow('○ stopped'), dim(`version ${version()}${built() ? '' : ' · not built yet'}`)];
@@ -502,7 +514,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   } else if (cli === 'doctor') for (const l of await doctor()) out(l);
   else if (cli === 'rebuild') process.exit((await rebuild()) ? 0 : 1);
   else if (cli === 'sites') {
-    if (!(await isUp())) out('The panel is not running. Run: start');
+    if (!(await isUp())) out('The panel is not running. Start it from the menu: wpmcp');
     else {
       const s = await loadSites(true);
       for (const x of s.sites) out(`${pad(x.name, 18)}${pad(x.status, 8)}${pad(x.wp_version || '?', 11)}${x.plugin_version || '?'}${olderThan(x.plugin_version || '0.0.0', s.version) ? ` (latest ${s.version})` : ''}`);

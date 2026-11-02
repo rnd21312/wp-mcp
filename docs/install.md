@@ -57,7 +57,7 @@ CLI helpers (same data folder): `wp-mcp add-site <url> <code>`, `wp-mcp create-k
 
 ### Local panel (no server, no domain)
 
-`start-local.cmd` (Windows) or `node gateway/dist/index.js local` starts the panel on `127.0.0.1:8787` and opens it. Use it to connect sites, run actions in the Workbench and copy the commands that connect Claude Code or Claude Desktop (stdio) to the same data folder.
+`wpmcp.cmd` (Windows, menu: Start the panel) or `node gateway/dist/index.js local` starts the panel on `127.0.0.1:8787` and opens it. Use it to connect sites, run actions in the Workbench and copy the commands that connect Claude Code or Claude Desktop (stdio) to the same data folder.
 
 ## 2. The plugin (on each WordPress site)
 

@@ -51,9 +51,9 @@ Claude.ai / Claude Code / Cursor / هر کلاینت MCP
 
 ## پنل وب محلی
 
-**همه‌چیز در یک منوی ترمینال:** روی `wpmcp.cmd` دوبار کلیک کنید (یا `npm run tui`): روشن و خاموش‌کردن پنل، وضعیت سایت‌ها و به‌روزرسانی bridge، اتصال سایت جدید، build، بررسی کامل و ابزار انتشار. همین کارها با دستور هم کار می‌کنند: `wpmcp status|start|stop|restart|sites|doctor|rebuild`.
+**همه‌چیز در یک منوی ترمینال:** روی `wpmcp.cmd` دوبار کلیک کنید (یا `npm run tui`؛ بار اول خودش نصب و build می‌کند): روشن و خاموش‌کردن پنل، وضعیت سایت‌ها و به‌روزرسانی bridge، اتصال سایت جدید، build، بررسی کامل و ابزار انتشار. همین کارها با دستور هم کار می‌کنند: `wpmcp status|start|stop|restart|sites|doctor|rebuild`.
 
-روی `start-local.cmd` دوبار کلیک کنید (یا `node gateway/dist/index.js local`): پنل در `http://127.0.0.1:8787/admin` باز می‌شود و فقط روی همین کامپیوتر گوش می‌دهد. فارسی (پیش‌فرض) و انگلیسی.
+از `wpmcp.cmd` شروع کنید (منو: روشن کردن پنل، بعد باز کردن در مرورگر؛ یا `node gateway/dist/index.js local`): پنل در `http://127.0.0.1:8787/admin` باز می‌شود و فقط روی همین کامپیوتر گوش می‌دهد. فارسی (پیش‌فرض) و انگلیسی.
 
 بدون رمز و توکن: فقط روی همین کامپیوتر جواب می‌دهد (Host محلی، همان origin، هدر اختصاصی؛ [docs/fa/security.md](docs/fa/security.md)). با React و Tailwind و **shadcn/ui**، تم تیره/روشن و راست‌به‌چپ.
 
@@ -63,7 +63,7 @@ Claude.ai / Claude Code / Cursor / هر کلاینت MCP
 * **اتصال هوش مصنوعی**: دکمه‌ی کپی برای Claude Code، Claude Desktop (stdio، بدون سرور)، Cursor و کلاینت‌های راه‌دور، پر شده برای نصب شما.
 * **دسترسی‌ها** (کلید API و برنامه‌های OAuth) و **فعالیت‌ها**.
 
-بار اول: `npm run setup` (نصب و build سرور و پنل)، بعد `start-local.cmd` یا `npm run local`.
+بار اول: `npm run setup` (نصب و build سرور و پنل)، بعد `wpmcp.cmd` یا `npm run local`.
 
 ## هوش مصنوعی چه کارهایی می‌تواند بکند
 
