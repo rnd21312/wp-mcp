@@ -49,6 +49,8 @@ Upload **one zip** (the Host Agent, PHP 8.1+) to any hosting: cPanel, DirectAdmi
 
 ## The local web panel
 
+**Everything in one terminal menu:** double-click `wpmcp.cmd` (or `npm run tui`): start/stop the panel, see your sites and update their bridge, connect a new site, rebuild, check everything, release tools. The same actions work as commands: `wpmcp status|start|stop|restart|sites|doctor|rebuild`.
+
 Double-click `start-local.cmd` (or `node gateway/dist/index.js local`): the panel opens at `http://127.0.0.1:8787/admin`, listening on this computer only. Persian (default) and English.
 
 No password and no token: it only answers on this computer (loopback host, same-origin, custom header; see docs/security.md). Built with React, Tailwind and **shadcn/ui**, dark/light, RTL.
