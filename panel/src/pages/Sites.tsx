@@ -10,13 +10,32 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ago, api, type Site, type State } from '@/lib/api';
 import { useI18n } from '@/lib/i18n';
+import { useSite } from '@/lib/site';
 
 export function Sites({ state, reload }: { state: State; reload: () => Promise<void> }) {
   const { t, lang } = useI18n();
+  const { run } = useSite();
   const [adding, setAdding] = useState(false);
   const [removing, setRemoving] = useState<Site | null>(null);
   const [busy, setBusy] = useState('');
   const levels = state.levels.map((l) => ({ value: l, label: l }));
+
+  const older = (a: string, b: string): boolean => {
+    const x = a.split('.').map(Number);
+    const y = b.split('.').map(Number);
+    for (let i = 0; i < 3; i++) if ((x[i] ?? 0) !== (y[i] ?? 0)) return (x[i] ?? 0) < (y[i] ?? 0);
+
+    return false;
+  };
+  const updateBridge = async (name: string): Promise<void> => {
+    setBusy(`up:${name}`);
+    const r = await run('maintain', 'update', { type: 'plugin', slug: 'wp-mcp-bridge/wp-mcp-bridge.php' }, { site: name, quiet: true, silent: true });
+    setBusy('');
+    if (r.ok) toast.success(t('Bridge updated', 'افزونه به‌روز شد'));
+    else if (!r.cancelled) toast.error(r.error?.message ?? 'Update failed', { description: t('Older bridges (before 2.3) cannot update themselves: upload the new zip once in WordPress.', 'افزونه‌های قدیمی‌تر از ۲.۳ خودشان را به‌روز نمی‌کنند: یک بار زیپ جدید را در وردپرس آپلود کنید.') });
+    await api.post('sites/test', { name });
+    await reload();
+  };
 
   const test = async (name: string): Promise<void> => {
     setBusy(name);
@@ -74,6 +93,11 @@ export function Sites({ state, reload }: { state: State; reload: () => Promise<v
                 <div className="flex flex-wrap gap-x-4 gap-y-1 text-muted-foreground">
                   <span>WordPress {s.wp_version || '?'}</span>
                   <span>Bridge {s.plugin_version || '?'}</span>
+                  {s.plugin_version && older(s.plugin_version, state.version) && (
+                    <Button size="xs" variant="outline" disabled={busy === `up:${s.name}`} onClick={() => void updateBridge(s.name)}>
+                      <DownloadIcon /> {t(`Update to ${state.version}`, `به‌روزرسانی به ${state.version}`)}
+                    </Button>
+                  )}
                   <span>{t('Last OK', 'آخرین موفق')}: {ago(s.last_ok, lang)}</span>
                 </div>
                 {s.status === 'error' && s.last_error && (

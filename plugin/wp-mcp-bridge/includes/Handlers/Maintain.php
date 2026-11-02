@@ -143,7 +143,12 @@ final class Maintain {
                 throw new BridgeError( 'not_found', 'Give slug as the plugin file, e.g. woocommerce/woocommerce.php.', 400 );
             }
             if ( plugin_basename( WPMCP_FILE ) === $slug ) {
-                throw new BridgeError( 'protected', 'The bridge does not update itself while it is running. Update it from the WordPress admin.', 400 );
+                // Only a newer release signed by the release key; every class is loaded first so the swap cannot mix versions.
+                if ( ! \WPMCP\Bridge\Updater::offered( true ) ) {
+                    throw new BridgeError( 'no_update', 'No newer signed bridge release is published (or this bridge has no release key). Upload the new zip from the WordPress admin instead.', 400 );
+                }
+                \WPMCP\Bridge\Updater::preload();
+                set_site_transient( 'update_plugins', \WPMCP\Bridge\Updater::inject( get_site_transient( 'update_plugins' ) ?: new \stdClass() ) );
             }
             $from   = get_plugins()[ $slug ]['Version'];
             $active = is_plugin_active( $slug );
@@ -163,7 +168,7 @@ final class Maintain {
         if ( is_wp_error( $result ) ) {
             throw new BridgeError( 'update_failed', $result->get_error_message(), 500, array( 'backup' => $backup['id'] ?? null ) );
         }
-        if ( false === $result ) {
+        if ( ! $result ) { // A failed download step makes upgrade() return an empty array, not false.
             throw new BridgeError( 'update_failed', 'The update did not run (nothing newer, or the files could not be replaced). ' . implode( ' ', array_map( 'wp_strip_all_tags', (array) $skin->get_upgrade_messages() ) ), 500 );
         }
         wp_clean_plugins_cache();

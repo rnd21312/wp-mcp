@@ -17,6 +17,26 @@ On the Hosts page an agent older than the Studio's release shows **Update agent*
 * Hosts without the `sodium` PHP extension cannot verify signatures and refuse updates (the host check tells you).
 * **Whoever holds the private key can run code on every agent that trusts it.** Keep it offline, back it up, never commit it. To rotate, ship a signed release that contains the new public key.
 
+## Bridge updates (plugin 2.3+)
+
+Installed bridges update through WordPress's own update system, from a signed release.
+
+```
+WPM_RELEASE_KEY=<folder>/wpm-release-private.pem npm run release
+gh release create v<version> dist/wp-mcp-bridge.zip dist/bridge-latest.json dist/wpm-agent.zip dist/wpm-agent.zip.sig dist/SHA256SUMS
+```
+
+`dist/bridge-latest.json` is `{version, package, sha256, signature}`; the signature is Ed25519 over `"wpm-bridge-update
+<version>
+<sha256>"` (so an old signed release cannot be replayed under a newer version number). Each bridge polls `releases/latest/download/bridge-latest.json` (cached six hours), and the site then shows "update available" in **Plugins**. Nothing installs by itself.
+
+* A person updates from **Plugins**, or the panel's **Sites → Update** button, or an AI with `maintain.update {type: plugin, slug: wp-mcp-bridge/wp-mcp-bridge.php}` (admin level, two-step confirmation).
+* Before WordPress touches any file the bridge downloads the zip itself and checks the SHA-256, the signature against the public key in `includes/UpdateKey.php`, that the version is newer, and that the zip only contains `wp-mcp-bridge/…`. Any failure stops the update with a reason and changes nothing.
+* The bridge loads all of its own classes first, so the file swap cannot mix two versions in one request. WordPress keeps the active state and rolls back a failed copy.
+* The same key as for agent updates is used (`npm run release:keygen -- <folder outside the repo>` writes the public key into both places). **Whoever holds the private key can run code on every site that trusts it.** Keep it offline and backed up.
+* Bridges older than 2.3 have no updater: install the 2.3 zip once by hand (**Plugins → Add New → Upload → Replace current**); updates are one click after that.
+* For a fork or a private mirror define `WPMCP_UPDATE_URL` in `wp-config.php` (https; http only when `WP_ENVIRONMENT_TYPE` is `local`).
+
 ## Check this host
 
 **Hosts → Check this host** runs the agent's self-test (writable data folder, atomic rename, locks, symlinks, zip unpacking, limits, sodium, database drivers, Node, outbound HTTPS to wordpress.org, each site's folder) and probes from outside whether the web can read `src/*.php`, `data-location.php`, `.htaccess` and the data folder. Each line is ok / warning / fail with a plain sentence. Run it on every new host and after changing PHP version.

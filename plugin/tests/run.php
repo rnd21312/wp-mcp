@@ -285,5 +285,43 @@ for ( $i = 0; $i < 50; $i++ ) {
 }
 check( 'builder: generated element ids are unique 7-char hex', 50 === count( $ids ) && 1 === preg_match( '/^[0-9a-f]{7}$/', (string) array_key_first( $ids ) ) );
 
+/* ------------------------------------------------------------ bridge updates */
+if ( ! function_exists( 'wp_get_environment_type' ) ) {
+    function wp_get_environment_type() { return 'production'; }
+}
+$U   = \WPMCP\Bridge\Updater::class;
+$sha = str_repeat( 'a', 64 );
+$ok  = array( 'version' => '9.9.9', 'package' => 'https://example.com/wp-mcp-bridge.zip', 'sha256' => $sha, 'signature' => 'c2ln' );
+check( 'updater: a complete https manifest is accepted', null !== $U::clean_manifest( $ok ) );
+check( 'updater: plain http is refused outside development', null === $U::clean_manifest( array_merge( $ok, array( 'package' => 'http://example.com/a.zip' ) ) ) );
+check( 'updater: a non-numeric version is refused', null === $U::clean_manifest( array_merge( $ok, array( 'version' => '1.0.0; drop' ) ) ) );
+check( 'updater: a malformed checksum is refused', null === $U::clean_manifest( array_merge( $ok, array( 'sha256' => 'zz' ) ) ) );
+check( 'updater: a manifest without a signature is refused', null === $U::clean_manifest( array_merge( $ok, array( 'signature' => '' ) ) ) );
+check( 'updater: junk is refused', null === $U::clean_manifest( 'nope' ) && null === $U::clean_manifest( null ) );
+
+$tmpzip = tempnam( sys_get_temp_dir(), 'wpmz' );
+file_put_contents( $tmpzip, 'PK-demo-bytes' );
+$real = hash_file( 'sha256', $tmpzip );
+$m    = array_merge( $ok, array( 'sha256' => $real ) );
+$key  = base64_encode( str_repeat( 'k', 32 ) );
+check( 'updater: no release key means no install', str_contains( (string) $U::check_package( $tmpzip, $m, '', '1.0.0' ), 'no release key' ) );
+check( 'updater: a downgrade is refused', str_contains( (string) $U::check_package( $tmpzip, array_merge( $m, array( 'version' => '1.0.0' ) ), $key, '2.0.0' ), 'not newer' ) );
+check( 'updater: an equal version is refused', null !== $U::check_package( $tmpzip, array_merge( $m, array( 'version' => '2.0.0' ) ), $key, '2.0.0' ) );
+check( 'updater: a changed download is refused by checksum', str_contains( (string) $U::check_package( $tmpzip, array_merge( $m, array( 'sha256' => $sha ) ), $key, '1.0.0' ), 'checksum' ) );
+if ( function_exists( 'sodium_crypto_sign_keypair' ) ) {
+    $pair = sodium_crypto_sign_keypair();
+    $pub  = base64_encode( sodium_crypto_sign_publickey( $pair ) );
+    $good = base64_encode( sodium_crypto_sign_detached( $U::CONTEXT . '9.9.9' . "\n" . $real, sodium_crypto_sign_secretkey( $pair ) ) );
+    check( 'updater: a correctly signed package passes', null === $U::check_package( $tmpzip, array_merge( $m, array( 'signature' => $good ) ), $pub, '2.0.0' ) );
+    $other = base64_encode( sodium_crypto_sign_detached( $U::CONTEXT . '9.9.8' . "\n" . $real, sodium_crypto_sign_secretkey( $pair ) ) );
+    check( 'updater: a signature for another version is refused (no replay of an old release)', null !== $U::check_package( $tmpzip, array_merge( $m, array( 'signature' => $other ) ), $pub, '2.0.0' ) );
+    $pair2 = sodium_crypto_sign_keypair();
+    check( 'updater: a signature by another key is refused', null !== $U::check_package( $tmpzip, array_merge( $m, array( 'signature' => $good ) ), base64_encode( sodium_crypto_sign_publickey( $pair2 ) ), '2.0.0' ) );
+} else {
+    check( 'updater: without sodium nothing is installed (signature tests need the extension; run them where WordPress loads sodium_compat)', str_contains( (string) $U::check_package( $tmpzip, $m, $key, '1.0.0' ), 'cannot verify' ) );
+}
+unlink( $tmpzip );
+check( 'updater: the repository ships a release public key', 44 === strlen( (string) ( include WPMCP_DIR . 'includes/UpdateKey.php' ) ) );
+
 echo "\n" . $pass . ' passed, ' . count( $failed ) . " failed\n";
 exit( $failed ? 1 : 0 );

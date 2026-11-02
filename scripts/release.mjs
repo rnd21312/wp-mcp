@@ -40,6 +40,19 @@ if (keyPath && existsSync(keyPath)) {
 } else {
   console.warn('WPM_RELEASE_KEY not set: the agent zip is NOT signed, so agents cannot self-update to this build.');
 }
+// bridge-latest.json is what installed bridges poll (releases/latest/download/bridge-latest.json). It carries the zip's
+// checksum and an Ed25519 signature over "wpm-bridge-update\n<version>\n<sha256>"; the bridge verifies both before installing.
+const bridgeVersion = /Version:\s+(\d+\.\d+\.\d+)/.exec(readFileSync(join(root, 'plugin', 'wp-mcp-bridge', 'wp-mcp-bridge.php'), 'utf8'))[1];
+const bridgeSha = createHash('sha256').update(readFileSync(join(dist, 'wp-mcp-bridge.zip'))).digest('hex');
+if (keyPath && existsSync(keyPath)) {
+  const repo = process.env.WPM_RELEASE_REPO || 'rnd21312/wp-mcp';
+  const signature = sign(null, Buffer.from(`wpm-bridge-update\n${bridgeVersion}\n${bridgeSha}`), createPrivateKey(readFileSync(keyPath))).toString('base64');
+  writeFileSync(join(dist, 'bridge-latest.json'), JSON.stringify({ version: bridgeVersion, package: `https://github.com/${repo}/releases/download/v${bridgeVersion}/wp-mcp-bridge.zip`, sha256: bridgeSha, signature }, null, 2) + '\n');
+  add('bridge-latest.json');
+  console.log(`Bridge ${bridgeVersion} signed (bridge-latest.json).`);
+} else {
+  console.warn('WPM_RELEASE_KEY not set: bridge-latest.json was not written, so installed bridges will not be offered this build.');
+}
 writeFileSync(join(dist, 'SHA256SUMS'), sums.join('\n') + '\n');
 
 // The Studio ships the signed zip next to itself and sends exactly these bytes when asked to update an agent.

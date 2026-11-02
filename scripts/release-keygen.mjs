@@ -36,4 +36,7 @@ const spki = createPublicKey(createPrivateKey(readFileSync(keyFile))).export({ t
 const raw = spki.subarray(spki.length - 32).toString('base64');
 const phpFile = join(root, 'agent', 'wpm-agent', 'src', 'UpdateKey.php');
 writeFileSync(phpFile, `<?php\ndeclare(strict_types=1);\n\ndefined('WPM_AGENT') || exit;\n\n// Public key (base64, 32 bytes, Ed25519) that agent updates must be signed with.\n// Empty = signed self-update is disabled. Create the pair with: npm run release:keygen -- <path outside this repository>\nreturn '${raw}';\n`);
-console.log(`Private key: ${keyFile}  (back it up; never commit it)\nPublic key written to ${phpFile}\n${raw}`);
+// The bridge plugin trusts the same key for its own updates.
+const bridgeFile = join(root, 'plugin', 'wp-mcp-bridge', 'includes', 'UpdateKey.php');
+writeFileSync(bridgeFile, `<?php\n/**\n * Public key (base64, 32 bytes, Ed25519) that bridge updates must be signed with. Empty = updates are never offered.\n * Written by: npm run release:keygen -- <path outside this repository>\n *\n * @package WPMCP\\Bridge\n */\n\ndeclare(strict_types=1);\n\ndefined( 'ABSPATH' ) || exit;\n\nreturn '${raw}';\n`);
+console.log(`Private key: ${keyFile}  (back it up; never commit it)\nPublic key written to ${phpFile} and ${bridgeFile}\n${raw}`);
