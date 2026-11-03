@@ -7,6 +7,7 @@ import { json } from './context.ts';
 import { handleMessage } from './mcp/server.ts';
 import { authorizationServer, checkAuthorize, consentPage, decide, issueCode, protectedResource, readAuthorize, register, revoke, silentGrant, tokenEndpoint } from './oauth.ts';
 import { esc, page, securityHeaders } from './html.ts';
+import { encodeScope } from './store.ts';
 
 const MCP_LIMIT = 16 * 1024 * 1024;
 const SMALL_LIMIT = 256 * 1024;
@@ -129,6 +130,14 @@ async function route(app: App, req: http.IncomingMessage, res: http.ServerRespon
   if (path === '/revoke' && method === 'POST') {
     const form = parseForm(await readBody(req, SMALL_LIMIT), type);
     return send(res, revoke(app, Object.fromEntries(form)));
+  }
+
+  if (path === '/authorize' && app.config.connectorLevel && method === 'GET') {
+    // Connector mode: this computer is the owner, there is no login. Approve every site at the chosen level.
+    const checked = checkAuthorize(app, readAuthorize(Object.fromEntries(url.searchParams)));
+    if ('reply' in checked) return send(res, checked.reply);
+    app.store.setGrant(checked.params.client_id, app.config.connectorLevel, encodeScope('*'));
+    return send(res, issueCode(app, checked.params, app.config.connectorLevel, '*'));
   }
 
   if (path === '/authorize') {

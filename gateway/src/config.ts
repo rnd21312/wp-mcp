@@ -2,6 +2,7 @@ import { randomBytes } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { isLevel, type Level } from './levels.ts';
 
 export interface Config {
   publicUrl: string;
@@ -16,6 +17,8 @@ export interface Config {
   trustProxy: boolean;
   /** Passwordless panel for this computer only (command "local"). */
   localPanel: boolean;
+  /** Remote connector without a login (Claude.ai through a tunnel): OAuth approves itself at this level for every site. Only with the local panel. */
+  connectorLevel?: Level;
   accessTtl: number;
   refreshTtl: number;
   refreshGrace: number;
@@ -60,6 +63,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env, overrides: Part
     allowInsecureSites: env.WPMCP_ALLOW_INSECURE_SITES === '1',
     trustProxy: env.WPMCP_TRUST_PROXY === '1',
     localPanel: env.WPMCP_LOCAL_PANEL === '1',
+    connectorLevel: env.WPMCP_LOCAL_PANEL === '1' && isLevel(env.WPMCP_CONNECTOR_LEVEL) ? env.WPMCP_CONNECTOR_LEVEL : undefined,
     accessTtl: num(env.WPMCP_ACCESS_TTL, 3600),
     refreshTtl: num(env.WPMCP_REFRESH_TTL, 180 * 86400),
     refreshGrace: num(env.WPMCP_REFRESH_GRACE, 600),

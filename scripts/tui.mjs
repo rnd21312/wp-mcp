@@ -2,7 +2,7 @@
 // everything, build and publish releases. No dependencies. Run: wpmcp.cmd  (or: npm run tui)
 // The same actions work without the menu:  node scripts/tui.mjs status | start | stop | restart | sites | doctor | rebuild
 import { execFileSync, spawn, spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, openSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, mkdirSync, openSync, readFileSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import readline from 'node:readline';
@@ -88,14 +88,14 @@ function isNodePid(pid) {
   }
 }
 
-export async function startPanel() {
+export async function startPanel(extraEnv = {}) {
   if (await isUp()) return { ok: true, note: 'Already running.' };
   if (!built()) return { ok: false, note: 'Not built yet. Choose "Rebuild" first.' };
   const busy = [PORT, PORT + 1].filter((p) => pidsOn(p).length);
   if (busy.length) return { ok: false, note: `Port ${busy.join(' and ')} is used by another program. Stop it first.` };
   mkdirSync(RUN_DIR, { recursive: true });
   const fd = openSync(LOG, 'a');
-  const child = spawn(process.execPath, [join(ROOT, 'gateway', 'dist', 'index.js'), 'local'], { cwd: ROOT, detached: true, windowsHide: true, stdio: ['ignore', fd, fd], env: { ...process.env, WPMCP_PUBLIC_URL: BASE } });
+  const child = spawn(process.execPath, [join(ROOT, 'gateway', 'dist', 'index.js'), 'local'], { cwd: ROOT, detached: true, windowsHide: true, stdio: ['ignore', fd, fd], env: { ...process.env, WPMCP_PUBLIC_URL: BASE, ...extraEnv } });
   child.unref();
   for (let i = 0; i < 40; i++) {
     await sleep(500);
@@ -106,6 +106,7 @@ export async function startPanel() {
 }
 
 export async function stopPanel() {
+  stopTunnel();
   const pids = [...new Set([...pidsOn(PORT), ...pidsOn(PORT + 1)])];
   if (!pids.length) return { ok: true, note: 'Not running.' };
   const left = [];
@@ -133,6 +134,80 @@ function openBrowser(url) {
   } catch {
     /* the URL is printed anyway */
   }
+}
+
+/* ------------------------------------------------------------------ Claude.ai connector (tunnel) */
+
+const TUNNEL_PID = join(RUN_DIR, 'tunnel.pid');
+const TUNNEL_LOG = join(RUN_DIR, 'tunnel.log');
+
+export const parseTunnelUrl = (text) => /https:\/\/[a-z0-9-]+\.trycloudflare\.com/i.exec(text)?.[0] ?? null;
+
+const hasCloudflared = () => {
+  try {
+    execFileSync('cloudflared', ['--version'], QUIET);
+
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+export function stopTunnel() {
+  try {
+    const pid = Number(readFileSync(TUNNEL_PID, 'utf8'));
+    if (pid) {
+      if (WIN) execFileSync('taskkill', ['/PID', String(pid), '/F', '/T'], { stdio: 'ignore' });
+      else process.kill(pid, 'SIGTERM');
+    }
+  } catch {
+    /* no tunnel running */
+  }
+  try {
+    unlinkSync(TUNNEL_PID);
+  } catch {
+    /* none */
+  }
+}
+
+/** Opens a public https address for this computer and restarts the panel so Claude.ai can connect to it without a login. */
+export async function startConnector(level = 'live') {
+  if (!built()) return { ok: false, note: 'Not built yet. Choose "Rebuild" first.' };
+  if (!hasCloudflared()) return { ok: false, note: 'cloudflared is not installed. Install it once (winget install Cloudflare.cloudflared), reopen the terminal, and try again.' };
+  await stopPanel();
+  mkdirSync(RUN_DIR, { recursive: true });
+  writeFileSync(TUNNEL_LOG, '');
+  const fd = openSync(TUNNEL_LOG, 'a');
+  const tunnel = spawn('cloudflared', ['tunnel', '--no-autoupdate', '--url', BASE], { detached: true, windowsHide: true, stdio: ['ignore', fd, fd] });
+  tunnel.unref();
+  writeFileSync(TUNNEL_PID, String(tunnel.pid));
+  let url = null;
+  for (let i = 0; i < 60 && !url; i++) {
+    await sleep(500);
+    url = parseTunnelUrl(readFileSync(TUNNEL_LOG, 'utf8'));
+  }
+  if (!url) {
+    stopTunnel();
+
+    return { ok: false, note: `The tunnel did not give an address in 30 seconds. See ${TUNNEL_LOG}` };
+  }
+  const r = await startPanel({ WPMCP_PUBLIC_URL: url, WPMCP_CONNECTOR_LEVEL: level, WPMCP_TRUST_PROXY: '1' });
+  if (!r.ok) {
+    stopTunnel();
+
+    return r;
+  }
+
+  return { ok: true, url: `${url}/mcp`, note: `Connector address: ${url}/mcp` };
+}
+
+async function connectorScreen() {
+  const pick = await menu('Claude.ai connector', [{ label: 'Start with level live', hint: 'recommended' }, { label: 'Start with level admin' }, { label: 'Start with level draft' }, { label: 'Stop the connector', hint: 'stops the tunnel and the panel' }, { label: dim('Back') }], [dim('Opens a temporary public https address for this computer. The address changes each time.'), dim('No login: anyone who knows the address can use your sites. Do not share it. Stop it when done.')]);
+  if (pick === -1 || pick === 4) return;
+  if (pick === 3) return show([green((await stopPanel()).note)]);
+  const r = await startConnector(pick === 0 ? 'live' : pick === 1 ? 'admin' : 'draft');
+  if (!r.ok) return show([red(r.note)]);
+  await show([green('Connector is on.'), '', `In Claude.ai: Settings → Connectors → Add custom connector, then paste:`, '', bold(r.url), '', dim(`Keep the panel running; Stop the connector when you finish.`)]);
 }
 
 /* ------------------------------------------------------------------ sites */
@@ -465,6 +540,7 @@ async function main() {
       { label: 'Open the panel in the browser' },
       { label: 'Sites', hint: 'status · update bridge · remove' },
       { label: 'Connect a new site' },
+      { label: 'Claude.ai connector', hint: 'tunnel · no login' },
       { label: 'Restart the panel' },
       { label: 'Panel log' },
       { label: 'Rebuild', hint: 'after updating the code, or the first time' },
@@ -473,7 +549,7 @@ async function main() {
       { label: dim('Quit'), hint: up ? 'the panel keeps running' : '' },
     ];
     const pick = await menu('WP MCP', items, header);
-    if (pick === -1 || pick === 9) break;
+    if (pick === -1 || pick === 10) break;
     if (pick === 0) {
       const r = up ? await stopPanel() : await startPanel();
       await show([r.ok ? green(r.note) : red(r.note)]);
@@ -488,14 +564,15 @@ async function main() {
       openBrowser(`${BASE}/admin`);
     } else if (pick === 2) await sitesScreen();
     else if (pick === 3) await connectScreen();
-    else if (pick === 4) {
+    else if (pick === 4) await connectorScreen();
+    else if (pick === 5) {
       await stopPanel();
       const r = await startPanel();
       await show([r.ok ? green(r.note) : red(r.note)]);
-    } else if (pick === 5) await logScreen();
-    else if (pick === 6) await rebuildScreen();
-    else if (pick === 7) await show([bold(cyan('Check everything')), '', ...(await doctor())]);
-    else if (pick === 8) await releaseScreen();
+    } else if (pick === 6) await logScreen();
+    else if (pick === 7) await rebuildScreen();
+    else if (pick === 8) await show([bold(cyan('Check everything')), '', ...(await doctor())]);
+    else if (pick === 9) await releaseScreen();
   }
   cleanup();
   clear();
@@ -508,7 +585,11 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   else if (cli === 'status') out((await isUp()) ? `running ${BASE}/admin` : 'stopped');
   else if (cli === 'start') out((await startPanel()).note);
   else if (cli === 'stop') out((await stopPanel()).note);
-  else if (cli === 'restart') {
+  else if (cli === 'connector') {
+    const r = await startConnector(process.argv[3] || 'live');
+    out(r.note);
+    if (!r.ok) process.exitCode = 1;
+  } else if (cli === 'restart') {
     await stopPanel();
     out((await startPanel()).note);
   } else if (cli === 'doctor') for (const l of await doctor()) out(l);
@@ -519,6 +600,6 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
       const s = await loadSites(true);
       for (const x of s.sites) out(`${pad(x.name, 18)}${pad(x.status, 8)}${pad(x.wp_version || '?', 11)}${x.plugin_version || '?'}${olderThan(x.plugin_version || '0.0.0', s.version) ? ` (latest ${s.version})` : ''}`);
     }
-  } else out('Usage: tui.mjs [status|start|stop|restart|sites|doctor|rebuild]');
+  } else out('Usage: tui.mjs [status|start|stop|restart|connector [level]|sites|doctor|rebuild]');
   if (cli) process.exit(0);
 }
