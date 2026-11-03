@@ -1,9 +1,70 @@
-import { Code, PageTitle } from '@/components/bits';
+import { useCallback, useEffect, useState } from 'react';
+import { toast } from 'sonner';
+import { Code, PageTitle, Pick } from '@/components/bits';
+import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { type State } from '@/lib/api';
+import { api, type State } from '@/lib/api';
 import { useI18n } from '@/lib/i18n';
 
 const slash = (s: string): string => s.replace(/\\/g, '/');
+
+interface ConnectorStatus {
+  on: boolean;
+  starting: boolean;
+  installed: boolean;
+  url?: string;
+  level?: string;
+}
+
+function ClaudeAi() {
+  const { t } = useI18n();
+  const [status, setStatus] = useState<ConnectorStatus | null>(null);
+  const [level, setLevel] = useState('live');
+  const [busy, setBusy] = useState(false);
+  const load = useCallback(async () => setStatus(await api.get<ConnectorStatus>('connector/status')), []);
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  const start = async (): Promise<void> => {
+    setBusy(true);
+    try {
+      const r = await api.post<{ ok: boolean; error?: { message: string } }>('connector/start', { level });
+      if (!r.ok) toast.error(r.error?.message ?? 'Failed');
+    } finally {
+      setBusy(false);
+      await load();
+    }
+  };
+  const stop = async (): Promise<void> => {
+    await api.post('connector/stop');
+    await load();
+  };
+
+  return (
+    <div className="space-y-3">
+      <p className="text-sm text-muted-foreground">{t('Connect Claude.ai to the sites on this computer, without a server or a login. A temporary public https address (Cloudflare tunnel) is opened and approval is automatic.', 'Claude.ai را بدون سرور و بدون لاگین به سایت‌های همین کامپیوتر وصل کنید. یک آدرس https عمومی موقت (تونل Cloudflare) باز می‌شود و تأیید خودکار است.')}</p>
+      {status && !status.installed && !status.on ? (
+        <>
+          <p className="text-sm text-destructive">{t('cloudflared is not installed. Install it once, then restart the panel:', 'cloudflared نصب نیست. یک بار نصب کنید و پنل را دوباره راه بیندازید:')}</p>
+          <Code>winget install Cloudflare.cloudflared</Code>
+        </>
+      ) : status?.on ? (
+        <>
+          <p className="text-sm">{t('On. In Claude.ai: Settings → Connectors → Add custom connector, paste:', 'روشن است. در Claude.ai: Settings ← Connectors ← Add custom connector، این را جایگذاری کنید:')}</p>
+          <Code>{status.url ?? ''}</Code>
+          <p className="text-sm text-muted-foreground">{t(`Level: ${status.level}. Anyone who knows this address can use your sites: do not share it, and stop it when done. The address changes next time.`, `سطح: ${status.level}. هر کسی این آدرس را بداند می‌تواند از سایت‌هایتان استفاده کند: آن را به کسی ندهید و پس از کار خاموشش کنید. دفعه‌ی بعد آدرس عوض می‌شود.`)}</p>
+          <Button variant="destructive" onClick={stop}>{t('Stop the connector', 'خاموش کردن کانکتور')}</Button>
+        </>
+      ) : (
+        <div className="flex items-center gap-2">
+          <Pick className="w-40" value={level} onChange={setLevel} options={['draft', 'live', 'admin'].map((l) => ({ value: l, label: l }))} />
+          <Button disabled={busy} onClick={start}>{busy ? t('Starting…', 'در حال راه‌اندازی…') : t('Start the connector', 'روشن کردن کانکتور')}</Button>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export function Connect({ state }: { state: State }) {
   const { t } = useI18n();
@@ -16,14 +77,19 @@ export function Connect({ state }: { state: State }) {
   return (
     <>
       <PageTitle title={t('Connect an AI app', 'اتصال برنامه‌ی هوش مصنوعی')} hint={t('Copy, paste, done. Everything is filled in for this installation.', 'کپی کنید، جایگذاری کنید، تمام. همه‌چیز برای همین نصب پر شده است.')} />
-      <Tabs defaultValue="code">
+      <Tabs defaultValue="claudeai">
         <TabsList>
+          <TabsTrigger value="claudeai">Claude.ai</TabsTrigger>
           <TabsTrigger value="code">Claude Code</TabsTrigger>
           <TabsTrigger value="desktop">Claude Desktop</TabsTrigger>
           <TabsTrigger value="remote">{t('Over the network', 'از راه شبکه')}</TabsTrigger>
           <TabsTrigger value="chatgpt">ChatGPT</TabsTrigger>
           <TabsTrigger value="others">{t('Gemini, Cursor, others', 'Gemini، Cursor، بقیه')}</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="claudeai" className="mt-4">
+          <ClaudeAi />
+        </TabsContent>
 
         <TabsContent value="code" className="mt-4 space-y-3">
           <p className="text-sm text-muted-foreground">{t('Runs the gateway on this computer when Claude Code needs it. No server, no domain. Run once in a terminal:', 'وقتی Claude Code لازم داشته باشد، gateway را روی همین کامپیوتر اجرا می‌کند. بدون سرور و دامنه. یک بار در ترمینال اجرا کنید:')}</p>

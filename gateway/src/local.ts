@@ -9,6 +9,7 @@ import { OPS, TOOLS } from './registry.ts';
 import { chat, PRESETS, sealKey } from './ai.ts';
 import { authUrl, disconnect, GscError, gscStatus, handleCallback, runGsc, saveClient } from './gsc.ts';
 import { previewInfo } from './preview.ts';
+import { connectorStatus, startConnector, stopConnector } from './connector.ts';
 import * as ws from './workspace.ts';
 import { addSite, testSite } from './siteadmin.ts';
 import { parseScope } from './store.ts';
@@ -158,6 +159,7 @@ async function api(app: App, req: LocalReq): Promise<Reply> {
     if (method === 'GET' && route === 'ws/status') return json(200, ws.status(app, String(query.get('site') ?? '')));
     if (method === 'GET' && route === 'ai/providers') return json(200, { providers: app.store.aiProviders().map((p) => ({ id: p.id, name: p.name, preset: p.preset, type: p.type, base_url: p.base_url, model: p.model, has_key: !!p.key_enc })), presets: PRESETS });
     if (method === 'GET' && route === 'activity') return json(200, { entries: app.store.activity({ limit: Math.min(200, Number(query.get('limit') ?? 100)) }) });
+    if (method === 'GET' && route === 'connector/status') return json(200, connectorStatus(app));
     if (method === 'GET' && route === 'gsc/status') return json(200, gscStatus(app));
     const studio = await studioApi(app, method, route, body);
     if (studio) return studio;
@@ -211,6 +213,11 @@ async function api(app: App, req: LocalReq): Promise<Reply> {
       }
       case 'sites/test':
         return json(200, await testSite(app, String(body.name)));
+      case 'connector/start':
+        return json(200, await startConnector(app, body.level, app.config.port));
+      case 'connector/stop':
+        stopConnector(app);
+        return json(200, { ok: true });
       case 'sites/remove':
         app.store.removeSite(String(body.name));
         return json(200, { ok: true });
