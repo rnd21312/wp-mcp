@@ -1,4 +1,5 @@
 import { spawn, execFileSync, type ChildProcess } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import type { App } from './context.ts';
 import { isLevel, type Level } from './levels.ts';
 
@@ -19,19 +20,25 @@ let starting = false;
 
 export const parseTunnelUrl = (text: string): string | null => /https:\/\/[a-z0-9-]+\.trycloudflare\.com/i.exec(text)?.[0] ?? null;
 
-function hasCloudflared(): boolean {
-  try {
-    execFileSync('cloudflared', ['--version'], { stdio: 'ignore' });
-    return true;
-  } catch {
-    return false;
+/** cloudflared on PATH, or where the Windows installer puts it (a terminal opened before the install does not see PATH changes). */
+export function findCloudflared(): string | null {
+  const candidates = ['cloudflared', ...(process.platform === 'win32' ? [`${process.env['ProgramFiles(x86)'] ?? 'C:/Program Files (x86)'}/cloudflared/cloudflared.exe`, `${process.env.ProgramFiles ?? 'C:/Program Files'}/cloudflared/cloudflared.exe`] : [])];
+  for (const c of candidates) {
+    if (c !== 'cloudflared' && !existsSync(c)) continue;
+    try {
+      execFileSync(c, ['--version'], { stdio: 'ignore' });
+      return c;
+    } catch {
+      /* try the next one */
+    }
   }
+  return null;
 }
 
 export const connectorStatus = (app: App): { on: boolean; starting: boolean; installed: boolean; url?: string; level?: Level } => ({
   on: !!running,
   starting,
-  installed: running ? true : hasCloudflared(),
+  installed: running ? true : findCloudflared() !== null,
   url: running ? `${running.url}/mcp` : undefined,
   level: running?.level ?? app.config.connectorLevel,
 });
@@ -56,11 +63,12 @@ export async function startConnector(app: App, level: unknown, port: number): Pr
   if (!app.config.localPanel) return fail('not_local', 'The connector is only available in the local panel.');
   if (running) return { ok: true, url: `${running.url}/mcp` };
   if (starting) return fail('busy', 'Already starting.');
-  if (!hasCloudflared()) return fail('no_cloudflared', 'cloudflared is not installed. Run: winget install Cloudflare.cloudflared (then restart the panel).');
+  const bin = findCloudflared();
+  if (!bin) return fail('no_cloudflared', 'cloudflared is not installed. Run: winget install Cloudflare.cloudflared (then restart the panel).');
   const chosen: Level = isLevel(level) ? level : 'live';
   starting = true;
   try {
-    const child = spawn('cloudflared', ['tunnel', '--no-autoupdate', '--url', `http://127.0.0.1:${port}`], { windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
+    const child = spawn(bin, ['tunnel', '--no-autoupdate', '--protocol', 'http2', '--url', `http://127.0.0.1:${port}`], { windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
     const url = await new Promise<string | null>((resolve) => {
       let text = '';
       const done = (value: string | null): void => {
@@ -71,7 +79,7 @@ export async function startConnector(app: App, level: unknown, port: number): Pr
       const feed = (chunk: Buffer): void => {
         text += chunk.toString('utf8');
         const found = parseTunnelUrl(text);
-        if (found) done(found);
+        if (found && /Registered tunnel connection/.test(text)) done(found); // the address exists before the tunnel is connected
       };
       child.stdout?.on('data', feed);
       child.stderr?.on('data', feed);

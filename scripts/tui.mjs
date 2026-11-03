@@ -143,14 +143,20 @@ const TUNNEL_LOG = join(RUN_DIR, 'tunnel.log');
 
 export const parseTunnelUrl = (text) => /https:\/\/[a-z0-9-]+\.trycloudflare\.com/i.exec(text)?.[0] ?? null;
 
-const hasCloudflared = () => {
-  try {
-    execFileSync('cloudflared', ['--version'], QUIET);
+const findCloudflared = () => {
+  const candidates = ['cloudflared', ...(WIN ? [join(process.env['ProgramFiles(x86)'] || 'C:/Program Files (x86)', 'cloudflared', 'cloudflared.exe'), join(process.env.ProgramFiles || 'C:/Program Files', 'cloudflared', 'cloudflared.exe')] : [])];
+  for (const c of candidates) {
+    if (c !== 'cloudflared' && !existsSync(c)) continue;
+    try {
+      execFileSync(c, ['--version'], QUIET);
 
-    return true;
-  } catch {
-    return false;
+      return c;
+    } catch {
+      /* try the next one */
+    }
   }
+
+  return null;
 };
 
 export function stopTunnel() {
@@ -173,18 +179,20 @@ export function stopTunnel() {
 /** Opens a public https address for this computer and restarts the panel so Claude.ai can connect to it without a login. */
 export async function startConnector(level = 'live') {
   if (!built()) return { ok: false, note: 'Not built yet. Choose "Rebuild" first.' };
-  if (!hasCloudflared()) return { ok: false, note: 'cloudflared is not installed. Install it once (winget install Cloudflare.cloudflared), reopen the terminal, and try again.' };
+  const bin = findCloudflared();
+  if (!bin) return { ok: false, note: 'cloudflared is not installed. Install it once (winget install Cloudflare.cloudflared), reopen the terminal, and try again.' };
   await stopPanel();
   mkdirSync(RUN_DIR, { recursive: true });
   writeFileSync(TUNNEL_LOG, '');
   const fd = openSync(TUNNEL_LOG, 'a');
-  const tunnel = spawn('cloudflared', ['tunnel', '--no-autoupdate', '--url', BASE], { detached: true, windowsHide: true, stdio: ['ignore', fd, fd] });
+  const tunnel = spawn(bin, ['tunnel', '--no-autoupdate', '--protocol', 'http2', '--url', BASE], { detached: true, windowsHide: true, stdio: ['ignore', fd, fd] });
   tunnel.unref();
   writeFileSync(TUNNEL_PID, String(tunnel.pid));
   let url = null;
   for (let i = 0; i < 60 && !url; i++) {
     await sleep(500);
-    url = parseTunnelUrl(readFileSync(TUNNEL_LOG, 'utf8'));
+    const text = readFileSync(TUNNEL_LOG, 'utf8');
+    url = /Registered tunnel connection/.test(text) ? parseTunnelUrl(text) : null; // the address exists before the tunnel is connected
   }
   if (!url) {
     stopTunnel();
