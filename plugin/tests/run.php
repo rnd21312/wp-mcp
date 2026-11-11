@@ -389,6 +389,48 @@ check( 'scaffold: bad base, slug and name are refused', 'bad_arguments' === $sca
 check( 'scaffold: dangerous token values and slugs are refused', 'bad_token' === $scaffold_error( array_merge( $okargs, array( 'tokens' => array( 'colors' => array( 'primary' => 'red;}</style>' ) ) ) ) ) && 'bad_token' === $scaffold_error( array_merge( $okargs, array( 'tokens' => array( 'fonts' => array( 'Bad Slug' => 'x' ) ) ) ) ) );
 check( 'scaffold: a Persian name is allowed', null === $scaffold_error( array_merge( $okargs, array( 'name' => 'فروشگاه من' ) ) ) );
 
+/* design system rules */
+use WPMCP\Bridge\DesignRules;
+$tk = array( 'colors' => array( 'primary' => '#0a7f5a', 'surface' => '#F1F5F9', 'brand-dark' => '#102030' ), 'fonts' => array( 'body' => 'Vazirmatn, Tahoma, sans-serif', 'heading' => '"Shabnam", sans-serif' ), 'font_sizes' => array( 'base' => '1rem' ), 'spacing' => array( 'm' => '1rem' ), 'content_width' => '1100px' );
+$tj = DesignRules::theme_json_merge( array( 'version' => 3, 'settings' => array( 'color' => array( 'palette' => array( array( 'slug' => 'primary', 'name' => 'Old', 'color' => '#000000' ), array( 'slug' => 'keep', 'name' => 'Keep', 'color' => '#111111' ) ) ), 'layout' => array( 'wideSize' => '1400px' ) ) ), $tk );
+$pal = array_column( $tj['settings']['color']['palette'], 'color', 'slug' );
+check( 'theme.json merge: same slug replaced, other entries kept, new ones added', '#0a7f5a' === $pal['primary'] && '#111111' === $pal['keep'] && '#102030' === $pal['brand-dark'] && 4 === count( $pal ) && 'Brand dark' === $tj['settings']['color']['palette'][3]['name'] );
+check( 'theme.json merge: fonts, sizes, spacing, content width land in the right places and wideSize survives', 'Vazirmatn, Tahoma, sans-serif' === $tj['settings']['typography']['fontFamilies'][0]['fontFamily'] && '1rem' === $tj['settings']['typography']['fontSizes'][0]['size'] && '1rem' === $tj['settings']['spacing']['spacingSizes'][0]['size'] && '1100px' === $tj['settings']['layout']['contentSize'] && '1400px' === $tj['settings']['layout']['wideSize'] );
+check( 'theme.json merge: an empty theme.json gets version 3', 3 === DesignRules::theme_json_merge( array(), $tk )['version'] );
+$kit = DesignRules::elementor_kit_merge( array( 'system_colors' => array( array( '_id' => 'primary', 'title' => 'Primary', 'color' => '#6EC1E4' ) ) ), $tk );
+check( 'elementor kit: system colors replaced, other colors added as wpm-<slug>', '#0a7f5a' === $kit['system_colors'][0]['color'] && 1 === count( $kit['system_colors'] ) && 'wpm-surface' === $kit['custom_colors'][0]['_id'] && 'wpm-brand-dark' === $kit['custom_colors'][1]['_id'] );
+check( 'elementor kit: body and heading fonts fill the text and primary system fonts with the first family', 'Vazirmatn' === $kit['system_typography'][0]['typography_font_family'] && 'text' === $kit['system_typography'][0]['_id'] && 'Shabnam' === $kit['system_typography'][1]['typography_font_family'] );
+check( 'colors are compared in one form', '#aabbcc' === DesignRules::normalize_color( '#ABC' ) && '#0a7f5a' === DesignRules::normalize_color( 'rgb(10, 127, 90)' ) && 'rgba(0,0,0,.5)' === DesignRules::normalize_color( 'rgba(0, 0, 0, .5)' ) );
+$css   = "/* #123456 in a comment */\n:root{--x:#ff0000}\n.a{color:#0A7F5A;background:var(--wpm-color-surface);font-family:Vazirmatn,sans-serif}\n.b{border:1px solid #f1f5f9;color:#abc}\n@media (max-width:600px){.c{color:#ABC;font-family:'Comic Sans MS',cursive}}\n.d{color:rgb(10,127,90);font-family:var(--wpm-font-body)}";
+$audit = DesignRules::css_audit( $css, $tk );
+$byv   = array_column( $audit['colors'], null, 'value' );
+check( 'css audit: hard-coded token colors point to their var()', 2 === $byv['#0a7f5a']['count'] && 'primary' === $byv['#0a7f5a']['token'] && 'var(--wpm-color-primary)' === $byv['#0a7f5a']['use'] && 'surface' === $byv['#f1f5f9']['token'] );
+check( 'css audit: colors that are no token are listed, variable definitions, var() uses and comments are not', 2 === $byv['#aabbcc']['count'] && null === $byv['#aabbcc']['token'] && ! isset( $byv['#ff0000'] ) && ! isset( $byv['#123456'] ) && 3 === count( $byv ) );
+$fv = array_column( $audit['fonts'], null, 'value' );
+check( 'css audit: fonts are matched by first family, var() fonts are skipped', 'body' === $fv['Vazirmatn']['token'] && null === $fv["'Comic Sans MS'"]['token'] && 2 === count( $fv ) );
+check( 'css audit: totals', 4 === $audit['on_token'] && 3 === $audit['off_token'] );
+$pat_err = static function ( array $given ): ?string {
+    try {
+        DesignRules::pattern_render( '<p>{{a}}</p>', array( 'a' => 'x' ), $given );
+    } catch ( \WPMCP\Bridge\BridgeError $e ) {
+        return $e->error_code;
+    }
+
+    return null;
+};
+check( 'patterns: texts are escaped, unknown names and long texts are refused', '<p>&lt;b&gt;hi&lt;/b&gt;</p>' === DesignRules::pattern_render( '<p>{{a}}</p>', array( 'a' => 'x' ), array( 'a' => '<b>hi</b>' ) ) && 'bad_arguments' === $pat_err( array( 'zzz' => 'y' ) ) && 'bad_arguments' === $pat_err( array( 'a' => str_repeat( 'x', 301 ) ) ) );
+$pat_all = true;
+foreach ( glob( WPMCP_DIR . 'scaffold/patterns/*.json' ) as $pf ) {
+    $pm      = json_decode( (string) file_get_contents( $pf ), true );
+    $markup  = (string) file_get_contents( preg_replace( '/\.json$/', '.html', $pf ) );
+    preg_match_all( '/\{\{([a-z0-9_]+)\}\}/', $markup, $used );
+    foreach ( array( 'en', 'fa' ) as $lang ) {
+        $pat_all = $pat_all && array() === array_diff( array_unique( $used[1] ), array_keys( $pm['text'][ $lang ] ) ) && ! str_contains( DesignRules::pattern_render( $markup, $pm['text'][ $lang ], array() ), '{{' );
+    }
+    $pat_all = $pat_all && substr_count( $markup, '<!-- wp:' ) === substr_count( $markup, '<!-- /wp:' ) + substr_count( $markup, '/-->' );
+}
+check( 'patterns: all five ship with English and Persian texts for every placeholder, and balanced block comments', 5 === count( glob( WPMCP_DIR . 'scaffold/patterns/*.json' ) ) && $pat_all );
+
 /* plugin scaffold */
 $pp = \WPMCP\Bridge\Handlers\PluginScaffold::plan( array( 'slug' => 'my-tool', 'name' => 'My Tool', 'description' => 'Does a thing.', 'features' => array( 'admin_page', 'shortcode', 'rest', 'cpt' ) ) );
 $pp_paths = array_column( $pp['files'], 'path' );

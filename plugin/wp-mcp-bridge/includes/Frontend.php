@@ -23,6 +23,7 @@ final class Frontend {
         add_filter( 'wp_robots', array( self::class, 'robots' ), 20 );
         add_filter( 'robots_txt', array( self::class, 'robots_txt' ), 20, 2 );
         add_filter( 'wp_theme_json_data_user', array( self::class, 'theme_json' ) );
+        add_action( 'init', array( Handlers\DesignSystem::class, 'register_patterns' ) );
         add_action( 'plugins_loaded', array( self::class, 'marks' ) ); // wp_salt() is pluggable: not defined while plugins load.
         add_filter( 'wp_sitemaps_enabled', static fn ( $on ) => 'off' === get_option( 'wpm_sitemap', 'default' ) ? false : $on );
     }

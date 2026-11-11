@@ -1,0 +1,29 @@
+{
+ "title": "Features",
+ "description": "Three columns with a title and a short text each.",
+ "keywords": [
+  "features",
+  "benefits",
+  "services"
+ ],
+ "text": {
+  "en": {
+   "title": "Why choose us",
+   "f1_title": "Fast",
+   "f1_text": "Pages that load quickly on every device.",
+   "f2_title": "Reliable",
+   "f2_text": "Built to stay up and easy to maintain.",
+   "f3_title": "Yours",
+   "f3_text": "You own the content and the design."
+  },
+  "fa": {
+   "title": "چرا ما؟",
+   "f1_title": "سریع",
+   "f1_text": "صفحه‌هایی که روی هر دستگاه زود باز می‌شوند.",
+   "f2_title": "قابل اعتماد",
+   "f2_text": "پایدار و آسان برای نگهداری.",
+   "f3_title": "مال شما",
+   "f3_text": "محتوا و طراحی در اختیار خود شماست."
+  }
+ }
+}

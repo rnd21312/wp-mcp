@@ -78,6 +78,17 @@ describe('names the AI guesses', () => {
     expect(gate.data.needs_confirmation).toBe(true);
   });
 
+  it('design system actions: audit and patterns are read-only, sync is confirmed when the site says so', async () => {
+    const r = await tool(env, key(env, 'read'), 'design', { action: 'pattern_get', args: { name: 'hero', text: { headline: 'Hi' } } });
+    expect(r.isError).toBe(false);
+    expect(last('design.pattern_get').args).toEqual({ name: 'hero', text: { headline: 'Hi' } });
+    expect((await tool(env, key(env, 'read'), 'design', { action: 'tokens_audit' })).isError).toBe(false);
+    expect((await tool(env, key(env, 'read'), 'design', { action: 'tokens_sync' })).data.error.code).toBe('level_too_low');
+    env.sites.alpha.answers['design.tokens_sync'] = (_args, c) => (c.dry_run ? { needs_confirmation: true } : { synced: {} });
+    const gate = await tool(env, key(env, 'admin'), 'design', { action: 'tokens_sync' });
+    expect(gate.data.needs_confirmation).toBe(true);
+  });
+
   it('turns {name, value} into one option', async () => {
     const k = key(env, 'admin');
     await tool(env, k, 'options', { action: 'set', args: { name: 'blogname', value: 'Shop' }, dry_run: true });

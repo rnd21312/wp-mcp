@@ -440,6 +440,68 @@
    "escalates": null
   },
   {
+   "id": "design.tokens_sync",
+   "tool": "design",
+   "action": "tokens_sync",
+   "level": "live",
+   "summary": "Write the site design tokens into the active block theme's theme.json (palette, fonts, sizes, spacing, content width; same slugs replaced, others kept) and into the Elementor kit (Global Colors and Fonts). theme.json needs admin and confirmation; the old file is kept for undo.",
+   "params": {
+    "target": "enum:all,theme_json,elementor|Default all (whatever applies to this site)"
+   },
+   "required": [],
+   "write": true,
+   "confirm": "maybe",
+   "untrusted": false,
+   "escalates": "admin"
+  },
+  {
+   "id": "design.tokens_audit",
+   "tool": "design",
+   "action": "tokens_audit",
+   "level": "read",
+   "summary": "Find colors and fonts written directly in the site CSS (bridge CSS sections, Additional CSS, theme style.css) instead of through the tokens: values that equal a token (use var(--wpm-color-x)) and values that are not tokens at all, with counts and an example selector.",
+   "params": {},
+   "required": [],
+   "write": false,
+   "confirm": false,
+   "untrusted": false,
+   "escalates": null
+  },
+  {
+   "id": "design.patterns_list",
+   "tool": "design",
+   "action": "patterns_list",
+   "level": "read",
+   "summary": "Bundled block patterns that follow the design tokens: hero, features, pricing, contact, footer, with their editable texts (English or Persian).",
+   "params": {
+    "lang": "enum:en,fa|Default: the site language"
+   },
+   "required": [],
+   "write": false,
+   "confirm": false,
+   "untrusted": false,
+   "escalates": null
+  },
+  {
+   "id": "design.pattern_get",
+   "tool": "design",
+   "action": "pattern_get",
+   "level": "read",
+   "summary": "Block markup of one bundled pattern with your texts filled in, ready for content.save. The same patterns are in the editor inserter under \"WP MCP\".",
+   "params": {
+    "name": "string|hero, features, pricing, contact or footer",
+    "text": "object|Texts by name from patterns_list, e.g. {headline, subtitle, button, button_url}",
+    "lang": "enum:en,fa|Default: the site language"
+   },
+   "required": [
+    "name"
+   ],
+   "write": false,
+   "confirm": false,
+   "untrusted": false,
+   "escalates": null
+  },
+  {
    "id": "design.css_get",
    "tool": "design",
    "action": "css_get",

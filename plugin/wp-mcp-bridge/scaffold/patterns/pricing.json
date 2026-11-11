@@ -1,0 +1,39 @@
+{
+ "title": "Pricing",
+ "description": "Three plans side by side, each with a name, price, short text and button.",
+ "keywords": [
+  "pricing",
+  "plans",
+  "price"
+ ],
+ "text": {
+  "en": {
+   "title": "Pricing",
+   "p1_name": "Basic",
+   "p1_price": "$9",
+   "p1_text": "For getting started.",
+   "p2_name": "Standard",
+   "p2_price": "$29",
+   "p2_text": "For growing teams.",
+   "p3_name": "Pro",
+   "p3_price": "$79",
+   "p3_text": "For everything else.",
+   "button": "Choose",
+   "button_url": "#contact"
+  },
+  "fa": {
+   "title": "تعرفه‌ها",
+   "p1_name": "پایه",
+   "p1_price": "۹۰۰,۰۰۰ تومان",
+   "p1_text": "برای شروع.",
+   "p2_name": "استاندارد",
+   "p2_price": "۲,۹۰۰,۰۰۰ تومان",
+   "p2_text": "برای تیم‌های در حال رشد.",
+   "p3_name": "حرفه‌ای",
+   "p3_price": "۷,۹۰۰,۰۰۰ تومان",
+   "p3_text": "برای همه‌چیز.",
+   "button": "انتخاب",
+   "button_url": "#contact"
+  }
+ }
+}

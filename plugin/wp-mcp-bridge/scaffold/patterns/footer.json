@@ -1,0 +1,17 @@
+{
+ "title": "Footer",
+ "description": "Dark footer with a name line and a copyright line.",
+ "keywords": [
+  "footer"
+ ],
+ "text": {
+  "en": {
+   "name": "Your company",
+   "copyright": "All rights reserved."
+  },
+  "fa": {
+   "name": "نام کسب‌وکار",
+   "copyright": "تمامی حقوق محفوظ است."
+  }
+ }
+}

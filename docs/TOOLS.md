@@ -1,6 +1,6 @@
 # Tools reference
 
-Generated from `spec/ops.json` (172 site actions + gateway actions). Every tool is called as `{site, action, args, dry_run?, confirm_token?, idempotency_key?}`.
+Generated from `spec/ops.json` (176 site actions + gateway actions). Every tool is called as `{site, action, args, dry_run?, confirm_token?, idempotency_key?}`.
 
 Levels: **read** < **draft** < **live** < **admin**. `A>B` means the action starts at A and the site raises it to B from the real target (for example editing a published page). **confirm** = two-step: the first call returns a preview and a `confirm_token`, nothing changes until it is repeated with the token. **site content** = the result contains text written on the website (treated as untrusted).
 
@@ -46,6 +46,10 @@ Levels: **read** < **draft** < **live** < **admin**. `A>B` means the action star
 |---|---|---|---|
 | `tokens_get` | read |  | Design tokens: colors, fonts, font sizes, spacing, layout widths (theme.json + site tokens). |
 | `tokens_set` | live | `colors, fonts, font_sizes, spacing, radius, content_width` | Merge design tokens. Emitted as CSS variables (--wpm-*) and, on block themes, merged into Global Styles. *(write)* |
+| `tokens_sync` | live>admin | `target` | Write the site design tokens into the active block theme's theme.json (palette, fonts, sizes, spacing, content width; same slugs replaced, others kept) and into the Elementor kit (Global Colors and Fonts). theme.json needs admin and confirmation; the old file is kept for undo. *(confirm if risky, write)* |
+| `tokens_audit` | read |  | Find colors and fonts written directly in the site CSS (bridge CSS sections, Additional CSS, theme style.css) instead of through the tokens: values that equal a token (use var(--wpm-color-x)) and values that are not tokens at all, with counts and an example selector. |
+| `patterns_list` | read | `lang` | Bundled block patterns that follow the design tokens: hero, features, pricing, contact, footer, with their editable texts (English or Persian). |
+| `pattern_get` | read | `name*, text, lang` | Block markup of one bundled pattern with your texts filled in, ready for content.save. The same patterns are in the editor inserter under "WP MCP". |
 | `css_get` | read | `section` | Additional CSS (named sections) as stored. |
 | `css_set` | live | `css*, section, mode` | Write CSS into a named section (replace, append or prepend). Other sections are untouched. *(write)* |
 | `css_remove` | live | `section*` | Remove a CSS section. *(write)* |

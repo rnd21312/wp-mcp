@@ -1,0 +1,23 @@
+{
+ "title": "Hero",
+ "description": "Centered headline, subtitle and one button.",
+ "keywords": [
+  "hero",
+  "banner",
+  "header"
+ ],
+ "text": {
+  "en": {
+   "headline": "Build something people love",
+   "subtitle": "One clear sentence about what you offer and who it is for.",
+   "button": "Get started",
+   "button_url": "#contact"
+  },
+  "fa": {
+   "headline": "کسب‌وکارتان را حرفه‌ای معرفی کنید",
+   "subtitle": "یک جمله‌ی روشن درباره‌ی آنچه ارائه می‌دهید و برای چه کسی.",
+   "button": "شروع کنید",
+   "button_url": "#contact"
+  }
+ }
+}

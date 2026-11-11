@@ -830,6 +830,46 @@ final class Design {
      * @param array<string, mixed> $a Arguments.
      * @return array<string, mixed>
      */
+    public static function preview_tokens_sync( array $a, Context $c ): array {
+        return DesignSystem::preview_sync( $a, $c );
+    }
+
+    /**
+     * @param array<string, mixed> $a Arguments.
+     * @return array<string, mixed>
+     */
+    public static function op_tokens_sync( array $a, Context $c ): array {
+        return DesignSystem::sync( $a, $c );
+    }
+
+    /**
+     * @param array<string, mixed> $a Arguments.
+     * @return array<string, mixed>
+     */
+    public static function op_tokens_audit( array $a, Context $c ): array {
+        return DesignSystem::audit( $a, $c );
+    }
+
+    /**
+     * @param array<string, mixed> $a Arguments.
+     * @return array<string, mixed>
+     */
+    public static function op_patterns_list( array $a, Context $c ): array {
+        return DesignSystem::patterns_list( $a, $c );
+    }
+
+    /**
+     * @param array<string, mixed> $a Arguments.
+     * @return array<string, mixed>
+     */
+    public static function op_pattern_get( array $a, Context $c ): array {
+        return DesignSystem::pattern_get( $a, $c );
+    }
+
+    /**
+     * @param array<string, mixed> $a Arguments.
+     * @return array<string, mixed>
+     */
     public static function op_theme_bases( array $a, Context $c ): array {
         return Scaffold::bases_info( $a, $c );
     }

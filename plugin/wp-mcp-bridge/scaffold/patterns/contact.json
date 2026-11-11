@@ -1,0 +1,23 @@
+{
+ "title": "Contact",
+ "description": "Heading, contact details and an email button. For a form, put a form shortcode block below it.",
+ "keywords": [
+  "contact",
+  "email",
+  "phone"
+ ],
+ "text": {
+  "en": {
+   "title": "Get in touch",
+   "details": "hello@example.com  |  +1 555 0100",
+   "button": "Email us",
+   "button_url": "mailto:hello@example.com"
+  },
+  "fa": {
+   "title": "تماس با ما",
+   "details": "info@example.com  |  ۰۲۱-۱۲۳۴۵۶۷۸",
+   "button": "ارسال ایمیل",
+   "button_url": "mailto:info@example.com"
+  }
+ }
+}
