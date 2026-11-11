@@ -284,6 +284,9 @@ const ARG_ALIASES: Record<string, string[]> = {
   length: ['max_bytes'],
   max_length: ['max_bytes'],
   element_id: ['element'],
+  files: ['items'],
+  downloads: ['items'],
+  urls: ['items'],
 };
 
 /** Action names models often guess, per tool. */

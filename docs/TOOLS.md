@@ -1,6 +1,6 @@
 # Tools reference
 
-Generated from `spec/ops.json` (160 site actions + gateway actions). Every tool is called as `{site, action, args, dry_run?, confirm_token?, idempotency_key?}`.
+Generated from `spec/ops.json` (161 site actions + gateway actions). Every tool is called as `{site, action, args, dry_run?, confirm_token?, idempotency_key?}`.
 
 Levels: **read** < **draft** < **live** < **admin**. `A>B` means the action starts at A and the site raises it to B from the real target (for example editing a published page). **confirm** = two-step: the first call returns a preview and a `confirm_token`, nothing changes until it is repeated with the token. **site content** = the result contains text written on the website (treated as untrusted).
 
@@ -219,6 +219,7 @@ Levels: **read** < **draft** < **live** < **admin**. `A>B` means the action star
 | `move` | admin | `root*, from*, to*` | Move or rename a file inside a root (2 MB max, undoable). *(confirm, write)* |
 | `copy` | admin | `root*, from*, to*` | Copy a file inside a root (2 MB max). *(write)* |
 | `fetch` | admin | `root*, path*, url*` | Download an https file (font, image, script; 20 MB max) straight into a root. Redirects are re-checked. *(confirm, write)* |
+| `fetch_many` | admin | `root*, items*` | Download up to 25 https files (fonts, images, scripts; 20 MB each, 100 MB together) into one root with one confirmation. Each file is checked and saved on its own (undoable); failures are listed and do not undo the others. Items left when the size or time budget ends come back as not_started: send them again. *(confirm, write)* |
 | `unzip` | admin | `root*, url*, path, strip_top` | Download a zip and extract it into a root (whole theme or plugin, assets). Known text/media types only; existing files are replaced; not syntax-checked. *(confirm, write)* |
 | `upload_part` | admin | `root*, path*, upload*, data_base64*, offset, last` | One piece of a large non-PHP file (64 MB in total), in order; the last piece puts the file in place. The gateway uses this for files.write with local_path; calling it by hand is rarely needed. *(confirm, write)* |
 | `delete` | admin | `root*, path*` | Delete a file permanently. *(confirm, write)* |

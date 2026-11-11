@@ -22,6 +22,18 @@ describe('names the AI guesses', () => {
     expect(last('rest.call').args).toEqual({ method: 'GET', path: '/wp/v2/posts', query: { per_page: 3 } });
   });
 
+  it('downloads several files with one confirmation (fetch_many), also when the list is called files', async () => {
+    const k = key(env, 'admin');
+    const items = [
+      { url: 'https://fonts.example/a.woff2', path: 'assets/a.woff2' },
+      { url: 'https://img.example/b.png', path: 'assets/b.png' },
+    ];
+    const first = await tool(env, k, 'files', { action: 'fetch_many', args: { root: 'themes/x', files: items } });
+    expect(first.data.needs_confirmation).toBe(true);
+    await tool(env, k, 'files', { action: 'fetch_many', confirm_token: first.data.confirm_token });
+    expect(last('files.fetch_many').args).toEqual({ root: 'themes/x', items });
+  });
+
   it('turns {name, value} into one option', async () => {
     const k = key(env, 'admin');
     await tool(env, k, 'options', { action: 'set', args: { name: 'blogname', value: 'Shop' }, dry_run: true });

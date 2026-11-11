@@ -2738,6 +2738,25 @@
    "escalates": null
   },
   {
+   "id": "files.fetch_many",
+   "tool": "files",
+   "action": "fetch_many",
+   "level": "admin",
+   "summary": "Download up to 25 https files (fonts, images, scripts; 20 MB each, 100 MB together) into one root with one confirmation. Each file is checked and saved on its own (undoable); failures are listed and do not undo the others. Items left when the size or time budget ends come back as not_started: send them again.",
+   "params": {
+    "root": "string|See files.list",
+    "items": "array|[{url, path}] with https URLs and target paths inside the root"
+   },
+   "required": [
+    "root",
+    "items"
+   ],
+   "write": true,
+   "confirm": true,
+   "untrusted": false,
+   "escalates": null
+  },
+  {
    "id": "files.unzip",
    "tool": "files",
    "action": "unzip",

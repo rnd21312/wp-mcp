@@ -11,6 +11,8 @@
 - WordPress core files can be edited when the site owner switches it on in Tools > WP MCP Bridge (off by default).
 - Fixed: `files.write` could not create a new theme or plugin folder.
 
+- `files.fetch_many`: download up to 25 https files (20 MB each, 100 MB together) into a root with one confirmation instead of one per file. Each file is saved and undoable on its own; failures are listed.
+
 ### Easier for AI clients
 - Argument and action aliases, `describe` on any tool, wp-content paths as roots.
 - A confirmed call sends the token alone; the arguments are remembered.

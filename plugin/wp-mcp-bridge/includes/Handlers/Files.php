@@ -786,8 +786,20 @@ final class Files {
         self::guard_self( $root );
         [ $dir, $up ] = self::root( $root, 'plan' );
         $path         = trim( str_replace( '\\', '/', (string) $a['path'] ), '/' );
-        $full         = self::full( $dir, $up, $path, false, true );
-        $got          = Util::download( (string) $a['url'], 20971521 );
+        $done         = self::fetch_one( $root, $dir, $up, $path, (string) $a['url'], $c );
+        $c->summary   = "downloaded into $root/$path ({$done['bytes']} bytes)";
+
+        return $done;
+    }
+
+    /**
+     * One download into a root: size and PHP syntax checked, previous content kept for undo.
+     *
+     * @return array<string, mixed>
+     */
+    private static function fetch_one( string $root, string $dir, bool $up, string $path, string $url, Context $c ): array {
+        $full = self::full( $dir, $up, $path, false, true );
+        $got  = Util::download( $url, 20971521 );
         if ( strlen( $got['body'] ) > 20971520 || '' === $got['body'] ) {
             throw new BridgeError( 'bad_size', 'The download is empty or larger than 20 MB.', 400 );
         }
@@ -797,9 +809,62 @@ final class Files {
         $before = self::snapshot( $root, $path, $full );
         self::put( $full, $got['body'] );
         Revisions::record( $c, 'xfile', "$root|$path", $before );
-        $c->summary = "downloaded into $root/$path (" . strlen( $got['body'] ) . ' bytes)';
 
         return array( 'root' => $root, 'path' => $path, 'bytes' => strlen( $got['body'] ), 'source' => $got['url'] );
+    }
+
+    /**
+     * @param array<string, mixed> $a Arguments.
+     * @return array<string, mixed>
+     */
+    public static function preview_fetch_many( array $a, Context $c ): array {
+        $rows = array();
+        foreach ( Policy::fetch_plan( $a['items'] ?? null ) as $item ) {
+            $problem = Policy::url_problem( $item['url'] );
+            $rows[]  = array( 'will_download' => $item['url'], 'into' => $a['root'] . '/' . $item['path'], 'allowed' => null === $problem, 'problem' => $problem );
+        }
+
+        return array( 'downloads' => $rows, 'count' => count( $rows ), 'rules' => 'https only, redirects re-checked, no private addresses, max 20 MB each and ' . self::FETCH_MANY_BYTES / 1048576 . ' MB together, allowed file types only. Each file is checked and saved on its own: a failed one does not undo the others.' );
+    }
+
+    /** Most bytes one files.fetch_many call downloads, and the seconds after which it stops starting new downloads. */
+    private const FETCH_MANY_BYTES   = 100 * 1048576;
+    private const FETCH_MANY_SECONDS = 100;
+
+    /**
+     * Downloads up to 25 https files into one root with one confirmation (fonts, images, scripts for a theme). Not all or nothing:
+     * every file is saved (and undoable) on its own, failures are listed. When the size or time budget runs out the rest is
+     * reported as "not_started" so the caller can send them again.
+     *
+     * @param array<string, mixed> $a Arguments.
+     * @return array<string, mixed>
+     */
+    public static function op_fetch_many( array $a, Context $c ): array {
+        $root = (string) $a['root'];
+        self::guard_self( $root );
+        [ $dir, $up ] = self::root( $root, 'plan' );
+        $plan         = Policy::fetch_plan( $a['items'] ?? null );
+        @set_time_limit( 170 ); // phpcs:ignore WordPress.PHP.NoSilencedErrors
+        $started = time();
+        $total        = 0;
+        $results      = array();
+        foreach ( $plan as $item ) {
+            if ( $total >= self::FETCH_MANY_BYTES || time() - $started > self::FETCH_MANY_SECONDS ) {
+                $results[] = array( 'path' => $item['path'], 'source' => $item['url'], 'ok' => false, 'error' => 'not_started', 'message' => 'The size or time budget of this call ran out. Send this item again in a new call.' );
+                continue;
+            }
+            try {
+                $done      = self::fetch_one( $root, $dir, $up, $item['path'], $item['url'], $c );
+                $total    += (int) $done['bytes'];
+                $results[] = array( 'path' => $done['path'], 'bytes' => $done['bytes'], 'source' => $done['source'], 'ok' => true );
+            } catch ( BridgeError $e ) {
+                $results[] = array( 'path' => $item['path'], 'source' => $item['url'], 'ok' => false, 'error' => $e->error_code, 'message' => $e->getMessage() );
+            }
+        }
+        $ok         = count( array_filter( $results, static fn ( array $r ): bool => $r['ok'] ) );
+        $c->summary = "downloaded $ok of " . count( $results ) . " files into $root";
+
+        return array( 'root' => $root, 'downloaded' => $ok, 'failed' => count( $results ) - $ok, 'bytes' => $total, 'files' => $results );
     }
 
     /**

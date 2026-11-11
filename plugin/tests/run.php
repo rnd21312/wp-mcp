@@ -352,6 +352,22 @@ if ( function_exists( 'sodium_crypto_sign_keypair' ) ) {
 unlink( $tmpzip );
 check( 'updater: the repository ships a release public key', 44 === strlen( (string) ( include WPMCP_DIR . 'includes/UpdateKey.php' ) ) );
 
+
+/* files.fetch_many: the list is checked before anything is downloaded */
+$plan = Policy::fetch_plan( array( array( 'url' => 'https://a.test/x.woff2', 'path' => '/assets\\x.woff2' ), array( 'url' => ' https://a.test/y.png ', 'path' => 'assets/y.png' ) ) );
+check( 'fetch_many: paths are normalised and urls trimmed', 'assets/x.woff2' === $plan[0]['path'] && 'https://a.test/y.png' === $plan[1]['url'] );
+$refused = static function ( $items ): ?string {
+    try {
+        Policy::fetch_plan( $items );
+    } catch ( \WPMCP\Bridge\BridgeError $e ) {
+        return $e->error_code;
+    }
+
+    return null;
+};
+check( 'fetch_many: empty, oversize and malformed lists are refused', 'bad_arguments' === $refused( array() ) && 'bad_arguments' === $refused( 'x' ) && 'bad_arguments' === $refused( array_fill( 0, 26, array( 'url' => 'https://a.test/x', 'path' => 'p' ) ) ) && 'bad_arguments' === $refused( array( array( 'url' => 'https://a.test/x' ) ) ) );
+check( 'fetch_many: the same target twice (any case) is refused', 'bad_arguments' === $refused( array( array( 'url' => 'https://a.test/1', 'path' => 'a/B.png' ), array( 'url' => 'https://a.test/2', 'path' => 'a/b.png' ) ) ) );
+
 /* content.save and page templates */
 $tpls = array( 'templates/wide.php' => 'Wide', 'page-landing' => 'Landing' );
 check( 'template: untouched when nothing is sent and none is stored', array( 'template' => null, 'note' => null ) === Policy::template_plan( null, '', $tpls ) );

@@ -374,6 +374,34 @@ final class Policy {
         return array( 'template' => 'default', 'note' => "the page template \"$current\" no longer exists in the active theme; reset to the default template" );
     }
 
+    /**
+     * Checks the list of a files.fetch_many call: 1-25 items {url, path}, https URLs, no path used twice.
+     *
+     * @param mixed $items The items argument.
+     * @return list<array{url: string, path: string}>
+     */
+    public static function fetch_plan( $items ): array {
+        if ( ! is_array( $items ) || array() === $items || count( $items ) > 25 ) {
+            throw new BridgeError( 'bad_arguments', 'items must be a list of 1-25 entries like {url, path}.', 400 );
+        }
+        $out  = array();
+        $seen = array();
+        foreach ( array_values( $items ) as $i => $item ) {
+            $url  = is_array( $item ) ? trim( (string) ( $item['url'] ?? '' ) ) : '';
+            $path = is_array( $item ) ? trim( str_replace( '\\', '/', (string) ( $item['path'] ?? '' ) ), '/' ) : '';
+            if ( '' === $url || '' === $path ) {
+                throw new BridgeError( 'bad_arguments', 'Item ' . ( $i + 1 ) . ' needs both url and path.', 400 );
+            }
+            if ( isset( $seen[ strtolower( $path ) ] ) ) {
+                throw new BridgeError( 'bad_arguments', "The path \"$path\" appears twice in items.", 400 );
+            }
+            $seen[ strtolower( $path ) ] = true;
+            $out[]                       = array( 'url' => $url, 'path' => $path );
+        }
+
+        return $out;
+    }
+
     public static function level_for_status( string $status ): string {
         return in_array( $status, array( 'draft', 'pending', 'auto-draft', 'private', 'trash' ), true ) ? 'draft' : 'live';
     }
