@@ -48,7 +48,7 @@ spec/build-spec.mjs ──► spec/ops.json ──► gateway/src/generated/ops.
 | `Policy.php` | Pure rules: option tiers, secret redaction, REST route levels, URL/SSRF checks, theme paths |
 | `Revisions.php`, `Activity.php` | Undo snapshots and the site-side log (two small tables) |
 | `Frontend.php` | Public effects of settings: CSS sections, tokens, redirects, built-in SEO, robots.txt, maintenance |
-| `Handlers/*.php` | One class per tool: `op_<action>` (and optional `preview_<action>`) |
+| `Handlers/*.php` | One class per tool: `op_<action>` (and optional `preview_<action>`). Big ones (Maintain, Design, Files) pull their topics from traits next to them (`MaintainBackups`, `DesignThemes`, `FilesRemote`…) |
 
 ## A tool call, step by step
 
