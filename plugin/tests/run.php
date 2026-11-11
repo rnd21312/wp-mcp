@@ -352,5 +352,41 @@ if ( function_exists( 'sodium_crypto_sign_keypair' ) ) {
 unlink( $tmpzip );
 check( 'updater: the repository ships a release public key', 44 === strlen( (string) ( include WPMCP_DIR . 'includes/UpdateKey.php' ) ) );
 
+/* content.save and page templates */
+$tpls = array( 'templates/wide.php' => 'Wide', 'page-landing' => 'Landing' );
+check( 'template: untouched when nothing is sent and none is stored', array( 'template' => null, 'note' => null ) === Policy::template_plan( null, '', $tpls ) );
+check( 'template: a still valid stored template is left alone', null === Policy::template_plan( null, 'page-landing', $tpls )['template'] );
+$stale = Policy::template_plan( null, 'templates/gone.php', $tpls );
+check( 'template: a stored template that vanished is reset to default, with a note', 'default' === $stale['template'] && str_contains( (string) $stale['note'], 'gone.php' ) );
+check( 'template: an empty string means the default template, even if the stored one is stale', 'default' === Policy::template_plan( '', 'templates/gone.php', $tpls )['template'] );
+check( 'template: a valid template is passed on', 'templates/wide.php' === Policy::template_plan( ' templates/wide.php ', '', $tpls )['template'] );
+$bad = null;
+try {
+    Policy::template_plan( 'nope.php', '', $tpls );
+} catch ( \WPMCP\Bridge\BridgeError $e ) {
+    $bad = $e;
+}
+check( 'template: an unknown template is refused with the list of real ones', $bad && 'bad_template' === $bad->error_code && str_contains( $bad->getMessage(), 'page-landing' ) );
+
+/* inspect.outline selectors: translated to XPath and evaluated on a real DOM */
+$html = '<html><body><header id="top" class="site hero"><a href="/a" class="btn big" target="_blank">A</a><a href="https://x.test/b" class="btn">B</a></header>'
+    . '<main><section class="hero"><h1 data-role="title">T</h1><div><p class="lead">P</p></div></section><img src="/x.png" alt=""></main></body></html>';
+$dom  = \WPMCP\Bridge\Dom::load( $html );
+$xp   = new DOMXPath( $dom );
+$hits = static function ( string $selector ) use ( $xp ): ?int {
+    $expr = \WPMCP\Bridge\Dom::xpath_for( $selector );
+
+    return null === $expr ? null : $xp->query( $expr )->length;
+};
+check( 'selector: tag, id and class still work', 1 === $hits( 'header' ) && 1 === $hits( '#top' ) && 2 === $hits( '.hero' ) && 1 === $hits( 'section.hero' ) );
+check( 'selector: comma list joins matches', 3 === $hits( 'h1, .btn' ) && 2 === $hits( 'h1,p' ) );
+check( 'selector: attribute presence and equality', 2 === $hits( 'a[href]' ) && 1 === $hits( '[data-role=title]' ) && 1 === $hits( 'a[target="_blank"]' ) );
+check( 'selector: attribute prefix, suffix, substring, word', 1 === $hits( 'a[href^="https://"]' ) && 1 === $hits( 'img[src$=".png"]' ) && 1 === $hits( 'a[href*=x.test]' ) && 1 === $hits( 'a[class~=big]' ) );
+check( 'selector: compound with class and attribute', 1 === $hits( 'a.btn[target=_blank]' ) && 0 === $hits( 'a.big[href^="https"]' ) );
+check( 'selector: descendant and child combinators', 1 === $hits( 'main p' ) && 1 === $hits( 'section > h1' ) && 0 === $hits( 'section > p' ) && 1 === $hits( 'main > section div p.lead' ) );
+check( 'selector: a comma inside brackets or quotes does not split', 0 === $hits( 'a[href="/a,b"]' ) && null !== $hits( 'a[href="/a,b"], h1' ) );
+check( 'selector: unsupported or broken input is refused', null === $hits( '' ) && null === $hits( 'a[href' ) && null === $hits( '> p' ) && null === $hits( 'p >' ) && null === $hits( 'a:hover' ) && null === $hits( 'a, ' ) && null === $hits( 'a[x=\'"\']' . "'" ) );
+check( 'selector: values cannot break out of the XPath string', 0 === $hits( 'a[href="x\' or \'1"]' ) );
+
 echo "\n" . $pass . ' passed, ' . count( $failed ) . " failed\n";
 exit( $failed ? 1 : 0 );

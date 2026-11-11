@@ -39,7 +39,8 @@ const LOCAL: OpSpec[] = [
     tool: 'site',
     action: 'whoami',
     level: 'read',
-    summary: 'Who you are connected as: level, sites, rate limits, token kind.',
+    summary:
+      'Who you are connected as: level and exactly where it is set (panel, environment variable, key or grant), per-site caps, sites, rate limits, gateway version and data folder.',
     params: {},
     required: [],
     write: false,

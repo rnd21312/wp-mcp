@@ -140,6 +140,18 @@ final class Content {
                 $arr['post_status'] = 'future';
             }
         }
+        $skipped = array();
+        $given   = isset( $a['template'] ) ? (string) $a['template'] : null;
+        $current = $existing ? (string) get_post_meta( $id, '_wp_page_template', true ) : '';
+        if ( null !== $given || '' !== $current ) {
+            $plan = Policy::template_plan( $given, $current, wp_get_theme()->get_page_templates( $existing ?: null, $type ) );
+            if ( null !== $plan['template'] ) {
+                $arr['page_template'] = $plan['template'];
+            }
+            if ( null !== $plan['note'] ) {
+                $skipped[] = $plan['note'];
+            }
+        }
         if ( $existing ) {
             $arr['ID'] = $id;
         }
@@ -149,8 +161,7 @@ final class Content {
         if ( is_wp_error( $result ) ) {
             throw new BridgeError( 'save_failed', $result->get_error_message(), 400 );
         }
-        $id      = (int) $result;
-        $skipped = array();
+        $id = (int) $result;
 
         foreach ( (array) ( $a['terms'] ?? array() ) as $tax => $values ) {
             if ( ! taxonomy_exists( (string) $tax ) ) {
@@ -165,9 +176,6 @@ final class Content {
                 continue;
             }
             update_post_meta( $id, (string) $key, wp_slash( $value ) );
-        }
-        if ( isset( $a['template'] ) ) {
-            update_post_meta( $id, '_wp_page_template', sanitize_text_field( (string) $a['template'] ) );
         }
         if ( isset( $a['featured_media'] ) ) {
             (int) $a['featured_media'] > 0 ? set_post_thumbnail( $id, (int) $a['featured_media'] ) : delete_post_thumbnail( $id );

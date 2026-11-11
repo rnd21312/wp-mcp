@@ -2,7 +2,8 @@ import { randomBytes } from 'node:crypto';
 import { canUseSite, type Principal } from '../auth/auth.ts';
 import type { App } from '../core/context.ts';
 import { canonical, seal, sha256, unseal } from '../core/crypto.ts';
-import { atLeast, LEVEL_HELP, minLevel, type Level } from '../core/levels.ts';
+import { atLeast, LEVEL_HELP, minLevel, rank, type Level } from '../core/levels.ts';
+import { VERSION } from '../core/version.ts';
 import { checkArgs, HELP_ACTIONS, OPS, opsOf, paramSchema, resolveAction, signature, TOOLS, type OpSpec } from '../sites/registry.ts';
 import type { SiteRow } from '../core/store.ts';
 import { SiteError } from '../sites/wpclient.ts';
@@ -158,6 +159,34 @@ const accessibleSites = (app: App, principal: Principal): SiteRow[] => app.store
 
 export const effectiveLevel = (principal: Principal, site: SiteRow): Level => minLevel(principal.level, site.max_level);
 
+/** Where this connection's level is set, in words the person can act on. */
+export function levelSource(app: App, principal: Principal): { from: string; where: string } {
+  switch (principal.kind) {
+    case 'stdio': {
+      const from = app.store.setting('stdio_level') ? 'panel' : process.env.WPMCP_STDIO_LEVEL ? 'environment' : 'default';
+      return {
+        from,
+        where:
+          from === 'panel'
+            ? 'Set in the gateway panel (local AI level); change it there and it applies at once.'
+            : from === 'environment'
+              ? "Set by the WPMCP_STDIO_LEVEL environment variable of the AI app's MCP entry (or choose a level in the gateway panel, which wins over it)."
+              : 'Not set anywhere: the default (live) applies. Choose a level in the gateway panel, or set WPMCP_STDIO_LEVEL.',
+      };
+    }
+    case 'key':
+      return {
+        from: 'api key',
+        where: `Set on the API key "${principal.name}" in the gateway panel (Keys); create a key with a higher level to get more.`,
+      };
+    default:
+      return {
+        from: 'oauth grant',
+        where: `Granted to the app "${principal.name}" when it was connected; change it in the gateway panel (connected apps), or reconnect.`,
+      };
+  }
+}
+
 function siteList(app: App, principal: Principal): Record<string, unknown>[] {
   return accessibleSites(app, principal).map((site) => ({
     name: site.name,
@@ -288,10 +317,14 @@ export async function callTool(app: App, principal: Principal, toolName: string,
   const level = effectiveLevel(principal, site);
   if (!atLeast(level, op.level)) {
     log(site.name, op.id, level, 'denied', summarizeArgs(checked.args));
+    const capped = rank(site.max_level) < rank(principal.level);
+    const where = capped
+      ? `The site "${site.name}" itself is capped at ${site.max_level} (gateway panel, Sites, "Highest level on this site"); raise that cap first.`
+      : levelSource(app, principal).where;
     return fail(
       'level_too_low',
-      `${op.id} needs level ${op.level}; your level on ${site.name} is ${level}. ${LEVEL_HELP[op.level]} Ask the owner to raise it in the gateway admin panel.`,
-      { site: site.name, needs: op.level, have: level },
+      `${op.id} needs level ${op.level}; your level on ${site.name} is ${level}. ${LEVEL_HELP[op.level]} ${where}`,
+      { site: site.name, needs: op.level, have: level, ...(capped ? { site_cap: site.max_level } : {}) },
     );
   }
 
@@ -442,13 +475,18 @@ async function runLocal(
         hint: 'Pass the site name in every call. Names are unique.',
       });
 
-    case 'site.whoami':
+    case 'site.whoami': {
+      const source = levelSource(app, principal);
       return text({
         ok: true,
         connection: principal.name,
         kind: principal.kind,
         level: principal.level,
         level_meaning: LEVEL_HELP[principal.level],
+        level_from: source.from,
+        level_set_at: source.where,
+        site_caps: Object.fromEntries(accessibleSites(app, principal).map((s) => [s.name, s.max_level])),
+        gateway: { version: VERSION, node: process.version, data_dir: app.config.dataDir },
         sites: principal.sites === '*' ? 'all' : principal.sites,
         limits_per_minute: {
           requests: app.config.limits.clientPerMin,
@@ -456,6 +494,7 @@ async function runLocal(
           per_site: app.config.limits.sitePerMin,
         },
       });
+    }
 
     case 'site.describe': {
       const tool = String(args.tool);

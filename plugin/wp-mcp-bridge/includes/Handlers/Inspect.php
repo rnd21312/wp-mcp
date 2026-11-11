@@ -135,7 +135,7 @@ final class Inspect {
         if ( ! empty( $a['selector'] ) ) {
             $expr = Dom::xpath_for( (string) $a['selector'] );
             if ( null === $expr ) {
-                throw new BridgeError( 'bad_selector', 'Supported selectors: #id, .class, tag, tag.class, tag#id.class.', 400 );
+                throw new BridgeError( 'bad_selector', 'Supported selectors: tag, #id, .class, [attr], [attr=value] (also ^= $= *= ~= |=), compounds like a.btn[target=_blank], descendant (space) and child (>) combinators, and comma lists.', 400 );
             }
             $found = $x->query( $expr );
             if ( ! $found || 0 === $found->length ) {

@@ -6,7 +6,7 @@ export const INSTRUCTIONS = `You manage WordPress sites through the WP MCP gatew
 
 START: call site {action:"sites"} to see which sites you can use (names are unique), then site {action:"overview", site:"<name>"} to learn the theme, plugins, content types and SEO plugin before acting. Every result repeats the site name: check it before you report back, and never mix sites up. With more than one site you must pass "site" every time.
 
-LEVELS: read < draft < live < admin. site {action:"whoami"} shows yours. If an action is above your level the call is denied: tell the person what level is needed instead of retrying.
+LEVELS: read < draft < live < admin. site {action:"whoami"} shows yours and where it is set. If an action is above your level the call is denied: tell the person what level is needed and where to change it (the error says), instead of retrying.
 
 HOW TO WORK
 - Look before you change: content.get, design.template_get, inspect.page / inspect.outline show the real HTML, CSS and structure. Use seo.audit for a page check.

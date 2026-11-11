@@ -90,7 +90,7 @@
     "status": "string|draft, pending, publish, future, private",
     "slug": "string|URL slug",
     "parent": "int|Parent ID",
-    "template": "string|Page template file or block template slug",
+    "template": "string|Page template file or block template slug; \"\" or \"default\" for the default template. A stored template that no longer exists is reset to default automatically",
     "featured_media": "int|Attachment ID",
     "date": "string|Y-m-d H:i:s (site time), schedules when future",
     "terms": "object|{taxonomy: [names or ids]}",
@@ -1430,7 +1430,7 @@
    "summary": "Compact structure of a page: headings, landmarks, images, links, forms, meta, scripts, and an element tree (depth-limited).",
    "params": {
     "path": "string|Path or URL on this site",
-    "selector": "string|Simple selector (#id, .class, tag) to zoom into",
+    "selector": "string|CSS selector to zoom into: tag, #id, .class, [attr] or [attr=value] (^= $= *= ~=), a.btn[target=_blank], \"main > section\", comma lists (\"h1, .hero\"). The first match is shown",
     "depth": "int|Tree depth (default 4)"
    },
    "required": [

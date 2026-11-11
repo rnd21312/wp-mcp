@@ -347,6 +347,33 @@ final class Policy {
         throw new BridgeError( 'config_unreadable', 'wp-config.php has no "stop editing" line and does not load wp-settings.php, so there is no safe place for a new constant.', 409 );
     }
 
+    /**
+     * Which page template to hand to wp_insert_post/wp_update_post. WordPress re-validates the template already stored on a page
+     * every time it is saved, so a page whose template file vanished (theme switched) cannot be saved at all until it is reset.
+     *
+     * @param string|null          $given   The template argument ("" means the default template), or null when not sent.
+     * @param string               $current Template stored on the page now ("" for a new page).
+     * @param array<string,string> $valid   Templates the active theme offers for this post type, file or slug => name.
+     * @return array{template: string|null, note: string|null} template null = leave WordPress to keep what is stored.
+     */
+    public static function template_plan( ?string $given, string $current, array $valid ): array {
+        if ( null !== $given ) {
+            $want = trim( $given );
+            $want = '' === $want ? 'default' : $want;
+            if ( 'default' !== $want && ! isset( $valid[ $want ] ) ) {
+                $names = array_keys( $valid );
+                throw new BridgeError( 'bad_template', "Template \"$want\" does not exist in the active theme" . ( $names ? '. Available: ' . implode( ', ', array_slice( $names, 0, 20 ) ) . '. Use "" or "default" for the default template.' : ' (it offers no page templates here). Use "" or "default".' ), 400 );
+            }
+
+            return array( 'template' => $want, 'note' => null );
+        }
+        if ( '' === $current || 'default' === $current || isset( $valid[ $current ] ) ) {
+            return array( 'template' => null, 'note' => null );
+        }
+
+        return array( 'template' => 'default', 'note' => "the page template \"$current\" no longer exists in the active theme; reset to the default template" );
+    }
+
     public static function level_for_status( string $status ): string {
         return in_array( $status, array( 'draft', 'pending', 'auto-draft', 'private', 'trash' ), true ) ? 'draft' : 'live';
     }

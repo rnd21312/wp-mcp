@@ -1,10 +1,11 @@
 import { canUseSite, type Principal } from '../auth/auth.ts';
 import type { App } from '../core/context.ts';
+import { VERSION } from '../core/version.ts';
 import { INSTRUCTIONS, opsMarkdown, PROMPTS, resourceList, resourceTemplates, TOPICS } from './guide.ts';
 import { callTool, listTools, type Input } from './tools.ts';
 
 export const PROTOCOLS = ['2025-06-18', '2025-03-26', '2024-11-05'];
-export const VERSION = '2.3.0';
+export { VERSION };
 
 type Message = { jsonrpc?: string; id?: string | number | null; method?: string; params?: Record<string, unknown> };
 type Response = { jsonrpc: '2.0'; id: string | number | null; result?: unknown; error?: { code: number; message: string } };

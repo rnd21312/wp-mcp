@@ -101,6 +101,14 @@ describe('MCP protocol (stateless Streamable HTTP)', () => {
     const whoami = await tool(env, read, 'site', { action: 'whoami' });
     expect(whoami.data.level).toBe('read');
     expect(whoami.data.level_meaning).toMatch(/non-sensitive/);
+    expect(whoami.data.level_from).toBe('api key');
+    expect(whoami.data.level_set_at).toMatch(/API key/);
+    expect(whoami.data.gateway.version).toMatch(/^\d+\.\d+\.\d+$/);
+    expect(whoami.data.gateway.data_dir).toBeTruthy();
+    expect(whoami.data.site_caps).toBeTypeOf('object');
+    const denied = await tool(env, read, 'content', { action: 'trash', args: { id: 1 } });
+    expect(denied.data.error.code).toBe('level_too_low');
+    expect(denied.data.error.message).toMatch(/API key/);
   });
 
   it('serves guide resources, a sites resource and templates', async () => {

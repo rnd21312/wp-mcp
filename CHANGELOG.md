@@ -17,6 +17,11 @@
 - Pages and files come in 32 KB windows with `next_offset`.
 - Fixed: `scroll-behavior` rejected as script CSS, semicolons inside SQL strings, listing a missing mu-plugins folder, numeric redirect codes.
 
+### Small fixes
+- `site.whoami` shows where the level is set (panel, `WPMCP_STDIO_LEVEL`, API key or app grant), per-site caps, gateway version and data folder; `level_too_low` says the same.
+- `inspect.outline` selectors accept comma lists, `[attr]`, `[attr=v]` (`^=`, `$=`, `*=`, `~=`), compounds and the `>` and space combinators.
+- Fixed: `content.save` failed on a page whose stored page template no longer exists (WordPress re-validates it on every save, even with `template: ""`). `""` now means the default template and a stale template is reset with a note; an unknown template is refused with the list of real ones.
+
 ### Project
 - ESLint and Prettier, gateway sources grouped into folders, one tracked `ops.json`.
 
