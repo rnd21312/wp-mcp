@@ -126,7 +126,7 @@ function state(app: App) {
     .filter((c) => c.grant_level)
     .map((c) => ({ id: c.id, name: c.name, level: c.grant_level, sites: parseScope(c.grant_sites!), last_used: c.last_used }));
   return {
-    version: '2.3.0',
+    version: '2.4.0',
     levels: LEVELS,
     stdio: {
       level: stdioLevel(app),

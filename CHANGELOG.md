@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 2.4.0
 
 ### Files and full control
 - `files.search`: find text in a theme, plugin, mu-plugins, uploads or core (path, line, text).
