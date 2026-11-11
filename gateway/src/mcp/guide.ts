@@ -16,6 +16,7 @@ HOW TO WORK
 - Retry writes only with the same idempotency_key so a change cannot happen twice.
 - Rate limits are per connection. On "rate_limited" wait the given seconds.
 - Files: files.search finds where something lives; files.patch changes part of a file by exact replacement (prefer it to rewriting a whole file); files.write_many is all or nothing; files.fetch_many downloads up to 25 https files (fonts, images) with one confirmation, each saved on its own. A file on this computer goes up with local_path instead of base64 (local AI apps only).
+- Suspected tampering or a broken update: maintain.core_verify lists modified, missing and unexpected core files; maintain.core_restore puts the originals back.
 - Code Snippets plugin: use the snippets tool (list, get, save, activate, deactivate, delete), not rest.call or SQL. PHP code is given without <?php; new snippets stay inactive until active:true; activating is confirmed and reverted if the site breaks.
 - Long pages and files come in windows: when a result has next_offset, call again with offset set to it. For a page-builder page call builder.get with outline:true first, then one element.
 

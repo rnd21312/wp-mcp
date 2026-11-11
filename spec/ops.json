@@ -1795,6 +1795,35 @@
    "escalates": null
   },
   {
+   "id": "maintain.core_verify",
+   "tool": "maintain",
+   "action": "core_verify",
+   "level": "admin",
+   "summary": "Compare the files of wp-admin, wp-includes and the root folder with the official checksums of api.wordpress.org: modified, missing and unexpected files (a sign of tampering or a failed update). wp-content and wp-config.php are not checked.",
+   "params": {},
+   "required": [],
+   "write": false,
+   "confirm": false,
+   "untrusted": false,
+   "escalates": null
+  },
+  {
+   "id": "maintain.core_restore",
+   "tool": "maintain",
+   "action": "core_restore",
+   "level": "admin",
+   "summary": "Put back the original of WordPress core files that core_verify reported as modified or missing. Each file comes from the official download and is written only if it matches the official checksum; the old content is kept for undo (undoing needs core edits switched on in Tools > WP MCP Bridge). Works without that switch.",
+   "params": {
+    "paths": "array|Core files to restore, as listed by core_verify (max 100)",
+    "all": "bool|Restore every modified or missing file (max 200)"
+   },
+   "required": [],
+   "write": true,
+   "confirm": true,
+   "untrusted": false,
+   "escalates": null
+  },
+  {
    "id": "maintain.maintenance_mode",
    "tool": "maintain",
    "action": "maintenance_mode",

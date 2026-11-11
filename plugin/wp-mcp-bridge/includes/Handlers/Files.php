@@ -277,7 +277,7 @@ final class Files {
         return null;
     }
 
-    private static function put( string $full, string $bytes ): void {
+    public static function put( string $full, string $bytes ): void {
         wp_mkdir_p( dirname( $full ) );
         $tmp = $full . '.wpm-' . bin2hex( random_bytes( 4 ) );
         if ( false === file_put_contents( $tmp, $bytes ) || ! rename( $tmp, $full ) ) {
@@ -298,7 +298,7 @@ final class Files {
     }
 
     /** @return array<string, mixed> */
-    private static function snapshot( string $root, string $path, string $full ): array {
+    public static function snapshot( string $root, string $path, string $full ): array {
         $exists = is_file( $full );
         $bytes  = $exists ? (string) file_get_contents( $full ) : '';
 
@@ -609,12 +609,13 @@ final class Files {
      *
      * @param array<string, mixed> $before Snapshot.
      */
-    public static function restore( array $before ): string {
+    public static function restore( array $before, bool $core_verified = false ): string {
         $root = (string) ( $before['root'] ?? '' );
         self::guard_self( $root );
         [ $dir, $up ] = self::root( $root, 'create' );
         $path         = (string) ( $before['path'] ?? '' );
-        $full         = self::full( $dir, $up, $path, false, true );
+        // A core file whose original was verified against the official checksums may be put back without the owner's core-edit switch.
+        $full = $core_verified && 'core' === $root ? ABSPATH . $path : self::full( $dir, $up, $path, false, true );
         if ( ! empty( $before['exists'] ) ) {
             if ( null === ( $before['data'] ?? null ) ) {
                 throw new BridgeError( 'not_undoable', 'The old content was too large to snapshot.', 409 );

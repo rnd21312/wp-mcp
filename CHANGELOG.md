@@ -15,6 +15,8 @@
 
 - `snippets` tool for the Code Snippets plugin: list, get, save, activate, deactivate, delete. Uses the plugin's own functions; PHP is syntax-checked, active code is confirmed first, the front page is probed and the change reverted if the site breaks; every change is undoable. `site.overview` reports whether the plugin is active.
 
+- `maintain.core_verify` compares WordPress core files with the official checksums of api.wordpress.org (modified, missing, unexpected files); `maintain.core_restore` puts back the verified original of modified or missing files, confirmed first and undoable. It works without the core-edit switch because it can only write bytes that match the official checksum.
+
 ### Easier for AI clients
 - Argument and action aliases, `describe` on any tool, wp-content paths as roots.
 - A confirmed call sends the token alone; the arguments are remembered.

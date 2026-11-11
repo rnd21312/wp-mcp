@@ -374,6 +374,60 @@ final class Policy {
         return array( 'template' => 'default', 'note' => "the page template \"$current\" no longer exists in the active theme; reset to the default template" );
     }
 
+    /**
+     * Is this checksum entry part of what core_verify checks? wp-content, wp-config.php and the loose documentation files that
+     * hardening guides tell people to delete are left out.
+     */
+    public static function core_checked( string $path ): bool {
+        $low = strtolower( $path );
+        if ( '' === $path || str_contains( $path, '..' ) || str_contains( $path, '\\' ) || str_starts_with( $path, '/' ) ) {
+            return false;
+        }
+
+        return ! str_starts_with( $low, 'wp-content/' ) && ! in_array( $low, array( 'wp-config.php', 'wp-config-sample.php', 'readme.html', 'license.txt' ), true );
+    }
+
+    /**
+     * Compares official checksums with the files on disk.
+     *
+     * @param array<string, string>        $sums   path => md5.
+     * @param callable(string): ?string    $md5_of md5 of the file now, null when it does not exist.
+     * @return array{modified: list<string>, missing: list<string>}
+     */
+    public static function core_compare( array $sums, callable $md5_of ): array {
+        $modified = array();
+        $missing  = array();
+        foreach ( $sums as $path => $sum ) {
+            $now = $md5_of( (string) $path );
+            if ( null === $now ) {
+                $missing[] = (string) $path;
+            } elseif ( ! hash_equals( strtolower( $sum ), strtolower( $now ) ) ) {
+                $modified[] = (string) $path;
+            }
+        }
+
+        return array( 'modified' => $modified, 'missing' => $missing );
+    }
+
+    /**
+     * Files found in wp-admin or wp-includes that WordPress does not ship. Server files that hosts and PHP put there are ignored.
+     *
+     * @param array<string, string> $sums  Official checksums.
+     * @param list<string>          $found Paths found on disk, relative to the install folder.
+     * @return list<string>
+     */
+    public static function core_unexpected( array $sums, array $found ): array {
+        $out = array();
+        foreach ( $found as $path ) {
+            if ( ! isset( $sums[ $path ] ) && ! in_array( strtolower( basename( $path ) ), array( '.htaccess', '.user.ini', 'php.ini', 'error_log', '.ds_store', 'thumbs.db' ), true ) ) {
+                $out[] = $path;
+            }
+        }
+        sort( $out );
+
+        return $out;
+    }
+
     /** Scopes of Code Snippets, and which of them run PHP. */
     public const SNIPPET_SCOPES = array( 'global', 'admin', 'front-end', 'single-use', 'content', 'head-content', 'footer-content', 'admin-css', 'site-css', 'site-head-js', 'site-footer-js' );
 

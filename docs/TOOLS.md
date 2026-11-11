@@ -1,6 +1,6 @@
 # Tools reference
 
-Generated from `spec/ops.json` (167 site actions + gateway actions). Every tool is called as `{site, action, args, dry_run?, confirm_token?, idempotency_key?}`.
+Generated from `spec/ops.json` (169 site actions + gateway actions). Every tool is called as `{site, action, args, dry_run?, confirm_token?, idempotency_key?}`.
 
 Levels: **read** < **draft** < **live** < **admin**. `A>B` means the action starts at A and the site raises it to B from the real target (for example editing a published page). **confirm** = two-step: the first call returns a preview and a `confirm_token`, nothing changes until it is repeated with the token. **site content** = the result contains text written on the website (treated as untrusted).
 
@@ -132,6 +132,8 @@ Levels: **read** < **draft** < **live** < **admin**. `A>B` means the action star
 | `cron_run` | admin | `hook*` | Run a scheduled hook now. *(write)* |
 | `config_get` | admin | `names` | Values of wp-config.php constants (WP_DEBUG, WP_MEMORY_LIMIT, DISALLOW_FILE_EDIT...). Credentials, keys, salts and paths are never shown. |
 | `config_set` | admin | `name*, value*` | Set one constant in wp-config.php: replaces its define() or adds one. Syntax-checked; put back if the site stops answering. Not for credentials, keys, salts or paths. *(confirm, write)* |
+| `core_verify` | admin |  | Compare the files of wp-admin, wp-includes and the root folder with the official checksums of api.wordpress.org: modified, missing and unexpected files (a sign of tampering or a failed update). wp-content and wp-config.php are not checked. |
+| `core_restore` | admin | `paths, all` | Put back the original of WordPress core files that core_verify reported as modified or missing. Each file comes from the official download and is written only if it matches the official checksum; the old content is kept for undo (undoing needs core edits switched on in Tools > WP MCP Bridge). Works without that switch. *(confirm, write)* |
 | `maintenance_mode` | admin | `enabled*, message` | Serve a 503 maintenance page to visitors (admins and the bridge still see the site). *(write)* |
 
 ## plugins: Plugins

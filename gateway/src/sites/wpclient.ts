@@ -58,7 +58,7 @@ const endpoint = (base: string, route: string): string => `${base}/?rest_route=$
 const sleep = (ms: number): Promise<void> => new Promise((done) => setTimeout(done, ms));
 
 const SLOW_OPS =
-  /^(maintain\.(update|backup|db_|search_replace)|plugins\.install|design\.theme_install|media\.import_url|files\.fetch_many)/;
+  /^(maintain\.(update|backup|db_|search_replace|core_)|plugins\.install|design\.theme_install|media\.import_url|files\.fetch_many)/;
 
 export interface PairResult {
   key_id: string;

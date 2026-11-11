@@ -353,6 +353,14 @@ unlink( $tmpzip );
 check( 'updater: the repository ships a release public key', 44 === strlen( (string) ( include WPMCP_DIR . 'includes/UpdateKey.php' ) ) );
 
 
+/* core checksums */
+$sums = array( 'index.php' => md5( 'a' ), 'wp-admin/admin.php' => md5( 'b' ), 'wp-includes/load.php' => md5( 'c' ), 'wp-includes/gone.php' => md5( 'd' ) );
+$disk = array( 'index.php' => md5( 'a' ), 'wp-admin/admin.php' => md5( 'HACKED' ), 'wp-includes/load.php' => strtoupper( md5( 'c' ) ) );
+$diff = Policy::core_compare( $sums, static fn ( string $p ): ?string => $disk[ $p ] ?? null );
+check( 'core: a changed file is modified, an absent one missing, equal hashes (any case) are fine', array( 'wp-admin/admin.php' ) === $diff['modified'] && array( 'wp-includes/gone.php' ) === $diff['missing'] );
+check( 'core: only files WordPress does not ship are unexpected, server leftovers are ignored', array( 'wp-admin/evil.php', 'wp-includes/x/shell.php' ) === Policy::core_unexpected( $sums, array( 'wp-includes/x/shell.php', 'wp-admin/admin.php', 'wp-admin/evil.php', 'wp-admin/.htaccess', 'wp-admin/error_log' ) ) );
+check( 'core: wp-content, wp-config and loose docs are not checked, normal core files are', ! Policy::core_checked( 'wp-content/themes/twentytwentyfive/style.css' ) && ! Policy::core_checked( 'wp-config.php' ) && ! Policy::core_checked( 'readme.html' ) && ! Policy::core_checked( '../x.php' ) && Policy::core_checked( 'wp-load.php' ) && Policy::core_checked( 'wp-admin/includes/file.php' ) );
+
 /* snippets: pure helpers */
 check( 'snippets: opening and closing tags are stripped from PHP code', "echo 1;\n" === Policy::snippet_code( "<?php\necho 1;\n?>\n" ) && "echo 1;\n" === Policy::snippet_code( 'echo 1;' ) && "echo 1;\n" === Policy::snippet_code( "<?php echo 1;" ) );
 check( 'snippets: scope defaults, is lower-cased and unknown ones are refused', 'global' === Policy::snippet_scope( null ) && 'admin' === Policy::snippet_scope( ' Admin ' ) && 'front-end' === Policy::snippet_scope( '', 'front-end' ) );

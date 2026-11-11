@@ -143,6 +143,8 @@ op('maintain.cron_list', 'admin', 'Scheduled events.');
 op('maintain.cron_run', 'admin', 'Run a scheduled hook now.', { 'hook*': 'string|Registered hook name' }, { w: 1 });
 op('maintain.config_get', 'admin', 'Values of wp-config.php constants (WP_DEBUG, WP_MEMORY_LIMIT, DISALLOW_FILE_EDIT...). Credentials, keys, salts and paths are never shown.', { names: 'array|Constant names (default: the common ones)' });
 op('maintain.config_set', 'admin', 'Set one constant in wp-config.php: replaces its define() or adds one. Syntax-checked; put back if the site stops answering. Not for credentials, keys, salts or paths.', { 'name*': 'string|Constant, e.g. WP_DEBUG', 'value*': 'any|true/false, a number or text such as 256M' }, { w: 1, c: 1 });
+op('maintain.core_verify', 'admin', 'Compare the files of wp-admin, wp-includes and the root folder with the official checksums of api.wordpress.org: modified, missing and unexpected files (a sign of tampering or a failed update). wp-content and wp-config.php are not checked.');
+op('maintain.core_restore', 'admin', 'Put back the original of WordPress core files that core_verify reported as modified or missing. Each file comes from the official download and is written only if it matches the official checksum; the old content is kept for undo (undoing needs core edits switched on in Tools > WP MCP Bridge). Works without that switch.', { paths: 'array|Core files to restore, as listed by core_verify (max 100)', all: 'bool|Restore every modified or missing file (max 200)' }, { w: 1, c: 1 });
 op('maintain.maintenance_mode', 'admin', 'Serve a 503 maintenance page to visitors (admins and the bridge still see the site).', { 'enabled*': 'bool|On or off', message: 'string|Visitor message' }, { w: 1 });
 
 /* plugins */

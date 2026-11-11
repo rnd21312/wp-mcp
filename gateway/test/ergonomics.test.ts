@@ -53,6 +53,14 @@ describe('names the AI guesses', () => {
     expect(gate.data.needs_confirmation).toBe(true);
   });
 
+  it('core_verify runs freely, core_restore is confirmed first', async () => {
+    const k = key(env, 'admin');
+    expect((await tool(env, k, 'maintain', { action: 'core_verify' })).isError).toBe(false);
+    expect(last('maintain.core_verify')).toBeTruthy();
+    const gate = await tool(env, k, 'maintain', { action: 'core_restore', args: { all: true } });
+    expect(gate.data.needs_confirmation).toBe(true);
+  });
+
   it('turns {name, value} into one option', async () => {
     const k = key(env, 'admin');
     await tool(env, k, 'options', { action: 'set', args: { name: 'blogname', value: 'Shop' }, dry_run: true });

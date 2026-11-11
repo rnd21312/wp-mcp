@@ -994,4 +994,28 @@ final class Maintain {
 
         return array( 'name' => $name, 'value' => $value, 'previous' => $was, 'note' => 'Takes effect from the next request.' );
     }
+
+    /**
+     * @param array<string, mixed> $a Arguments.
+     * @return array<string, mixed>
+     */
+    public static function op_core_verify( array $a, Context $c ): array {
+        return CoreFiles::verify( $a, $c );
+    }
+
+    /**
+     * @param array<string, mixed> $a Arguments.
+     * @return array<string, mixed>
+     */
+    public static function preview_core_restore( array $a, Context $c ): array {
+        return CoreFiles::preview( $a, $c );
+    }
+
+    /**
+     * @param array<string, mixed> $a Arguments.
+     * @return array<string, mixed>
+     */
+    public static function op_core_restore( array $a, Context $c ): array {
+        return CoreFiles::restore( $a, $c );
+    }
 }
