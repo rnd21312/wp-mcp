@@ -1,4 +1,5 @@
 // Rebuilds spec/ops.json and copies it to the gateway and the plugin so both sides share one definition.
+// Only spec/ops.json is kept in git; the two copies are build output.
 import { copyFileSync, mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';

@@ -8,3 +8,7 @@ data/
 *.tsbuildinfo
 wpmcp-data/
 wpmcp-run/
+wpmcp-data.empty-bak/
+# copies of spec/ops.json, written by scripts/sync-spec.mjs
+gateway/src/generated/
+plugin/wp-mcp-bridge/ops.json
