@@ -271,6 +271,9 @@ final class Revisions {
             case 'xfile':
                 return Handlers\Files::restore( (array) $before );
 
+            case 'alt':
+                return Handlers\SeoBulk::restore_alt( (array) $before );
+
             case 'snippet':
                 return Handlers\Snippets::restore( $target, $before );
 

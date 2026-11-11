@@ -1,6 +1,6 @@
 # Tools reference
 
-Generated from `spec/ops.json` (179 site actions + gateway actions). Every tool is called as `{site, action, args, dry_run?, confirm_token?, idempotency_key?}`.
+Generated from `spec/ops.json` (182 site actions + gateway actions). Every tool is called as `{site, action, args, dry_run?, confirm_token?, idempotency_key?}`.
 
 Levels: **read** < **draft** < **live** < **admin**. `A>B` means the action starts at A and the site raises it to B from the real target (for example editing a published page). **confirm** = two-step: the first call returns a preview and a `confirm_token`, nothing changes until it is repeated with the token. **site content** = the result contains text written on the website (treated as untrusted).
 
@@ -102,6 +102,9 @@ Levels: **read** < **draft** < **live** < **admin**. `A>B` means the action star
 | `redirect_delete` | live | `from*` | Remove a redirect. *(write)* |
 | `schema_get` | read | `id*` | Custom JSON-LD of an item. *(site content)* |
 | `schema_set` | live | `id*, json*` | Set custom JSON-LD for an item (empty removes it). *(write)* |
+| `bulk_set` | draft>live | `items*` | Set SEO fields on up to 50 items in one call: items = [{id, title?, description?, canonical?, noindex?, og_title?, og_description?, og_image?, focus_keyword?}]. Same rules as seo.set (published items need live). Not all or nothing: failures are listed, each item has its own revision. dry_run shows current and new values. *(write)* |
+| `alt_fill` | draft | `ids, limit` | Add missing alt text to images in the media library, made from the title or file name (camera names like IMG_1234 are skipped). dry_run lists what would be set; one undoable revision. *(write, site content)* |
+| `links_check` | draft | `paths, ids, recent, external, max_links` | Broken link report: scans the rendered body of pages (paths, post ids, or the most recently changed ones, max 20) and requests each link once (HEAD). Links to this site by default; external:true also checks outside links (safe HTTP only, no private addresses, 6 s each). *(site content)* |
 | `indexnow_status` | read |  | IndexNow (Bing, Yandex, Naver, Seznam, Yep): is a key set up, where it is served, and does the key file answer. |
 | `indexnow_setup` | live | `regenerate` | Create the IndexNow key (kept in an option, served by the bridge at /<key>.txt, no file written). regenerate:true makes a new one. *(write)* |
 | `indexnow_submit` | live | `urls, ids, recent` | Tell IndexNow engines that URLs of this site changed: urls, or post ids, or the N most recently changed published items (max 500 per call). Not for Google. *(write)* |

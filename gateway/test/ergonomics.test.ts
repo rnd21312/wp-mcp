@@ -98,6 +98,28 @@ describe('names the AI guesses', () => {
     expect(last('seo.indexnow_submit').args).toEqual({ ids: [3] });
   });
 
+  it('bulk SEO actions pass their lists through, and bulk_set follows seo.set levels', async () => {
+    const k = key(env, 'draft');
+    await tool(env, k, 'seo', {
+      action: 'bulk_set',
+      args: {
+        items: [
+          { id: 1, title: 'A' },
+          { id: 2, description: 'B' },
+        ],
+      },
+    });
+    expect(last('seo.bulk_set').args.items).toHaveLength(2);
+    await tool(env, k, 'seo', { action: 'alt_fill', args: { limit: '20' }, dry_run: true });
+    expect(last('seo.alt_fill').args).toEqual({ limit: 20 });
+    expect(last('seo.alt_fill').dry_run).toBe(true);
+    await tool(env, key(env, 'read'), 'seo', { action: 'links_check', args: { recent: 3 } }).then((r) =>
+      expect(r.data.error.code).toBe('level_too_low'),
+    );
+    await tool(env, k, 'seo', { action: 'links_check', args: { recent: 3, external: 'true' } });
+    expect(last('seo.links_check').args).toEqual({ recent: 3, external: true });
+  });
+
   it('turns {name, value} into one option', async () => {
     const k = key(env, 'admin');
     await tool(env, k, 'options', { action: 'set', args: { name: 'blogname', value: 'Shop' }, dry_run: true });

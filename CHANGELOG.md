@@ -30,6 +30,7 @@
 - Search Console: `sitemap_submit` and `sitemap_delete`. They need the new panel button "Connect and allow changes" (scope `webmasters`, a reconnect), level live and a confirmation; the sitemap must be on the property. The default connection stays read-only.
 - IndexNow for Bing, Yandex, Naver, Seznam and Yep: `seo.indexnow_setup` makes a key that the bridge serves at `/<key>.txt` (no file written), `seo.indexnow_status` checks it, `seo.indexnow_submit` sends URLs, post ids or the most recently changed items (max 500 per call, this site only, nothing when the site is hidden from search).
 - Search Console `indexing_publish` and `indexing_status` (Google Indexing API): opt-in connection with a warning (Google supports it only for job posting and live stream pages), an acknowledgement in every call, a confirmation, the URL must be in one of your properties, and a local counter of Google's 200 requests per day. Connecting now asks Google for exactly the access you chose (no longer accumulating earlier grants).
+- Bulk SEO: `seo.bulk_set` (title, description and more for up to 50 pages, each undoable), `seo.alt_fill` (alt text from titles and file names for images that have none; camera names are skipped; one undoable revision), `seo.links_check` (broken link report of up to 20 pages; links to the site by default, `external:true` also checks outside links with safe HTTP only).
 
 ### Easier for AI clients
 - Argument and action aliases, `describe` on any tool, wp-content paths as roots.

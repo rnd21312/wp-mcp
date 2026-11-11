@@ -519,6 +519,46 @@ final class Seo {
      * @param array<string, mixed> $a Arguments.
      * @return array<string, mixed>
      */
+    public static function preview_bulk_set( array $a, Context $c ): array {
+        return SeoBulk::preview_bulk_set( $a, $c );
+    }
+
+    /**
+     * @param array<string, mixed> $a Arguments.
+     * @return array<string, mixed>
+     */
+    public static function op_bulk_set( array $a, Context $c ): array {
+        return SeoBulk::bulk_set( $a, $c );
+    }
+
+    /**
+     * @param array<string, mixed> $a Arguments.
+     * @return array<string, mixed>
+     */
+    public static function preview_alt_fill( array $a, Context $c ): array {
+        return SeoBulk::preview_alt_fill( $a, $c );
+    }
+
+    /**
+     * @param array<string, mixed> $a Arguments.
+     * @return array<string, mixed>
+     */
+    public static function op_alt_fill( array $a, Context $c ): array {
+        return SeoBulk::alt_fill( $a, $c );
+    }
+
+    /**
+     * @param array<string, mixed> $a Arguments.
+     * @return array<string, mixed>
+     */
+    public static function op_links_check( array $a, Context $c ): array {
+        return SeoBulk::links_check( $a, $c );
+    }
+
+    /**
+     * @param array<string, mixed> $a Arguments.
+     * @return array<string, mixed>
+     */
     public static function op_indexnow_status( array $a, Context $c ): array {
         return IndexNow::status( $a, $c );
     }
