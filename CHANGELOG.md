@@ -44,6 +44,7 @@
 - Fixed: `content.save` failed on a page whose stored page template no longer exists (WordPress re-validates it on every save, even with `template: ""`). `""` now means the default template and a stale template is reset with a note; an unknown template is refused with the list of real ones.
 
 ### Project
+- CI: a `wordpress` job installs WordPress with wp-cli, installs and pairs the bridge, starts the site and runs `gateway/test/wordpress.live.test.ts` against it (file write and patch, syntax-error refusal, wp-config, image upload, a page with a stale template, theme and plugin scaffolds, site.build, core checksums, IndexNow). The test is skipped when no WordPress is configured. It has not been run yet: GitHub has to run it.
 - Docs: `docs/TOOLS.md` now lists every tool (builder, fields and snippets were missing) and has a Persian twin `docs/fa/TOOLS.md`; `docs/fa/search-console.md` added; `docs/v2-plan.md` is folded into `docs/roadmap.md` (English and Persian) so the two no longer overlap.
 - Panel: typed bridge responses (`panel/src/lib/wp.ts`) in the Care, Dev, Design, Seo and Content pages; `any` warnings in the panel went from 169 to about 110 (all ESLint warnings of the repo: 247 to 194).
 - The three largest bridge handlers are split into traits by topic (Maintain: backups, ops, database, config; Design: templates, menus, themes; Files: edit, tree, remote); no method changed, all under 360 lines.
