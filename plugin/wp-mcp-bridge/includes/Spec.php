@@ -58,6 +58,7 @@ final class Spec {
             'shop'     => 'Shop',
             'forms'    => 'Forms',
             'files'    => 'Files',
+            'snippets' => 'Snippets',
             'transfer' => 'Transfer',
             'activity' => 'ActivityOps',
         );

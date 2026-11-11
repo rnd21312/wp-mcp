@@ -374,6 +374,45 @@ final class Policy {
         return array( 'template' => 'default', 'note' => "the page template \"$current\" no longer exists in the active theme; reset to the default template" );
     }
 
+    /** Scopes of Code Snippets, and which of them run PHP. */
+    public const SNIPPET_SCOPES = array( 'global', 'admin', 'front-end', 'single-use', 'content', 'head-content', 'footer-content', 'admin-css', 'site-css', 'site-head-js', 'site-footer-js' );
+
+    public static function snippet_scope_is_php( string $scope ): bool {
+        return in_array( $scope, array( 'global', 'admin', 'front-end', 'single-use' ), true );
+    }
+
+    /** A valid scope (the default when none is given), or a clear error. */
+    public static function snippet_scope( ?string $scope, string $default = 'global' ): string {
+        $scope = null === $scope || '' === trim( $scope ) ? $default : strtolower( trim( $scope ) );
+        if ( ! in_array( $scope, self::SNIPPET_SCOPES, true ) ) {
+            throw new BridgeError( 'bad_arguments', "Unknown snippet scope \"$scope\". Scopes: " . implode( ', ', self::SNIPPET_SCOPES ) . '.', 400 );
+        }
+
+        return $scope;
+    }
+
+    /** Snippet code as the Code Snippets plugin stores it: PHP without the opening and closing tags. */
+    public static function snippet_code( string $code ): string {
+        $code = (string) preg_replace( '/^\s*<\?(?:php)?[ \t]*\r?\n?/i', '', $code, 1 );
+        $code = (string) preg_replace( '/\?>\s*$/', '', $code, 1 );
+
+        return trim( $code, "\r\n" ) . "\n";
+    }
+
+    /** Tags as a clean list: an array or a comma separated text. */
+    public static function snippet_tags( $tags ): array {
+        $list = is_array( $tags ) ? $tags : explode( ',', (string) $tags );
+        $out  = array();
+        foreach ( $list as $tag ) {
+            $tag = trim( (string) $tag );
+            if ( '' !== $tag && mb_strlen( $tag ) <= 60 && ! in_array( $tag, $out, true ) ) {
+                $out[] = $tag;
+            }
+        }
+
+        return array_slice( $out, 0, 20 );
+    }
+
     /**
      * Checks the list of a files.fetch_many call: 1-25 items {url, path}, https URLs, no path used twice.
      *

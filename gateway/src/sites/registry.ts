@@ -217,6 +217,12 @@ export const TOOLS: ToolInfo[] = [
       'Browse, search, read, write, patch and delete files of themes, plugins, mu-plugins, uploads and (when the owner allows it) WordPress itself. Admin; writes are confirmed and PHP is syntax-checked. local_path uploads a file from this computer.',
   },
   {
+    name: 'snippets',
+    title: 'Code Snippets',
+    intro:
+      'List, read, save, activate, deactivate and delete snippets of the Code Snippets plugin (PHP, CSS, JS, HTML). Use this instead of rest.call or SQL on the snippets table. Admin; active PHP is confirmed, syntax-checked and reverted if the site breaks.',
+  },
+  {
     name: 'transfer',
     title: 'Export and import content',
     intro:
@@ -284,6 +290,8 @@ const ARG_ALIASES: Record<string, string[]> = {
   length: ['max_bytes'],
   max_length: ['max_bytes'],
   element_id: ['element'],
+  snippet_id: ['id'],
+  desc: ['description'],
   files: ['items'],
   downloads: ['items'],
   urls: ['items'],

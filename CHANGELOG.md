@@ -13,6 +13,8 @@
 
 - `files.fetch_many`: download up to 25 https files (20 MB each, 100 MB together) into a root with one confirmation instead of one per file. Each file is saved and undoable on its own; failures are listed.
 
+- `snippets` tool for the Code Snippets plugin: list, get, save, activate, deactivate, delete. Uses the plugin's own functions; PHP is syntax-checked, active code is confirmed first, the front page is probed and the change reverted if the site breaks; every change is undoable. `site.overview` reports whether the plugin is active.
+
 ### Easier for AI clients
 - Argument and action aliases, `describe` on any tool, wp-content paths as roots.
 - A confirmed call sends the token alone; the arguments are remembered.

@@ -353,6 +353,20 @@ unlink( $tmpzip );
 check( 'updater: the repository ships a release public key', 44 === strlen( (string) ( include WPMCP_DIR . 'includes/UpdateKey.php' ) ) );
 
 
+/* snippets: pure helpers */
+check( 'snippets: opening and closing tags are stripped from PHP code', "echo 1;\n" === Policy::snippet_code( "<?php\necho 1;\n?>\n" ) && "echo 1;\n" === Policy::snippet_code( 'echo 1;' ) && "echo 1;\n" === Policy::snippet_code( "<?php echo 1;" ) );
+check( 'snippets: scope defaults, is lower-cased and unknown ones are refused', 'global' === Policy::snippet_scope( null ) && 'admin' === Policy::snippet_scope( ' Admin ' ) && 'front-end' === Policy::snippet_scope( '', 'front-end' ) );
+$bad_scope = null;
+try {
+    Policy::snippet_scope( 'everywhere' );
+} catch ( \WPMCP\Bridge\BridgeError $e ) {
+    $bad_scope = $e->error_code;
+}
+check( 'snippets: an unknown scope is a bad argument', 'bad_arguments' === $bad_scope );
+check( 'snippets: only code scopes run PHP', Policy::snippet_scope_is_php( 'single-use' ) && ! Policy::snippet_scope_is_php( 'site-css' ) && ! Policy::snippet_scope_is_php( 'content' ) );
+check( 'snippets: tags come from a list or comma text, cleaned', array( 'a', 'b' ) === Policy::snippet_tags( 'a, b,,a' ) && array( 'x' ) === Policy::snippet_tags( array( ' x ', '' ) ) );
+check( 'snippets: a syntax error is reported with the fragment line', null === \WPMCP\Bridge\PhpGuard::fragment_problem( "add_action('init', function () {});\n" ) && str_contains( (string) \WPMCP\Bridge\PhpGuard::fragment_problem( "\$a = 1;\n\$b = ;\n" ), 'line 2' ) );
+
 /* files.fetch_many: the list is checked before anything is downloaded */
 $plan = Policy::fetch_plan( array( array( 'url' => 'https://a.test/x.woff2', 'path' => '/assets\\x.woff2' ), array( 'url' => ' https://a.test/y.png ', 'path' => 'assets/y.png' ) ) );
 check( 'fetch_many: paths are normalised and urls trimmed', 'assets/x.woff2' === $plan[0]['path'] && 'https://a.test/y.png' === $plan[1]['url'] );

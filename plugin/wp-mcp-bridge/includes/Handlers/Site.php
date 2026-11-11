@@ -68,6 +68,7 @@ final class Site {
             'seo_plugin'  => Seo::provider(),
             'woocommerce' => class_exists( 'WooCommerce' ),
             'forms'       => Forms::providers(),
+            'code_snippets' => Snippets::available(),
             'page_builders' => array_keys( array_filter( Builder::active() ) ),
             'field_plugins' => Fields::providers(),
             'search_visibility' => get_option( 'blog_public' ) ? 'visible' : 'hidden from search engines',

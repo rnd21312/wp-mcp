@@ -2822,6 +2822,116 @@
    "escalates": null
   },
   {
+   "id": "snippets.list",
+   "tool": "snippets",
+   "action": "list",
+   "level": "admin",
+   "summary": "Snippets of the Code Snippets plugin (without code): id, name, scope, active, tags, priority.",
+   "params": {
+    "search": "string|Text in name, description or tags",
+    "scope": "string|global, admin, front-end, single-use, content, head-content, footer-content, admin-css, site-css, site-head-js, site-footer-js",
+    "active": "bool|Only active (true) or inactive (false)",
+    "tag": "string|Exact tag",
+    "page": "int|Page (default 1)",
+    "per_page": "int|Default 50, max 100"
+   },
+   "required": [],
+   "write": false,
+   "confirm": false,
+   "untrusted": true,
+   "escalates": null
+  },
+  {
+   "id": "snippets.get",
+   "tool": "snippets",
+   "action": "get",
+   "level": "admin",
+   "summary": "One snippet with its code.",
+   "params": {
+    "id": "int|Snippet ID"
+   },
+   "required": [
+    "id"
+   ],
+   "write": false,
+   "confirm": false,
+   "untrusted": true,
+   "escalates": null
+  },
+  {
+   "id": "snippets.save",
+   "tool": "snippets",
+   "action": "save",
+   "level": "admin",
+   "summary": "Create (name and code) or update (id) a snippet. New snippets stay inactive unless active is true. PHP code is given without <?php, is syntax-checked, and an active one is confirmed first, probed on the front page afterwards and reverted if the site breaks. Undoable.",
+   "params": {
+    "id": "int|Omit to create",
+    "name": "string|Name (required for a new snippet)",
+    "code": "string|Code (required for a new snippet); PHP without the opening tag",
+    "description": "string|Description",
+    "tags": "array|Tags (or comma separated text)",
+    "scope": "string|global (default), admin, front-end, single-use, content, head-content, footer-content, admin-css, site-css, site-head-js, site-footer-js",
+    "priority": "int|Run order, default 10",
+    "active": "bool|Run it (default: unchanged, new = false)"
+   },
+   "required": [],
+   "write": true,
+   "confirm": "maybe",
+   "untrusted": false,
+   "escalates": null
+  },
+  {
+   "id": "snippets.activate",
+   "tool": "snippets",
+   "action": "activate",
+   "level": "admin",
+   "summary": "Turn a snippet on: its code starts running. Syntax-checked, probed, deactivated again if the site breaks. Undoable.",
+   "params": {
+    "id": "int|Snippet ID"
+   },
+   "required": [
+    "id"
+   ],
+   "write": true,
+   "confirm": true,
+   "untrusted": false,
+   "escalates": null
+  },
+  {
+   "id": "snippets.deactivate",
+   "tool": "snippets",
+   "action": "deactivate",
+   "level": "admin",
+   "summary": "Turn a snippet off (the code is kept). Undoable.",
+   "params": {
+    "id": "int|Snippet ID"
+   },
+   "required": [
+    "id"
+   ],
+   "write": true,
+   "confirm": false,
+   "untrusted": false,
+   "escalates": null
+  },
+  {
+   "id": "snippets.delete",
+   "tool": "snippets",
+   "action": "delete",
+   "level": "admin",
+   "summary": "Delete a snippet. Undo recreates it with a new id.",
+   "params": {
+    "id": "int|Snippet ID"
+   },
+   "required": [
+    "id"
+   ],
+   "write": true,
+   "confirm": true,
+   "untrusted": false,
+   "escalates": null
+  },
+  {
    "id": "transfer.export",
    "tool": "transfer",
    "action": "export",

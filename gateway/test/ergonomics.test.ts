@@ -34,6 +34,25 @@ describe('names the AI guesses', () => {
     expect(last('files.fetch_many').args).toEqual({ root: 'themes/x', items });
   });
 
+  it('snippets: reads need admin, an active save is confirmed, desc and snippet_id are understood', async () => {
+    expect((await tool(env, key(env, 'live'), 'snippets', { action: 'list' })).data.error.code).toBe('level_too_low');
+    const k = key(env, 'admin');
+    await tool(env, k, 'snippets', { action: 'get', args: { snippet_id: '12' } });
+    expect(last('snippets.get').args).toEqual({ id: 12 });
+    env.sites.alpha.answers['snippets.save'] = (_args, c) => (c.dry_run ? { needs_confirmation: true } : { id: 5 });
+    const first = await tool(env, k, 'snippets', {
+      action: 'save',
+      args: { name: 'Hide bar', code: 'add_filter("show_admin_bar","__return_false");', desc: 'x', active: true },
+    });
+    expect(first.data.needs_confirmation).toBe(true);
+    expect(last('snippets.save').dry_run).toBe(true);
+    await tool(env, k, 'snippets', { action: 'save', confirm_token: first.data.confirm_token });
+    expect(last('snippets.save').dry_run).toBeFalsy();
+    expect(last('snippets.save').args).toMatchObject({ name: 'Hide bar', description: 'x', active: true });
+    const gate = await tool(env, k, 'snippets', { action: 'activate', args: { id: 3 } });
+    expect(gate.data.needs_confirmation).toBe(true);
+  });
+
   it('turns {name, value} into one option', async () => {
     const k = key(env, 'admin');
     await tool(env, k, 'options', { action: 'set', args: { name: 'blogname', value: 'Shop' }, dry_run: true });
