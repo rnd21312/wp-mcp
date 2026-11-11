@@ -14,6 +14,9 @@ jobs:
         with:
           php-version: ${{ matrix.php }}
           extensions: sodium, zip, curl, mbstring, pdo_sqlite
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run format:check
       - run: npm --prefix gateway ci
       - run: npm --prefix gateway run typecheck
       # Linux runs the symlink-mode release tests and the signed-update tests that are skipped on Windows.
