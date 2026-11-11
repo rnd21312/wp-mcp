@@ -26,6 +26,9 @@
 - `site.build`: build or extend a whole site from one JSON map (plugins, theme scaffold, tokens, pages from text or bundled patterns, menu, home page, branding, options). `dry_run` lists the steps, a real run is confirmed once, stops at the first failure and resumes with `from_step` and `page_ids`. Checked against your level before anything runs.
 - `studio.wordpress_install` (admin, confirmed) installs a new WordPress site on a host and connects it. The database comes from a profile the owner saves as JSON in the data folder (`db-profiles/<name>.json`: method manual or mysql_root); credentials are refused in the call, and the generated administrator password is written to `wp-installs/<site>.txt` instead of being shown to the AI. `studio.db_profiles` lists profile names.
 
+### SEO and Google
+- Search Console: `sitemap_submit` and `sitemap_delete`. They need the new panel button "Connect and allow changes" (scope `webmasters`, a reconnect), level live and a confirmation; the sitemap must be on the property. The default connection stays read-only.
+
 ### Easier for AI clients
 - Argument and action aliases, `describe` on any tool, wp-content paths as roots.
 - A confirmed call sends the token alone; the arguments are remembered.

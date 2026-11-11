@@ -18,8 +18,18 @@ function fakeGoogle(calls: { url: string; body?: any }[]): typeof fetch {
       return ok(
         body.grant_type === 'refresh_token'
           ? { access_token: 'AT2', expires_in: 3600 }
-          : { access_token: 'AT1', refresh_token: 'RT1', expires_in: 3600, id_token: idToken },
+          : {
+              access_token: 'AT1',
+              refresh_token: 'RT1',
+              expires_in: 3600,
+              id_token: idToken,
+              scope:
+                body.code === 'w'
+                  ? 'https://www.googleapis.com/auth/webmasters openid email'
+                  : 'https://www.googleapis.com/auth/webmasters.readonly openid email',
+            },
       );
+    if (url.includes('/sitemaps/') && ['PUT', 'DELETE'].includes(init.method)) return ok({});
     if (url.endsWith('/webmasters/v3/sites'))
       return ok({ siteEntry: [{ siteUrl: 'sc-domain:example.com', permissionLevel: 'siteOwner' }] });
     if (url.includes('/searchAnalytics/query'))
@@ -125,5 +135,50 @@ describe('Google Search Console', () => {
     expect(JSON.parse((await callTool(env.app, who(['alpha']), 'search_console', { action: 'status' })).content[0].text).error.code).toBe(
       'not_allowed',
     );
+  });
+
+  it('sitemap_submit: needs level live, a confirmation, and a connection that allows changes', async () => {
+    const asLevel = (level: Principal['level']): Principal => ({ ...who(), id: 'w-' + level, level });
+    const call = async (p: Principal, action: string, args: Record<string, unknown>, confirm_token?: string) =>
+      JSON.parse((await callTool(env.app, p, 'search_console', { action, args, confirm_token })).content[0].text);
+    const args = { url: 'https://example.com/sitemap.xml' };
+    expect(listTools(asLevel('draft')).find((t) => t.name === 'search_console')!.description).not.toContain('sitemap_submit(');
+    expect(listTools(asLevel('live')).find((t) => t.name === 'search_console')!.description).toContain('sitemap_submit(');
+    expect((await call(asLevel('draft'), 'sitemap_submit', args)).error.code).toBe('level_too_low');
+
+    vi.stubGlobal('fetch', fakeGoogle(calls));
+    const first = await call(asLevel('live'), 'sitemap_submit', args);
+    expect(first.needs_confirmation).toBe(true);
+    expect(
+      (await call(asLevel('live'), 'sitemap_submit', { url: 'https://other.example/sitemap.xml' }, first.confirm_token)).error.code,
+    ).toBe('bad_confirm_token');
+    // the connection made earlier asked for read access only
+    expect(gscStatus(env.app)).toMatchObject({ write_access: false });
+    expect((await call(asLevel('live'), 'sitemap_submit', args, first.confirm_token)).error.code).toBe('read_only_connection');
+
+    // reconnect with change access
+    const url = new URL(authUrl(env.app, true));
+    expect(url.searchParams.get('scope')).toMatch(/auth\/webmasters(\s|$)/);
+    await handleCallback(env.app, new URLSearchParams({ code: 'w', state: url.searchParams.get('state')! }));
+    expect(gscStatus(env.app)).toMatchObject({ write_access: true });
+    const done = await call(asLevel('live'), 'sitemap_submit', args, first.confirm_token);
+    expect(done.ok).toBe(true);
+    const put = calls.filter((c) => c.url.includes('/sitemaps/')).at(-1)!;
+    expect(put.url).toBe(
+      'https://www.googleapis.com/webmasters/v3/sites/sc-domain%3Aexample.com/sitemaps/https%3A%2F%2Fexample.com%2Fsitemap.xml',
+    );
+    const second = await call(asLevel('live'), 'sitemap_delete', args);
+    expect((await call(asLevel('live'), 'sitemap_delete', args, second.confirm_token)).deleted).toBe(true);
+  });
+
+  it('a sitemap must belong to the property', async () => {
+    const { sitemapUrlProblem } = await import('../src/seo/gsc.ts');
+    expect(sitemapUrlProblem('sc-domain:example.com', 'https://example.com/s.xml')).toBeNull();
+    expect(sitemapUrlProblem('sc-domain:example.com', 'https://blog.example.com/s.xml')).toBeNull();
+    expect(sitemapUrlProblem('sc-domain:example.com', 'https://evilexample.com/s.xml')).toMatch(/must be on/);
+    expect(sitemapUrlProblem('https://example.com/', 'https://example.com/a/s.xml')).toBeNull();
+    expect(sitemapUrlProblem('https://example.com/', 'https://example.org/s.xml')).toMatch(/must start with/);
+    expect(sitemapUrlProblem('sc-domain:example.com', 'ftp://example.com/s.xml')).toMatch(/https/);
+    expect(sitemapUrlProblem('sc-domain:example.com', 'nope')).toMatch(/full sitemap/);
   });
 });

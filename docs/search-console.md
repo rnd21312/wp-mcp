@@ -1,6 +1,6 @@
 # Google Search Console
 
-Read-only Search Console data in the local panel and for your AI, through the `search_console` MCP tool. Nothing in Search Console is changed.
+Search Console data in the local panel and for your AI, through the `search_console` MCP tool. It is read-only unless you press "Connect and allow changes" in the panel, which also lets sitemaps be submitted and deleted.
 
 ## One-time setup (free, about 5 minutes)
 
@@ -12,11 +12,11 @@ Google only hands data to an app you own, so you create a private sign-in once. 
 4. Open [Clients](https://console.cloud.google.com/auth/clients), **Create client**, type **Desktop app**. Copy the Client ID and Client secret.
 5. Open the local panel (`wpmcp.cmd`), page **Search Console**, paste both, press **Save**, then **Connect with Google** and sign in with the account that owns the property in Search Console.
 
-Only the scope `webmasters.readonly` (plus your email address for display) is requested. The refresh token and the client secret are stored encrypted with the gateway master key in the data folder.
+By default only the scope `webmasters.readonly` (plus your email address for display) is requested. "Connect and allow changes" asks for `webmasters` instead, which allows `sitemap_submit` and `sitemap_delete` (and nothing else this project uses); reconnect with the plain button to go back to read-only. The refresh token and the client secret are stored encrypted with the gateway master key in the data folder.
 
 ## The MCP tool
 
-`search_console` is offered to connections that may use every site (like `studio`). Actions, all read-only:
+`search_console` is offered to connections that may use every site (like `studio`). Actions, read-only except `sitemap_submit` and `sitemap_delete` (they need level live, a connection that allows changes and a confirmation, and the sitemap must belong to the property):
 
 | Action | What it gives |
 |---|---|

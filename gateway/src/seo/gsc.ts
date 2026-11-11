@@ -13,7 +13,9 @@ const AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth';
 const TOKEN_URL = 'https://oauth2.googleapis.com/token';
 const SITES_API = 'https://www.googleapis.com/webmasters/v3';
 const INSPECT_API = 'https://searchconsole.googleapis.com/v1/urlInspection/index:inspect';
-const SCOPES = ['https://www.googleapis.com/auth/webmasters.readonly', 'openid', 'email'];
+const SCOPE_READ = 'https://www.googleapis.com/auth/webmasters.readonly';
+/** Needed to submit and delete sitemaps. Asked for only when the owner chooses it in the panel. */
+const SCOPE_WRITE = 'https://www.googleapis.com/auth/webmasters';
 
 export class GscError extends Error {
   constructor(
@@ -29,6 +31,8 @@ interface Client {
   secret: string;
 }
 interface Tokens {
+  /** The connection may change things (sitemaps), not only read. */
+  write?: boolean;
   refresh: string;
   access: string;
   exp: number;
@@ -60,6 +64,7 @@ export function gscStatus(app: App): Record<string, unknown> {
     ok: true,
     configured: !!client,
     connected: !!tokens?.refresh,
+    write_access: !!tokens?.write,
     email: tokens?.email ?? '',
     client_id: client ? `${client.id.slice(0, 12)}…` : '',
     redirect_uri: redirectUri(app),
@@ -81,7 +86,7 @@ export function saveClient(app: App, id: string, secret: string): void {
 export const disconnect = (app: App): void => writeSetting(app, KEY_TOKENS, null);
 
 /** The Google sign-in address. The state is signed and carries the PKCE verifier, so nothing is stored server-side. */
-export function authUrl(app: App): string {
+export function authUrl(app: App, write = false): string {
   const client = readSetting<Client>(app, KEY_CLIENT);
   if (!client) throw new GscError('no_client', 'Save the Google client ID and secret first.');
   const verifier = randomBytes(32).toString('base64url');
@@ -90,7 +95,7 @@ export function authUrl(app: App): string {
     client_id: client.id,
     redirect_uri: redirectUri(app),
     response_type: 'code',
-    scope: SCOPES.join(' '),
+    scope: [write ? SCOPE_WRITE : SCOPE_READ, 'openid', 'email'].join(' '),
     access_type: 'offline',
     prompt: 'consent',
     include_granted_scopes: 'true',
@@ -107,6 +112,7 @@ async function tokenRequest(form: Record<string, string>): Promise<{
   refresh_token?: string;
   expires_in?: number;
   id_token?: string;
+  scope?: string;
   error?: string;
   error_description?: string;
 }> {
@@ -178,6 +184,7 @@ export async function handleCallback(app: App, query: URLSearchParams): Promise<
     access: out.access_token,
     exp: Math.floor(Date.now() / 1000) + (out.expires_in ?? 3000),
     email: emailOf(out.id_token),
+    write: (out.scope ?? '').split(' ').includes(SCOPE_WRITE),
   } satisfies Tokens);
 
   return page('Search Console is connected', 'You can close this tab and go back to the panel or to your AI client.');
@@ -432,6 +439,48 @@ export async function sitemaps(app: App, a: { site?: string }): Promise<Record<s
   };
 }
 
+/** Is this sitemap address inside the property? Null when fine. */
+export function sitemapUrlProblem(site: string, url: string): string | null {
+  let u: URL;
+  try {
+    u = new URL(url);
+  } catch {
+    return 'url must be a full sitemap address such as https://example.com/sitemap.xml.';
+  }
+  if (u.protocol !== 'https:' && u.protocol !== 'http:') return 'The sitemap address must start with https://.';
+  if (site.startsWith('sc-domain:')) {
+    const domain = site.slice('sc-domain:'.length).toLowerCase();
+    const host = u.hostname.toLowerCase();
+    return host === domain || host.endsWith('.' + domain)
+      ? null
+      : `The sitemap must be on ${domain} (or a subdomain) for the property ${site}.`;
+  }
+  return url.startsWith(site) ? null : `The sitemap must start with ${site} for this property.`;
+}
+
+async function sitemapWrite(app: App, method: 'PUT' | 'DELETE', a: { site?: string; url?: string }): Promise<Record<string, unknown>> {
+  const tokens = readSetting<Tokens>(app, KEY_TOKENS);
+  if (!tokens?.write)
+    throw new GscError(
+      'read_only_connection',
+      'This Google connection is read-only. In the local panel, Search Console page, press "Connect with Google (allow changes)" to let sitemaps be submitted and deleted.',
+    );
+  const site = await pickSite(app, a.site);
+  const problem = sitemapUrlProblem(site, String(a.url ?? ''));
+  if (problem) throw new GscError('bad_arguments', problem);
+  await google<unknown>(app, `${SITES_API}/sites/${encodeURIComponent(site)}/sitemaps/${encodeURIComponent(String(a.url))}`, { method });
+
+  return {
+    ok: true,
+    site,
+    sitemap: a.url,
+    ...(method === 'PUT' ? { submitted: true, next: 'Check it with the sitemaps action in a few minutes.' } : { deleted: true }),
+  };
+}
+
+export const sitemapSubmit = (app: App, a: { site?: string; url?: string }) => sitemapWrite(app, 'PUT', a);
+export const sitemapDelete = (app: App, a: { site?: string; url?: string }) => sitemapWrite(app, 'DELETE', a);
+
 const pickInspection = (r: any): Record<string, unknown> => {
   const i = r.inspectionResult ?? {};
   const idx = i.indexStatusResult ?? {};
@@ -639,6 +688,15 @@ export const GSC_ACTIONS: Record<string, { summary: string; args: string }> = {
     args: 'site, dimension (query|page), days, limit',
   },
   sitemaps: { summary: 'Submitted sitemaps with errors, warnings and last read time.', args: 'site' },
+  sitemap_submit: {
+    summary: 'Submit a sitemap to Search Console (needs level live, confirmation, and a connection that allows changes).',
+    args: 'url*, site',
+  },
+  sitemap_delete: {
+    summary:
+      'Remove a sitemap from Search Console (needs level live, confirmation, and a connection that allows changes). Does not delete the file.',
+    args: 'url*, site',
+  },
   inspect: {
     summary: 'URL Inspection: is this page indexed, why not, canonical, robots, mobile usability, rich results.',
     args: 'url*, site',
@@ -681,6 +739,10 @@ async function runGscRaw(app: App, action: string, args: Record<string, any> = {
       return compare(app, args);
     case 'sitemaps':
       return sitemaps(app, args);
+    case 'sitemap_submit':
+      return sitemapSubmit(app, args);
+    case 'sitemap_delete':
+      return sitemapDelete(app, args);
     case 'inspect':
       return inspect(app, args);
     case 'coverage':

@@ -56,9 +56,9 @@ function Setup({ status, reload }: { status: Status; reload: () => Promise<void>
       await reload();
     }
   };
-  const connect = async (): Promise<void> => {
+  const connect = async (write = false): Promise<void> => {
     setErr('');
-    const r = await api.post<any>('gsc/connect');
+    const r = await api.post<any>('gsc/connect', { write });
     if (r.ok && r.url) window.open(r.url, '_blank', 'noopener');
     else setErr(r.error?.message ?? 'Failed');
   };
@@ -130,8 +130,11 @@ function Setup({ status, reload }: { status: Status; reload: () => Promise<void>
             <Button variant="outline" disabled={!id || !secret} onClick={save}>
               {t('Save', 'ذخیره')}
             </Button>
-            <Button disabled={!status.configured} onClick={connect}>
+            <Button disabled={!status.configured} onClick={() => connect(false)}>
               <LinkIcon /> {t('Connect with Google', 'اتصال با گوگل')}
+            </Button>
+            <Button variant="outline" disabled={!status.configured} onClick={() => connect(true)}>
+              {t('Connect and allow changes (sitemaps)', 'اتصال با اجازه‌ی تغییر (سایت‌مپ)')}
             </Button>
             <Button variant="ghost" onClick={reload}>
               {t('I connected: refresh', 'وصل شدم: بازخوانی')}
