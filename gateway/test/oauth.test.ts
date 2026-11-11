@@ -478,3 +478,37 @@ describe('/mcp authentication', () => {
     expect(codes.at(-1)).toBe(429);
   });
 });
+
+describe('connector mode (no login) only serves Claude.ai', () => {
+  let env: Env;
+  const EVIL = 'https://evil.example/cb';
+  beforeAll(async () => {
+    env = await createEnv(['alpha'], { limits: LIMITS });
+  });
+  afterAll(() => env.stop());
+
+  const registerRaw = (redirect: string) =>
+    fetch(`${env.base}/register`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ client_name: 'x', redirect_uris: [redirect] }),
+    });
+
+  it('registers and approves Claude, refuses any other redirect address', async () => {
+    const before = await register(env, EVIL, 'registered before connector mode');
+    env.app.config.connectorLevel = 'live';
+
+    expect((await registerRaw(EVIL)).status).toBe(400);
+    expect(((await (await registerRaw(EVIL)).json()) as { error: string }).error).toBe('invalid_redirect_uri');
+
+    const claude = await register(env, REDIRECT, 'Claude');
+    const { challenge } = pkce();
+    const ok = await fetch(authorizeUrl(env, claude, challenge), { redirect: 'manual' });
+    expect(ok.headers.get('location')).toMatch(/^https:\/\/claude\.ai\/api\/mcp\/auth_callback\?.*code=/);
+
+    // a client that was registered with another address before is not auto-approved: it has to sign in
+    const other = await fetch(authorizeUrl(env, before, challenge, {}, EVIL), { redirect: 'manual' });
+    expect(other.headers.get('location') ?? '').not.toContain('code=');
+    expect(other.headers.get('location') ?? '').toContain('/admin/login');
+  });
+});

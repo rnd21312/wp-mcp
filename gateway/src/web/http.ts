@@ -10,6 +10,7 @@ import {
   checkAuthorize,
   consentPage,
   decide,
+  isClaudeRedirect,
   issueCode,
   protectedResource,
   readAuthorize,
@@ -153,8 +154,14 @@ async function route(app: App, req: http.IncomingMessage, res: http.ServerRespon
     return send(res, revoke(app, Object.fromEntries(form)));
   }
 
-  if (path === '/authorize' && app.config.connectorLevel && method === 'GET') {
-    // Connector mode: this computer is the owner, there is no login. Approve every site at the chosen level.
+  if (
+    path === '/authorize' &&
+    app.config.connectorLevel &&
+    method === 'GET' &&
+    isClaudeRedirect(url.searchParams.get('redirect_uri') ?? '')
+  ) {
+    // Connector mode: there is no login, so only Claude.ai's own callback is approved, at the chosen level, for every site.
+    // Any other redirect address falls through to the normal sign-in below.
     const checked = checkAuthorize(app, readAuthorize(Object.fromEntries(url.searchParams)));
     if ('reply' in checked) return send(res, checked.reply);
     app.store.setGrant(checked.params.client_id, app.config.connectorLevel, encodeScope('*'));

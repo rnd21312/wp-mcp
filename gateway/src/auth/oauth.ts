@@ -65,6 +65,11 @@ export function redirectUriOk(uri: string): boolean {
   return scheme === 'http' && LOOPBACK.includes(url.hostname.toLowerCase());
 }
 
+/** The only callback addresses Claude.ai uses. In connector mode (no login) nothing else is registered or approved. */
+export const CLAUDE_REDIRECTS = ['https://claude.ai/api/mcp/auth_callback', 'https://claude.com/api/mcp/auth_callback'];
+
+export const isClaudeRedirect = (uri: string): boolean => CLAUDE_REDIRECTS.includes(uri);
+
 const loopbackKey = (uri: string): string | null => {
   try {
     const url = new URL(uri);
@@ -102,6 +107,13 @@ export function register(app: App, body: Record<string, unknown>, ip: string): R
     return json(400, {
       error: 'invalid_redirect_uri',
       error_description: 'Give 1 to 5 redirect_uris: https, loopback http, or an editor scheme.',
+    });
+  }
+  if (app.config.connectorLevel && !uris.every((u) => isClaudeRedirect(u as string))) {
+    return json(400, {
+      error: 'invalid_redirect_uri',
+      error_description:
+        'The connector mode of this gateway only accepts Claude.ai (' + CLAUDE_REDIRECTS.join(', ') + ') as redirect address.',
     });
   }
   if (body.token_endpoint_auth_method && body.token_endpoint_auth_method !== 'none') {

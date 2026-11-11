@@ -17,6 +17,8 @@
 
 - `maintain.core_verify` compares WordPress core files with the official checksums of api.wordpress.org (modified, missing, unexpected files); `maintain.core_restore` puts back the verified original of modified or missing files, confirmed first and undoable. It works without the core-edit switch because it can only write bytes that match the official checksum.
 
+- Security: in Claude.ai connector mode (no login) the gateway now registers and auto-approves only Claude's own callback addresses; any other redirect address is refused at registration and has to sign in. Note: anyone who knows the tunnel address can still add it as a connector in their own Claude account, so keep the address secret and stop the tunnel when unused.
+
 ### Easier for AI clients
 - Argument and action aliases, `describe` on any tool, wp-content paths as roots.
 - A confirmed call sends the token alone; the arguments are remembered.
