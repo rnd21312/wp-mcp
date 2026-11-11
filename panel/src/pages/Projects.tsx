@@ -66,14 +66,24 @@ function Workspace({ project, hosts, onDeployed }: { project: ProjectInfo; hosts
 
   const save = async (): Promise<void> => {
     const r = await api.post('projects/write', { project: project.name, path: current, content: text });
-    r.ok ? (setDirty(false), toast.success(t('Saved', 'ذخیره شد'))) : toast.error(r.error?.message ?? 'error');
+    if (r.ok) {
+      setDirty(false);
+      toast.success(t('Saved', 'ذخیره شد'));
+    } else {
+      toast.error(r.error?.message ?? 'error');
+    }
   };
 
   const addFile = async (): Promise<void> => {
     const path = prompt(t('New file path (for example about.html or css/site.css)', 'مسیر فایل جدید (مثلاً about.html یا css/site.css)'));
     if (!path) return;
     const r = await api.post('projects/write', { project: project.name, path, content: '' });
-    r.ok ? (await load(), await open(path)) : toast.error(r.error?.message ?? 'error');
+    if (r.ok) {
+      await load();
+      await open(path);
+    } else {
+      toast.error(r.error?.message ?? 'error');
+    }
   };
 
   const remove = async (): Promise<void> => {

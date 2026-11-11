@@ -35,11 +35,10 @@ const mainFor = (slug: string): string =>
 
 describe('builder pipeline (scripted AI)', () => {
   let env: Env;
-  let planCalls = 0;
   let designCalls = 0;
   let pageCalls = 0;
   let pageMode: 'good' | 'script' | 'no-h1' = 'good';
-  let seenPrompts: string[] = [];
+  const seenPrompts: string[] = [];
   const realComplete = llm.complete;
 
   beforeAll(async () => {
@@ -48,7 +47,6 @@ describe('builder pipeline (scripted AI)', () => {
     llm.complete = async (_app, _provider, system, user) => {
       seenPrompts.push(user);
       if (system.includes('information architect')) {
-        planCalls++;
         return '```json\n' + JSON.stringify(PLAN) + '\n```';
       }
       if (system.includes('brand and UI designer')) {

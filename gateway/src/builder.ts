@@ -3,7 +3,7 @@ import { dirname, join } from 'node:path';
 import { auditSite, type AuditReport } from './audit.ts';
 import type { App } from './context.ts';
 import { askJson, LlmError, llm, stripFences } from './llm.ts';
-import { createProject, deployProject, projectDir, ProjectError, removeProject, type DeployInput } from './projects.ts';
+import { createProject, deployProject, projectDir, removeProject, type DeployInput } from './projects.ts';
 import { assemblePage, buildCss, checkMain, contrast, CSS_CLASSES, esc, FONT_CHOICES, HEX, pageFile, placeholderSvg, robotsTxt, sitemapXml, type Plan, type Tokens } from './sitekit.ts';
 
 /**

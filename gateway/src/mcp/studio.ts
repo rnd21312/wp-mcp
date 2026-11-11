@@ -5,7 +5,7 @@ import { canonical, seal, sha256, unseal } from '../crypto.ts';
 import { AgentError, type Release } from '../agentclient.ts';
 import { hostView, needHost } from '../hosts.ts';
 import { atLeast, type Level } from '../levels.ts';
-import { projectFramework, ProjectError, createProject, deleteFile, deployProject, listFiles, projectDir, publishDir, readFile, TEMPLATES, writeFile } from '../projects.ts';
+import { projectFramework, ProjectError, createProject, deleteFile, deployProject, listFiles, publishDir, readFile, TEMPLATES, writeFile } from '../projects.ts';
 import { zipDirectory } from '../zip.ts';
 import type { ToolDef, ToolResult } from './tools.ts';
 

@@ -8,7 +8,7 @@
     "spec": "node scripts/sync-spec.mjs",
     "docs": "node scripts/sync-spec.mjs && node scripts/gen-docs.mjs",
     "tui": "node scripts/tui.mjs",
-    "setup": "npm --prefix gateway ci && npm --prefix panel ci && npm --prefix gateway run build",
+    "setup": "npm ci && npm --prefix gateway ci && npm --prefix panel ci && npm --prefix gateway run build",
     "build": "npm --prefix gateway run build",
     "local": "node gateway/dist/index.js local",
     "test": "npm --prefix gateway test",
@@ -16,6 +16,17 @@
     "test:php": "node scripts/sync-spec.mjs && php plugin/tests/run.php && php agent/tests/run.php",
     "package:agent": "node scripts/package-agent.mjs",
     "release:keygen": "node scripts/release-keygen.mjs",
-    "release": "node scripts/release.mjs"
+    "release": "node scripts/release.mjs",
+    "lint": "eslint . --quiet",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.5",
+    "eslint": "^9.39.5",
+    "globals": "^17.14.0",
+    "prettier": "^3.9.10",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.72.2"
   }
 }

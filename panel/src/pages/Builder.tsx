@@ -53,7 +53,12 @@ function PageRow({ project, p, reload, busy, run }: { project: string; p: PageDe
 
   const approve = async (edit?: string): Promise<void> => {
     const r = await api.post<any>('builder/approve', { project, stage: 'pages', slug: p.slug, edit });
-    r.ok ? (setEditing(null), await reload()) : toast.error(r.error?.message ?? 'error');
+    if (r.ok) {
+      setEditing(null);
+      await reload();
+    } else {
+      toast.error(r.error?.message ?? 'error');
+    }
   };
 
   return (

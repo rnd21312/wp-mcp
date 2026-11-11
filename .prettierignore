@@ -1,0 +1,18 @@
+node_modules
+dist
+**/dist
+wpmcp-data*
+wpmcp-run
+data
+package-lock.json
+**/package-lock.json
+spec/ops.json
+gateway/src/generated
+plugin
+agent
+docs/TOOLS.md
+# one action per line, read as a table
+spec/build-spec.mjs
+# vendored shadcn/ui components
+panel/src/components/ui
+*.md

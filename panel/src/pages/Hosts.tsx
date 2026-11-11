@@ -41,7 +41,12 @@ function Sites({ host }: { host: HostInfo }) {
 
   const load = useCallback(async () => {
     const r = await api.post<{ ok: boolean; sites: RemoteSite[]; error?: { message: string } }>('hosts/sites', { host: host.name });
-    r.ok ? (setSites(r.sites), setErr('')) : setErr(r.error?.message ?? 'error');
+    if (r.ok) {
+      setSites(r.sites);
+      setErr('');
+    } else {
+      setErr(r.error?.message ?? 'error');
+    }
   }, [host.name]);
   useEffect(() => { void load(); }, [load]);
 
@@ -63,7 +68,13 @@ function Sites({ host }: { host: HostInfo }) {
 
   const create = async (): Promise<void> => {
     const r = await api.post('hosts/sites/create', { host: host.name, ...form });
-    r.ok ? (toast.success(t('Site created on the host', 'سایت روی هاست ساخته شد')), setForm({ name: '', kind: 'static', folder: '' }), await load()) : toast.error(r.error?.message ?? 'error');
+    if (r.ok) {
+      toast.success(t('Site created on the host', 'سایت روی هاست ساخته شد'));
+      setForm({ name: '', kind: 'static', folder: '' });
+      await load();
+    } else {
+      toast.error(r.error?.message ?? 'error');
+    }
   };
 
   if (err) return <ErrorBox message={err} />;

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { createInterface } from 'node:readline';
-import { createApiKey, stdioPrincipal, type Principal } from './auth.ts';
+import { createApiKey, stdioPrincipal } from './auth.ts';
 import { prepareSetup } from './admin.ts';
 import { loadConfig } from './config.ts';
 import { createApp } from './context.ts';
