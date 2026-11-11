@@ -88,7 +88,7 @@ final class Design {
         if ( preg_match( '#</?\s*(style|script)#i', $css ) ) {
             return 'Remove <style>/<script> tags; send plain CSS only.';
         }
-        if ( preg_match( '/javascript:|expression\s*\(|behavior\s*:|-moz-binding/i', $css ) ) {
+        if ( Policy::css_runs_code( $css ) ) {
             return 'This CSS contains a script-capable construct.';
         }
         if ( preg_match_all( '/@import\s+(?:url\()?\s*[\'"]?([^\'")\s;]+)/i', $css, $m ) ) {

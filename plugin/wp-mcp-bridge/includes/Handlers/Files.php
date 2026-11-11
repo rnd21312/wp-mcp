@@ -98,6 +98,13 @@ final class Files {
         return array( $dir, $uploads );
     }
 
+    /** Renaming to x.php.off would let the web server hand out the source as plain text; a subfolder switches a file off safely. */
+    private static function refuse_off_ending( string $to ): void {
+        if ( preg_match( '/^(.*?)\.(off|bak|old|orig|disabled)$/i', basename( $to ), $m ) ) {
+            throw new BridgeError( 'bad_path', 'That ending is not allowed: the server would show the file as plain text. To switch a file off, move it into a subfolder instead (mu-plugins only loads files at its top level), for example to "off/' . $m[1] . '".', 400 );
+        }
+    }
+
     /** @return never */
     private static function missing( string $root ): array {
         throw new BridgeError( 'not_found', "The root \"$root\" does not exist on this site.", 404 );
@@ -181,6 +188,9 @@ final class Files {
             if ( false === $real || ! is_dir( $real ) || ! str_starts_with( wp_normalize_path( $real ) . '/', $dir . '/' ) ) {
                 throw new BridgeError( 'not_found', 'No such folder.', 404 );
             }
+        }
+        if ( ! is_dir( $start ) ) {
+            return array( 'root' => $a['root'], 'files' => array(), 'truncated' => false, 'note' => 'This folder does not exist yet; the first write creates it.' );
         }
         $it = new \RecursiveIteratorIterator( new \RecursiveDirectoryIterator( $start, \FilesystemIterator::SKIP_DOTS ), \RecursiveIteratorIterator::SELF_FIRST );
         $it->setMaxDepth( max( 0, min( 3, (int) ( $a['depth'] ?? 2 ) - 1 ) ) );
@@ -509,6 +519,8 @@ final class Files {
      * @return array<string, mixed>
      */
     public static function preview_move( array $a, Context $c ): array {
+        self::refuse_off_ending( (string) $a['to'] );
+
         return array( 'will_move' => $a['from'], 'to' => $a['to'], 'root' => $a['root'] );
     }
 
@@ -519,6 +531,7 @@ final class Files {
      * @return array<string, mixed>
      */
     public static function op_move( array $a, Context $c ): array {
+        self::refuse_off_ending( (string) $a['to'] );
         $read = self::op_read( array( 'root' => $a['root'], 'path' => $a['from'] ), $c );
         $data = 'base64' === $read['encoding'] ? array( 'data_base64' => $read['data_base64'] ) : array( 'content' => $read['content'] );
         if ( ! empty( $read['truncated'] ) ) {

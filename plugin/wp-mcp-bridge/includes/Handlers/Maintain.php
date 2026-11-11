@@ -11,6 +11,7 @@ namespace WPMCP\Bridge\Handlers;
 
 use WPMCP\Bridge\BridgeError;
 use WPMCP\Bridge\Context;
+use WPMCP\Bridge\Policy;
 use WPMCP\Bridge\Revisions;
 
 defined( 'ABSPATH' ) || exit;
@@ -849,7 +850,7 @@ final class Maintain {
     public static function op_sql( array $a, Context $c ): array {
         global $wpdb;
         $q = rtrim( trim( str_replace( '{prefix}', $wpdb->prefix, (string) $a['query'] ) ), "; \t\n\r" );
-        if ( ! preg_match( '/^(select|show|describe|desc|explain)\b/i', $q ) || str_contains( $q, ';' ) || preg_match( '/\b(into\s+outfile|into\s+dumpfile|load_file)\b/i', $q ) ) {
+        if ( ! preg_match( '/^(select|show|describe|desc|explain)\b/i', $q ) || ! Policy::sql_is_single( $q ) || preg_match( '/\b(into\s+outfile|into\s+dumpfile|load_file)\b/i', $q ) ) {
             throw new BridgeError( 'read_only', 'maintain.sql runs one SELECT/SHOW/DESCRIBE/EXPLAIN. Use maintain.sql_write for changes.', 400 );
         }
         $limit = max( 1, min( 1000, (int) ( $a['limit'] ?? 200 ) ) );
@@ -879,7 +880,7 @@ final class Maintain {
     public static function op_sql_write( array $a, Context $c ): array {
         global $wpdb;
         $q = rtrim( trim( str_replace( '{prefix}', $wpdb->prefix, (string) $a['query'] ) ), "; \t\n\r" );
-        if ( '' === $q || str_contains( $q, ';' ) || ! preg_match( '/^(insert|update|delete|replace|create|alter|drop|truncate)\b/i', $q ) || preg_match( '/\b(into\s+outfile|into\s+dumpfile|load_file)\b/i', $q ) ) {
+        if ( '' === $q || ! Policy::sql_is_single( $q ) || ! preg_match( '/^(insert|update|delete|replace|create|alter|drop|truncate)\b/i', $q ) || preg_match( '/\b(into\s+outfile|into\s+dumpfile|load_file)\b/i', $q ) ) {
             throw new BridgeError( 'bad_query', 'One INSERT/UPDATE/DELETE/REPLACE/CREATE/ALTER/DROP/TRUNCATE statement per call.', 400 );
         }
         $res = $wpdb->query( $q ); // phpcs:ignore WordPress.DB

@@ -1392,7 +1392,7 @@
    "summary": "Rendered HTML of a page of this site (same host only, redirects not followed off-site).",
    "params": {
     "path": "string|Path like /about/ or full URL on this site",
-    "max_bytes": "int|Default 60000",
+    "max_bytes": "int|Default 32000",
     "offset": "int|Byte offset"
    },
    "required": [
@@ -1411,7 +1411,7 @@
    "summary": "Render a post (also drafts) through the_content, without the theme.",
    "params": {
     "id": "int|Post ID",
-    "max_bytes": "int|Default 60000"
+    "max_bytes": "int|Default 32000"
    },
    "required": [
     "id"
@@ -1450,7 +1450,7 @@
     "path": "string|Page path to list its stylesheets",
     "css_url": "string|One local stylesheet URL to read",
     "offset": "int|Byte offset",
-    "max_bytes": "int|Default 60000"
+    "max_bytes": "int|Default 32000"
    },
    "required": [],
    "write": false,

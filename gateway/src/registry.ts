@@ -104,7 +104,85 @@ const ARG_ALIASES: Record<string, string[]> = {
   text: ['content'],
   id_or_slug: ['id'],
   post_id: ['id'],
+  page_id: ['id'],
+  type: ['post_type'],
+  name: ['keys'],
+  key: ['keys'],
+  params: ['query'],
+  query_params: ['query'],
+  sql: ['query'],
+  limit: ['per_page'],
+  count: ['per_page'],
+  length: ['max_bytes'],
+  max_length: ['max_bytes'],
+  element_id: ['element'],
 };
+
+/** Action names models often guess, per tool. */
+const ACTION_ALIASES: Record<string, string> = {
+  'content.create': 'save',
+  'content.update': 'save',
+  'content.terms': 'terms_list',
+  'content.comments': 'comments_list',
+  'design.tokens': 'tokens_get',
+  'design.css': 'css_get',
+  'design.menus': 'menus_list',
+  'design.templates': 'templates_list',
+  'design.themes': 'themes_list',
+  'builder.element_get': 'get',
+  'media.import': 'import_url',
+  'seo.redirects': 'redirects_list',
+  'maintain.cache_purge': 'cache_flush',
+  'maintain.purge_cache': 'cache_flush',
+  'maintain.flush_cache': 'cache_flush',
+  'maintain.cache_clear': 'cache_flush',
+  'maintain.clear_cache': 'cache_flush',
+  'maintain.backup': 'backup_create',
+  'options.update': 'set',
+  'shop.orders': 'orders_list',
+  'shop.products': 'products_list',
+  'shop.coupons': 'coupons_list',
+  'fields.list': 'groups',
+  'activity.revert': 'undo',
+};
+
+/** The real action for a name the model used, or the name itself. */
+export const resolveAction = (tool: string, action: string): string => (OPS[`${tool}.${action}`] ? action : (ACTION_ALIASES[`${tool}.${action}`] ?? action));
+
+/** Asking a tool about itself ("content.describe") means site.describe for that tool. */
+export const HELP_ACTIONS = ['describe', 'help', 'actions'];
+
+const trimSlashes = (value: string): string => value.replace(/\\/g, '/').replace(/^\/+|\/+$/g, '');
+
+/**
+ * File roots as models write them: "wp-content/themes/x", root "themes" with the folder in the path,
+ * or no root at all and a full path. All become root "themes/x" plus a path inside it.
+ */
+function normalizeRoot(op: OpSpec, args: Record<string, unknown>): void {
+  if (!op.params.root) return;
+  if (args.root === undefined && typeof args.path === 'string') {
+    const m = /^(?:wp-content\/)?(themes|plugins|mu-plugins|uploads)(?:\/(.*))?$/.exec(trimSlashes(args.path));
+    if (m) {
+      args.root = m[1];
+      if (m[2]) args.path = m[2]; else delete args.path;
+    }
+  }
+  if (typeof args.root !== 'string') return;
+  let root = trimSlashes(args.root).replace(/^wp-content\//, '');
+  if (root === 'themes' || root === 'plugins') {
+    const inside = ['path', 'from', 'to'].filter((name) => op.params[name] && typeof args[name] === 'string');
+    const parts = inside.map((name) => trimSlashes(args[name] as string).split('/'));
+    const folder = parts[0]?.[0];
+    if (folder && parts.every((p) => p[0] === folder)) {
+      root = `${root}/${folder}`;
+      inside.forEach((name, i) => {
+        const rest = parts[i]!.slice(1).join('/');
+        if (rest) args[name] = rest; else delete args[name];
+      });
+    }
+  }
+  args.root = root;
+}
 
 function listToObject(list: unknown[]): Record<string, unknown> | undefined {
   if (!list.length) return undefined;
@@ -130,11 +208,15 @@ export function checkArgs(op: OpSpec, input: unknown): Checked {
   const errors: string[] = [];
   const raw = input && typeof input === 'object' && !Array.isArray(input) ? (input as Record<string, unknown>) : {};
   const source: Record<string, unknown> = {};
+  const single = op.params.values && raw.values === undefined && typeof raw.name === 'string' && raw.value !== undefined; // {name, value} for one option
   for (const [key, value] of Object.entries(raw)) {
     if (key === 'dry_run' || key === 'confirm_token' || key === 'idempotency_key') continue; // top-level controls, not operation arguments
+    if (key === 'confirm' && !op.params.confirm) continue; // the token, misplaced
+    if (single && (key === 'name' || key === 'value')) continue;
     const alias = op.params[key] ? undefined : ARG_ALIASES[key]?.find((a) => op.params[a] && raw[a] === undefined);
     source[alias ?? key] = value;
   }
+  if (single) source.values = { [raw.name as string]: raw.value };
   const args: Record<string, unknown> = {};
   for (const [name, value] of Object.entries(source)) {
     const def = op.params[name];
@@ -173,6 +255,7 @@ export function checkArgs(op: OpSpec, input: unknown): Checked {
         if (!Array.isArray(v)) errors.push(`"${name}" must be an array.`);
         break;
       case 'enum':
+        if (typeof v === 'number') v = String(v); // 301 for "301"
         if (typeof v !== 'string' || !p.enum!.includes(v)) errors.push(`"${name}" must be one of: ${p.enum!.join(', ')}.`);
         break;
       default:
@@ -180,16 +263,8 @@ export function checkArgs(op: OpSpec, input: unknown): Checked {
     }
     args[name] = v;
   }
+  normalizeRoot(op, args);
   for (const name of op.required) if (args[name] === undefined) errors.push(`Missing required argument "${name}".`);
-  if (op.id === 'site.transfer_files' && typeof args.root === 'string' && typeof args.path === 'string') {
-    // root "themes" + path "my-theme/inc" means root "themes/my-theme", path "inc"
-    const m = /^(themes|plugins)$/.exec(args.root.replace(/^\/+|\/+$/g, ''));
-    if (m) {
-      const [first, ...rest] = args.path.replace(/^\/+|\/+$/g, '').split('/');
-      args.root = `${m[1]}/${first}`;
-      if (rest.length) args.path = rest.join('/'); else delete args.path;
-    }
-  }
   return { args, errors };
 }
 

@@ -116,10 +116,10 @@ op('seo.schema_set', 'live', 'Set custom JSON-LD for an item (empty removes it).
 
 /* inspect */
 op('inspect.ticket', 'live', 'Short-lived header that lets the visual editor load a page with source markers (template parts, theme files, post content).');
-op('inspect.page', 'read', 'Rendered HTML of a page of this site (same host only, redirects not followed off-site).', { 'path*': 'string|Path like /about/ or full URL on this site', max_bytes: 'int|Default 60000', offset: 'int|Byte offset' }, { u: 1 });
-op('inspect.render', 'draft', 'Render a post (also drafts) through the_content, without the theme.', { 'id*': 'int|Post ID', max_bytes: 'int|Default 60000' }, { u: 1 });
+op('inspect.page', 'read', 'Rendered HTML of a page of this site (same host only, redirects not followed off-site).', { 'path*': 'string|Path like /about/ or full URL on this site', max_bytes: 'int|Default 32000', offset: 'int|Byte offset' }, { u: 1 });
+op('inspect.render', 'draft', 'Render a post (also drafts) through the_content, without the theme.', { 'id*': 'int|Post ID', max_bytes: 'int|Default 32000' }, { u: 1 });
 op('inspect.outline', 'read', 'Compact structure of a page: headings, landmarks, images, links, forms, meta, scripts, and an element tree (depth-limited).', { 'path*': 'string|Path or URL on this site', selector: 'string|Simple selector (#id, .class, tag) to zoom into', depth: 'int|Tree depth (default 4)' }, { u: 1 });
-op('inspect.styles', 'read', 'Stylesheets used by a page, or the text of one local stylesheet.', { path: 'string|Page path to list its stylesheets', css_url: 'string|One local stylesheet URL to read', offset: 'int|Byte offset', max_bytes: 'int|Default 60000' }, { u: 1 });
+op('inspect.styles', 'read', 'Stylesheets used by a page, or the text of one local stylesheet.', { path: 'string|Page path to list its stylesheets', css_url: 'string|One local stylesheet URL to read', offset: 'int|Byte offset', max_bytes: 'int|Default 32000' }, { u: 1 });
 
 /* maintain */
 op('maintain.health', 'draft', 'Site Health tests, versions, SSL, memory, disk, debug flags, cron, pending updates count.');

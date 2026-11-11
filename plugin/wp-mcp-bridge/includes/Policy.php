@@ -264,6 +264,18 @@ final class Policy {
         return in_array( $ext, $text, true ) && ( ! $uploads || 'php' !== $ext ) || in_array( $ext, $media, true ) && ( $uploads || 'zip' !== $ext );
     }
 
+    /** CSS that can run code in some browser: javascript: URLs, IE expression() and behavior, Firefox -moz-binding. */
+    public static function css_runs_code( string $css ): bool {
+        return 1 === preg_match( '/javascript:|expression\s*\(|(?<![\w-])behavior\s*:|-moz-binding/i', $css );
+    }
+
+    /** True when the SQL holds one statement: no ";" outside quoted text (a trailing one is fine). */
+    public static function sql_is_single( string $sql ): bool {
+        $bare = preg_replace( '/\'(?:[^\'\\\\]|\\\\.|\'\')*\'|"(?:[^"\\\\]|\\\\.|"")*"|`[^`]*`/s', '', $sql );
+
+        return is_string( $bare ) && ! str_contains( rtrim( $bare, "; \t\n\r" ), ';' );
+    }
+
     public static function level_for_status( string $status ): string {
         return in_array( $status, array( 'draft', 'pending', 'auto-draft', 'private', 'trash' ), true ) ? 'draft' : 'live';
     }

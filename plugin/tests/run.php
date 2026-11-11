@@ -71,6 +71,12 @@ check( 'unknown level has no power', ! Levels::at_least( 'root', 'read' ) && ! L
 check( 'min/max', 'draft' === Levels::min( 'admin', 'draft' ) && 'live' === Levels::max( 'live', 'read' ) );
 
 /* ------------------------------------------------------------------- options */
+check( 'css: script-capable constructs are caught', Policy::css_runs_code( 'a{behavior:url(x.htc)}' ) && Policy::css_runs_code( 'a{ BEHAVIOR : url(x)}' ) && Policy::css_runs_code( 'a{width:expression(1)}' ) && Policy::css_runs_code( 'a{background:url(javascript:1)}' ) && Policy::css_runs_code( 'a{-moz-binding:url(x)}' ) );
+check( 'css: scroll-behavior and overscroll-behavior are plain CSS', ! Policy::css_runs_code( 'html{scroll-behavior:smooth}.t{overscroll-behavior: contain; scroll-snap-align:start}' ) );
+check( 'sql: one statement, with or without a trailing semicolon', Policy::sql_is_single( 'UPDATE wp_posts SET post_title = 1' ) && Policy::sql_is_single( "SELECT 1;
+" ) );
+check( 'sql: semicolons inside quoted text are data', Policy::sql_is_single( "UPDATE wp_snippets SET code = REPLACE(code, 'a(); b();', 'c(\'x\'); d(''y'');') WHERE id = 1" ) && Policy::sql_is_single( 'UPDATE t SET a = "x;y", `b;c` = 1' ) );
+check( 'sql: a second statement is refused', ! Policy::sql_is_single( 'DELETE FROM a; DROP TABLE b' ) && ! Policy::sql_is_single( "UPDATE t SET a = 'x'; DROP TABLE b" ) && ! Policy::sql_is_single( "SELECT 'a' ; SELECT 'b'" ) );
 check( 'public options are safe', 'safe' === Policy::option_tier( 'blogname' ) && 'safe' === Policy::option_tier( 'permalink_structure' ) );
 check( 'unknown options are sensitive', 'sensitive' === Policy::option_tier( 'my_plugin_settings' ) && 'sensitive' === Policy::option_tier( 'active_plugins' ) );
 foreach ( array( 'stripe_secret_key', 'woocommerce_stripe_settings_api_key', 'smtp_password', 'jwt_auth_secret', 'github_token', 'AUTH_KEY', 'mailserver_pass_x', 'wpm_bridge_connections', 'license_key_pro' ) as $name ) {

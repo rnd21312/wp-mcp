@@ -33,7 +33,7 @@ final class Inspect {
     public static function op_page( array $a, Context $c ): array {
         $url  = Util::own_url( (string) $a['path'] );
         $page = Util::fetch_own( $url );
-        $max  = max( 1000, min( 200000, (int) ( $a['max_bytes'] ?? 60000 ) ) );
+        $max  = max( 1000, min( 200000, (int) ( $a['max_bytes'] ?? 32000 ) ) );
         $off  = max( 0, (int) ( $a['offset'] ?? 0 ) );
         $html = substr( $page['body'], $off, $max );
 
@@ -54,7 +54,7 @@ final class Inspect {
         setup_postdata( $post );
         $html = (string) apply_filters( 'the_content', $post->post_content ); // phpcs:ignore WordPress.NamingConventions
         wp_reset_postdata();
-        $max = max( 1000, min( 200000, (int) ( $a['max_bytes'] ?? 60000 ) ) );
+        $max = max( 1000, min( 200000, (int) ( $a['max_bytes'] ?? 32000 ) ) );
 
         return array( 'id' => $post->ID, 'status' => $post->post_status, 'total_bytes' => strlen( $html ), 'truncated' => strlen( $html ) > $max, 'html' => substr( $html, 0, $max ), 'note' => 'Rendered content only, without header, footer or theme CSS.' );
     }
@@ -164,7 +164,7 @@ final class Inspect {
             $url  = Util::own_url( (string) $a['css_url'] );
             $page = Util::fetch_own( $url );
             $off  = max( 0, (int) ( $a['offset'] ?? 0 ) );
-            $max  = max( 1000, min( 200000, (int) ( $a['max_bytes'] ?? 60000 ) ) );
+            $max  = max( 1000, min( 200000, (int) ( $a['max_bytes'] ?? 32000 ) ) );
             $css  = substr( $page['body'], $off, $max );
 
             return array( 'url' => $url, 'status' => $page['status'], 'total_bytes' => strlen( $page['body'] ), 'offset' => $off, 'truncated' => $off + strlen( $css ) < strlen( $page['body'] ), 'css' => $css );
