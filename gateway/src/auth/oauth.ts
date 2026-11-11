@@ -1,13 +1,13 @@
 import { createHash } from 'node:crypto';
 import { ACCESS_PREFIX, REFRESH_PREFIX } from './auth.ts';
-import type { App, Reply } from './context.ts';
-import { json } from './context.ts';
-import { safeEqual, sha256, token } from './crypto.ts';
-import { esc, page, securityHeaders } from './html.ts';
-import type { Level } from './levels.ts';
-import { isLevel, LEVEL_HELP, LEVELS, minLevel, rank } from './levels.ts';
+import type { App, Reply } from '../core/context.ts';
+import { json } from '../core/context.ts';
+import { safeEqual, sha256, token } from '../core/crypto.ts';
+import { esc, page, securityHeaders } from '../web/html.ts';
+import type { Level } from '../core/levels.ts';
+import { isLevel, LEVEL_HELP, LEVELS, minLevel, rank } from '../core/levels.ts';
 import { checkCsrf, csrfToken, type Session } from './session.ts';
-import { encodeScope, parseScope, type SiteScope } from './store.ts';
+import { encodeScope, parseScope, type SiteScope } from '../core/store.ts';
 
 const LOOPBACK = ['localhost', '127.0.0.1', '[::1]'];
 const EDITOR_SCHEMES = ['cursor', 'vscode', 'vscode-insiders'];

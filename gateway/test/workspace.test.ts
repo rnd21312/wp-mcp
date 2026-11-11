@@ -2,7 +2,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'no
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { stopAll } from '../src/workspace.ts';
+import { stopAll } from '../src/studio/workspace.ts';
 import { createEnv, type Env } from './helpers.ts';
 
 describe('VS Code workspace: pull, edit locally, live sync back', () => {

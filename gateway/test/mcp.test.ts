@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { addSite } from '../src/siteadmin.ts';
-import { prepareSetup } from '../src/admin.ts';
+import { addSite } from '../src/sites/siteadmin.ts';
+import { prepareSetup } from '../src/web/admin.ts';
 import { createEnv, FakeSite, key, OWNER_PASSWORD, rpc, tool, type Env } from './helpers.ts';
 
 describe('MCP protocol (stateless Streamable HTTP)', () => {

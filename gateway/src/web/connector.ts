@@ -1,8 +1,8 @@
 import { spawn, execFileSync, type ChildProcess } from 'node:child_process';
 import { appendFileSync, existsSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import type { App } from './context.ts';
-import { isLevel, type Level } from './levels.ts';
+import type { App } from '../core/context.ts';
+import { isLevel, type Level } from '../core/levels.ts';
 
 /**
  * Claude.ai connector for the local panel: a temporary cloudflared quick tunnel gives this computer a public https

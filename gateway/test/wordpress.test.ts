@@ -1,9 +1,9 @@
 import http from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { AgentError, type AgentClient } from '../src/agentclient.ts';
-import { encrypt } from '../src/crypto.ts';
-import { buildBridgeZip, createWordPress, deriveSiteUrl, timing } from '../src/wordpress.ts';
+import { AgentError, type AgentClient } from '../src/studio/agentclient.ts';
+import { encrypt } from '../src/core/crypto.ts';
+import { buildBridgeZip, createWordPress, deriveSiteUrl, timing } from '../src/studio/wordpress.ts';
 import { createEnv, FakeSite, type Env } from './helpers.ts';
 
 timing.retryMs = 1;

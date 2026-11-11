@@ -1,16 +1,16 @@
 import { createServer } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { describe, expect, it } from 'vitest';
-import { canonical, decrypt, encrypt, hashPassword, seal, unseal, verifyPassword } from '../src/crypto.ts';
-import { atLeast, minLevel } from '../src/levels.ts';
-import { RateLimiter } from '../src/ratelimit.ts';
-import { checkArgs, OPS, TOOLS, opsOf, parseParam } from '../src/registry.ts';
-import { assertUrlShape, isPrivateAddress, safeRequest, SsrfError } from '../src/ssrf.ts';
-import { normalizeSiteUrl } from '../src/wpclient.ts';
+import { canonical, decrypt, encrypt, hashPassword, seal, unseal, verifyPassword } from '../src/core/crypto.ts';
+import { atLeast, minLevel } from '../src/core/levels.ts';
+import { RateLimiter } from '../src/core/ratelimit.ts';
+import { checkArgs, OPS, TOOLS, opsOf, parseParam } from '../src/sites/registry.ts';
+import { assertUrlShape, isPrivateAddress, safeRequest, SsrfError } from '../src/core/ssrf.ts';
+import { normalizeSiteUrl } from '../src/sites/wpclient.ts';
 import { randomBytes } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { redirectRegistered, redirectUriOk } from '../src/oauth.ts';
+import { redirectRegistered, redirectUriOk } from '../src/auth/oauth.ts';
 
 describe('crypto', () => {
   const key = randomBytes(32);

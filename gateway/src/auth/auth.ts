@@ -1,8 +1,8 @@
-import type { App } from './context.ts';
-import { sha256, token } from './crypto.ts';
-import type { Level } from './levels.ts';
-import { isLevel, minLevel } from './levels.ts';
-import { encodeScope, parseScope, type SiteScope } from './store.ts';
+import type { App } from '../core/context.ts';
+import { sha256, token } from '../core/crypto.ts';
+import type { Level } from '../core/levels.ts';
+import { isLevel, minLevel } from '../core/levels.ts';
+import { encodeScope, parseScope, type SiteScope } from '../core/store.ts';
 
 export interface Principal {
   /** Stable id used for rate limits, idempotency and the activity log. */

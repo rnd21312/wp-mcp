@@ -446,7 +446,7 @@ describe('/mcp authentication', () => {
     expect((await rpc(env, k, 'tools/list')).status).toBe(200);
     env.app.store.revokeKey(env.app.store.keys()[0].id);
     expect((await rpc(env, k, 'tools/list')).status).toBe(401);
-    const { createApiKey } = await import('../src/auth.ts');
+    const { createApiKey } = await import('../src/auth/auth.ts');
     const old = createApiKey(env.app, { name: 'old', level: 'read', sites: '*', expiresInDays: 1 });
     env.app.store.db.exec("UPDATE api_keys SET expires = 5 WHERE name = 'old'");
     expect((await rpc(env, old.token, 'tools/list')).headers.get('www-authenticate')).toMatch(/expired/);

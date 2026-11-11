@@ -1,9 +1,9 @@
 import { randomBytes } from 'node:crypto';
-import type { Config } from './config.ts';
-import { decrypt, hmacHex, safeEqual, sha256 } from './crypto.ts';
-import type { Level } from './levels.ts';
-import { safeRequest, SsrfError } from './ssrf.ts';
-import type { SiteRow } from './store.ts';
+import type { Config } from '../core/config.ts';
+import { decrypt, hmacHex, safeEqual, sha256 } from '../core/crypto.ts';
+import type { Level } from '../core/levels.ts';
+import { safeRequest, SsrfError } from '../core/ssrf.ts';
+import type { SiteRow } from '../core/store.ts';
 
 export class SiteError extends Error {
   constructor(

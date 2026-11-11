@@ -1,7 +1,7 @@
 import type { Provider, ProviderType } from './ai.ts';
 import { askAnthropic, askOpenAI } from './ai.ts';
-import type { App } from './context.ts';
-import { decrypt } from './crypto.ts';
+import type { App } from '../core/context.ts';
+import { decrypt } from '../core/crypto.ts';
 
 /** One-shot text completion with any configured provider (no tools). Replaceable in tests. */
 export const llm = {

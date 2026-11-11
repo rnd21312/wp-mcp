@@ -1,7 +1,7 @@
 import type { Config } from './config.ts';
 import { RateLimiter } from './ratelimit.ts';
-import { AgentClient } from './agentclient.ts';
-import { SiteClient } from './wpclient.ts';
+import { AgentClient } from '../studio/agentclient.ts';
+import { SiteClient } from '../sites/wpclient.ts';
 import type { Store } from './store.ts';
 
 /** Everything a request handler needs. Built once per process (or per test). */

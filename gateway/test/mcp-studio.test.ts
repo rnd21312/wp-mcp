@@ -2,12 +2,12 @@ import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import type { AgentClient } from '../src/agentclient.ts';
-import type { Principal } from '../src/auth.ts';
-import { encrypt } from '../src/crypto.ts';
-import type { Level } from '../src/levels.ts';
+import type { AgentClient } from '../src/studio/agentclient.ts';
+import type { Principal } from '../src/auth/auth.ts';
+import { encrypt } from '../src/core/crypto.ts';
+import type { Level } from '../src/core/levels.ts';
 import { callTool, listTools } from '../src/mcp/tools.ts';
-import { createProject } from '../src/projects.ts';
+import { createProject } from '../src/studio/projects.ts';
 import { createEnv, type Env } from './helpers.ts';
 
 const who = (level: Level, sites: Principal['sites'] = '*'): Principal => ({

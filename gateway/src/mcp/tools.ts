@@ -1,11 +1,11 @@
 import { randomBytes } from 'node:crypto';
-import { canUseSite, type Principal } from '../auth.ts';
-import type { App } from '../context.ts';
-import { canonical, seal, sha256, unseal } from '../crypto.ts';
-import { atLeast, LEVEL_HELP, minLevel, type Level } from '../levels.ts';
-import { checkArgs, HELP_ACTIONS, OPS, opsOf, paramSchema, resolveAction, signature, TOOLS, type OpSpec } from '../registry.ts';
-import type { SiteRow } from '../store.ts';
-import { SiteError } from '../wpclient.ts';
+import { canUseSite, type Principal } from '../auth/auth.ts';
+import type { App } from '../core/context.ts';
+import { canonical, seal, sha256, unseal } from '../core/crypto.ts';
+import { atLeast, LEVEL_HELP, minLevel, type Level } from '../core/levels.ts';
+import { checkArgs, HELP_ACTIONS, OPS, opsOf, paramSchema, resolveAction, signature, TOOLS, type OpSpec } from '../sites/registry.ts';
+import type { SiteRow } from '../core/store.ts';
+import { SiteError } from '../sites/wpclient.ts';
 import { callGsc, gscTool } from './gsc.ts';
 import { callStudio, studioTool } from './studio.ts';
 import { runTransfer } from './transfer.ts';

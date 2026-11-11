@@ -1,16 +1,16 @@
 import { randomBytes } from 'node:crypto';
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
-import { dirname, join, relative, resolve, sep } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { join, relative, resolve, sep } from 'node:path';
+import { ROOT } from '../core/paths.ts';
 import { AgentError } from './agentclient.ts';
-import type { App } from './context.ts';
+import type { App } from '../core/context.ts';
 import { needHost } from './hosts.ts';
-import { addSite, SITE_NAME, suggestName } from './siteadmin.ts';
-import { safeRequest } from './ssrf.ts';
-import type { SiteRow } from './store.ts';
-import { createZip, type ZipEntry } from './zip.ts';
+import { addSite, SITE_NAME, suggestName } from '../sites/siteadmin.ts';
+import { safeRequest } from '../core/ssrf.ts';
+import type { SiteRow } from '../core/store.ts';
+import { createZip, type ZipEntry } from '../core/zip.ts';
 
-const here = dirname(fileURLToPath(import.meta.url));
+const here = ROOT;
 
 /** The bridge plugin sources: next to the build (dist/plugin) or in the repository. */
 export function bridgeSourceDir(): string {

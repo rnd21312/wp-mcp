@@ -1,8 +1,8 @@
 import { randomBytes } from 'node:crypto';
-import type { Config } from './config.ts';
-import { decrypt, hmacHex, safeEqual, sha256 } from './crypto.ts';
-import { safeRequest, SsrfError } from './ssrf.ts';
-import type { HostRow } from './store.ts';
+import type { Config } from '../core/config.ts';
+import { decrypt, hmacHex, safeEqual, sha256 } from '../core/crypto.ts';
+import { safeRequest, SsrfError } from '../core/ssrf.ts';
+import type { HostRow } from '../core/store.ts';
 
 export class AgentError extends Error {
   constructor(

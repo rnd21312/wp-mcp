@@ -1,16 +1,16 @@
 #!/usr/bin/env node
 import { createInterface } from 'node:readline';
-import { createApiKey, stdioPrincipal } from './auth.ts';
-import { prepareSetup } from './admin.ts';
-import { loadConfig } from './config.ts';
-import { createApp } from './context.ts';
-import { hashPassword } from './crypto.ts';
-import { startServer } from './http.ts';
-import { startPreview } from './preview.ts';
-import { isLevel } from './levels.ts';
+import { createApiKey, stdioPrincipal } from './auth/auth.ts';
+import { prepareSetup } from './web/admin.ts';
+import { loadConfig } from './core/config.ts';
+import { createApp } from './core/context.ts';
+import { hashPassword } from './core/crypto.ts';
+import { startServer } from './web/http.ts';
+import { startPreview } from './studio/preview.ts';
+import { isLevel } from './core/levels.ts';
 import { handleMessage } from './mcp/server.ts';
-import { addSite } from './siteadmin.ts';
-import { Store } from './store.ts';
+import { addSite } from './sites/siteadmin.ts';
+import { Store } from './core/store.ts';
 import { join } from 'node:path';
 
 let [command = 'serve', ...rest] = process.argv.slice(2);

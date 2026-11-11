@@ -1,13 +1,13 @@
 import { randomBytes } from 'node:crypto';
-import { createApiKey } from './auth.ts';
-import type { App, Reply } from './context.ts';
-import { hashPassword, safeEqual, verifyPassword } from './crypto.ts';
+import { createApiKey } from '../auth/auth.ts';
+import type { App, Reply } from '../core/context.ts';
+import { hashPassword, safeEqual, verifyPassword } from '../core/crypto.ts';
 import { esc, page, securityHeaders } from './html.ts';
-import { isLevel, LEVELS } from './levels.ts';
-import { checkCsrf, clearSessionCookie, csrfToken, newSessionCookie, readSession, type Session } from './session.ts';
-import { addSite, testSite } from './siteadmin.ts';
-import { parseScope } from './store.ts';
-import { SiteError } from './wpclient.ts';
+import { isLevel, LEVELS } from '../core/levels.ts';
+import { checkCsrf, clearSessionCookie, csrfToken, newSessionCookie, readSession, type Session } from '../auth/session.ts';
+import { addSite, testSite } from '../sites/siteadmin.ts';
+import { parseScope } from '../core/store.ts';
+import { SiteError } from '../sites/wpclient.ts';
 
 export interface AdminReq {
   method: string;

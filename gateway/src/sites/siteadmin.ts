@@ -1,8 +1,8 @@
-import type { App } from './context.ts';
-import { encrypt } from './crypto.ts';
-import type { Level } from './levels.ts';
-import { isLevel, minLevel } from './levels.ts';
-import type { SiteRow } from './store.ts';
+import type { App } from '../core/context.ts';
+import { encrypt } from '../core/crypto.ts';
+import type { Level } from '../core/levels.ts';
+import { isLevel, minLevel } from '../core/levels.ts';
+import type { SiteRow } from '../core/store.ts';
 import { normalizeSiteUrl, SiteError } from './wpclient.ts';
 
 export const SITE_NAME = /^[a-z0-9][a-z0-9._-]{1,39}$/;

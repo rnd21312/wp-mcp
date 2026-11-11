@@ -2,8 +2,8 @@ import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, statSync, watch, writeFileSync, type FSWatcher } from 'node:fs';
 import { dirname, join, resolve, sep } from 'node:path';
-import type { App } from './context.ts';
-import { minLevel } from './levels.ts';
+import type { App } from '../core/context.ts';
+import { minLevel } from '../core/levels.ts';
 
 /**
  * Local workspace for VS Code: the active theme of a site as real files on this computer. Edit them in VS Code (or any

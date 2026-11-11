@@ -1,7 +1,7 @@
 import { createHash, randomBytes } from 'node:crypto';
-import type { App, Reply } from './context.ts';
-import { decrypt, encrypt, seal, unseal } from './crypto.ts';
-import { safeRequest } from './ssrf.ts';
+import type { App, Reply } from '../core/context.ts';
+import { decrypt, encrypt, seal, unseal } from '../core/crypto.ts';
+import { safeRequest } from '../core/ssrf.ts';
 
 /**
  * Google Search Console, read-only. The owner creates a free OAuth client ("Desktop app") in their own Google Cloud

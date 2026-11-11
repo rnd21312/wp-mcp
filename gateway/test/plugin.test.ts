@@ -1,7 +1,7 @@
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { responseSignature, signRequest } from '../src/wpclient.ts';
+import { responseSignature, signRequest } from '../src/sites/wpclient.ts';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const php = spawnSync('php', ['-v'], { encoding: 'utf8' });

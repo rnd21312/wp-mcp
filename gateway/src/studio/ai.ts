@@ -1,9 +1,9 @@
 import { randomBytes } from 'node:crypto';
-import type { Principal } from './auth.ts';
-import type { App } from './context.ts';
-import { decrypt, encrypt } from './crypto.ts';
-import { INSTRUCTIONS } from './mcp/guide.ts';
-import { callTool, listTools } from './mcp/tools.ts';
+import type { Principal } from '../auth/auth.ts';
+import type { App } from '../core/context.ts';
+import { decrypt, encrypt } from '../core/crypto.ts';
+import { INSTRUCTIONS } from '../mcp/guide.ts';
+import { callTool, listTools } from '../mcp/tools.ts';
 
 /** Chat with any AI provider, with this gateway's tools. Keys stay on this computer, encrypted in the data folder. */
 

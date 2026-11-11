@@ -2,9 +2,9 @@ import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { buildStatus, findNpm, hasBuildScript, runner, startBuild } from '../src/build.ts';
-import { createProject, projectDir, projectFramework, publishDir } from '../src/projects.ts';
-import { FRAMEWORKS } from '../src/templates.ts';
+import { buildStatus, findNpm, hasBuildScript, runner, startBuild } from '../src/studio/build.ts';
+import { createProject, projectDir, projectFramework, publishDir } from '../src/studio/projects.ts';
+import { FRAMEWORKS } from '../src/studio/templates.ts';
 import { createEnv, type Env } from './helpers.ts';
 
 const until = async (project: string, ms = 60000) => {

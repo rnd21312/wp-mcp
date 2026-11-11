@@ -1,7 +1,7 @@
 import { spawn } from 'node:child_process';
 import { cpSync, existsSync, readdirSync, readFileSync, rmSync, statSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import type { App } from './context.ts';
+import type { App } from '../core/context.ts';
 import { ProjectError, projectDir, projectMeta, publishDir } from './projects.ts';
 import { listFiles } from './projects.ts';
 

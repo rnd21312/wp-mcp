@@ -1,12 +1,12 @@
 import { existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join, relative, resolve, sep } from 'node:path';
 import { AgentError, type Release } from './agentclient.ts';
-import type { App } from './context.ts';
+import type { App } from '../core/context.ts';
 import { needHost } from './hosts.ts';
-import type { ProjectRow } from './store.ts';
-import { safeRequest } from './ssrf.ts';
+import type { ProjectRow } from '../core/store.ts';
+import { safeRequest } from '../core/ssrf.ts';
 import { FRAMEWORKS } from './templates.ts';
-import { zipDirectory } from './zip.ts';
+import { zipDirectory } from '../core/zip.ts';
 
 export const PROJECT_NAME = /^[a-z0-9][a-z0-9-]{1,39}$/;
 export const PROJECT_KINDS = ['static', 'spa', 'node'] as const;

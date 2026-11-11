@@ -1,16 +1,16 @@
 import { createHash, createHmac, randomBytes } from 'node:crypto';
 import http from 'node:http';
 import type { AddressInfo } from 'node:net';
-import { createApiKey } from '../src/auth.ts';
-import { loadConfig, type Config } from '../src/config.ts';
-import { createApp, type App } from '../src/context.ts';
-import { hashPassword } from '../src/crypto.ts';
-import { createHandler } from '../src/http.ts';
-import type { Level } from '../src/levels.ts';
-import { OPS } from '../src/registry.ts';
-import { addSite } from '../src/siteadmin.ts';
-import { Store } from '../src/store.ts';
-import { SiteClient } from '../src/wpclient.ts';
+import { createApiKey } from '../src/auth/auth.ts';
+import { loadConfig, type Config } from '../src/core/config.ts';
+import { createApp, type App } from '../src/core/context.ts';
+import { hashPassword } from '../src/core/crypto.ts';
+import { createHandler } from '../src/web/http.ts';
+import type { Level } from '../src/core/levels.ts';
+import { OPS } from '../src/sites/registry.ts';
+import { addSite } from '../src/sites/siteadmin.ts';
+import { Store } from '../src/core/store.ts';
+import { SiteClient } from '../src/sites/wpclient.ts';
 
 const sha = (s: string | Buffer): string => createHash('sha256').update(s).digest('hex');
 const hmac = (key: string, data: string): string => createHmac('sha256', key).update(data).digest('hex');

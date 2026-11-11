@@ -6,8 +6,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createHash, createPublicKey, generateKeyPairSync, sign } from 'node:crypto';
-import { agentSourceDir, buildAgentZip, releasePaths } from '../src/hosts.ts';
-import { createZip } from '../src/zip.ts';
+import { agentSourceDir, buildAgentZip, releasePaths } from '../src/studio/hosts.ts';
+import { createZip } from '../src/core/zip.ts';
 import { createEnv, type Env } from './helpers.ts';
 
 /**
@@ -257,8 +257,8 @@ return '${rawPublic}';
 
   it('rejects tampered, replayed and wrongly signed requests', async () => {
     const host = env.app.store.host('mine')!;
-    const { decrypt } = await import('../src/crypto.ts');
-    const { signAgentRequest, agentEndpoint } = await import('../src/agentclient.ts');
+    const { decrypt } = await import('../src/core/crypto.ts');
+    const { signAgentRequest, agentEndpoint } = await import('../src/studio/agentclient.ts');
     const secret = decrypt(env.config.masterKey, host.secret_enc);
     const body = '{}';
     const ts = Math.floor(Date.now() / 1000);

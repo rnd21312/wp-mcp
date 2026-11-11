@@ -1,7 +1,7 @@
 import http from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { previewToken, rewriteCss, rewriteHtml, startPreview } from '../src/preview.ts';
+import { previewToken, rewriteCss, rewriteHtml, startPreview } from '../src/studio/preview.ts';
 import { createEnv, type Env } from './helpers.ts';
 
 describe('preview origin for the visual editor', () => {

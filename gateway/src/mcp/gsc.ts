@@ -1,7 +1,7 @@
 import { randomBytes } from 'node:crypto';
-import type { Principal } from '../auth.ts';
-import type { App } from '../context.ts';
-import { GSC_ACTIONS, GscError, runGsc } from '../gsc.ts';
+import type { Principal } from '../auth/auth.ts';
+import type { App } from '../core/context.ts';
+import { GSC_ACTIONS, GscError, runGsc } from '../seo/gsc.ts';
 import type { ToolDef, ToolResult } from './tools.ts';
 
 /**

@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { auditSite, type AuditReport } from './audit.ts';
-import type { App } from './context.ts';
+import type { App } from '../core/context.ts';
 import { askJson, LlmError, llm, stripFences } from './llm.ts';
 import { createProject, deployProject, projectDir, removeProject, type DeployInput } from './projects.ts';
 import {

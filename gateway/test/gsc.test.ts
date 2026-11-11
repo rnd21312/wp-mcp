@@ -1,6 +1,6 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
-import type { Principal } from '../src/auth.ts';
-import { authUrl, gscStatus, handleCallback, saveClient } from '../src/gsc.ts';
+import type { Principal } from '../src/auth/auth.ts';
+import { authUrl, gscStatus, handleCallback, saveClient } from '../src/seo/gsc.ts';
 import { callTool, listTools } from '../src/mcp/tools.ts';
 import { createEnv, type Env } from './helpers.ts';
 

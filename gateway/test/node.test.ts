@@ -4,11 +4,11 @@ import type { AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import type { AgentClient } from '../src/agentclient.ts';
-import { assembleNextStandalone } from '../src/build.ts';
-import { encrypt } from '../src/crypto.ts';
-import { createProject, deployProject, projectDir } from '../src/projects.ts';
-import { zipDirectory } from '../src/zip.ts';
+import type { AgentClient } from '../src/studio/agentclient.ts';
+import { assembleNextStandalone } from '../src/studio/build.ts';
+import { encrypt } from '../src/core/crypto.ts';
+import { createProject, deployProject, projectDir } from '../src/studio/projects.ts';
+import { zipDirectory } from '../src/core/zip.ts';
 import { createEnv, type Env } from './helpers.ts';
 
 const names = (zip: Buffer): string[] => {

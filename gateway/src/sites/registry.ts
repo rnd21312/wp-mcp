@@ -1,6 +1,6 @@
-import spec from './generated/ops.json' with { type: 'json' };
-import type { Level } from './levels.ts';
-import { LEVELS, rank } from './levels.ts';
+import spec from '../generated/ops.json' with { type: 'json' };
+import type { Level } from '../core/levels.ts';
+import { LEVELS, rank } from '../core/levels.ts';
 
 export interface OpSpec {
   id: string;

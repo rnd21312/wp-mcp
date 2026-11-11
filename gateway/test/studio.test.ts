@@ -4,8 +4,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { agentEndpoint, normalizeAgentUrl, signAgentRequest } from '../src/agentclient.ts';
-import { buildAgentZip, newSetupCode } from '../src/hosts.ts';
+import { agentEndpoint, normalizeAgentUrl, signAgentRequest } from '../src/studio/agentclient.ts';
+import { buildAgentZip, newSetupCode } from '../src/studio/hosts.ts';
 import {
   createProject,
   deleteFile,
@@ -16,8 +16,8 @@ import {
   removeProject,
   safePath,
   writeFile,
-} from '../src/projects.ts';
-import { zipDirectory } from '../src/zip.ts';
+} from '../src/studio/projects.ts';
+import { zipDirectory } from '../src/core/zip.ts';
 import { createEnv, type Env } from './helpers.ts';
 
 const names = (zip: Buffer): string[] => {

@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { stdioLevel, stdioPrincipal } from '../src/auth.ts';
+import { stdioLevel, stdioPrincipal } from '../src/auth/auth.ts';
 import { callTool } from '../src/mcp/tools.ts';
 import { createEnv, type Env } from './helpers.ts';
 

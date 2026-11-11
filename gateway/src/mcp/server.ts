@@ -1,5 +1,5 @@
-import { canUseSite, type Principal } from '../auth.ts';
-import type { App } from '../context.ts';
+import { canUseSite, type Principal } from '../auth/auth.ts';
+import type { App } from '../core/context.ts';
 import { INSTRUCTIONS, opsMarkdown, PROMPTS, resourceList, resourceTemplates, TOPICS } from './guide.ts';
 import { callTool, listTools, type Input } from './tools.ts';
 

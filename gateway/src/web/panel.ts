@@ -1,13 +1,13 @@
 import { randomBytes } from 'node:crypto';
-import { dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
-import type { Principal } from './auth.ts';
-import type { App, Reply } from './context.ts';
+import { resolve } from 'node:path';
+import { ROOT } from '../core/paths.ts';
+import type { Principal } from '../auth/auth.ts';
+import type { App, Reply } from '../core/context.ts';
 import { esc, page, securityHeaders } from './html.ts';
-import { isLevel, LEVELS } from './levels.ts';
-import { callTool } from './mcp/tools.ts';
-import { OPS, TOOLS } from './registry.ts';
-import { checkCsrf, csrfToken, type Session } from './session.ts';
+import { isLevel, LEVELS } from '../core/levels.ts';
+import { callTool } from '../mcp/tools.ts';
+import { OPS, TOOLS } from '../sites/registry.ts';
+import { checkCsrf, csrfToken, type Session } from '../auth/session.ts';
 
 export interface PanelReq {
   method: string;
@@ -158,7 +158,7 @@ function renderResult(app: App, session: Session, text: string, form: URLSearchP
 }
 
 function connectPage(app: App): Reply {
-  const entry = resolve(dirname(fileURLToPath(import.meta.url)), 'index.js');
+  const entry = resolve(ROOT, 'index.js');
   const url = `${app.config.publicUrl}/mcp`;
   const desktop = JSON.stringify(
     {

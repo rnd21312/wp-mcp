@@ -2,13 +2,13 @@ import { existsSync, mkdtempSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import type { AgentClient } from '../src/agentclient.ts';
-import { auditSite } from '../src/audit.ts';
-import { approve, loadState, pageMain, preview, publish, runStage, startBuilder, stateView } from '../src/builder.ts';
-import { encrypt } from '../src/crypto.ts';
-import { extractJson, llm } from '../src/llm.ts';
-import { projectDir } from '../src/projects.ts';
-import { assemblePage, buildCss, checkMain, contrast, type Plan, type Tokens } from '../src/sitekit.ts';
+import type { AgentClient } from '../src/studio/agentclient.ts';
+import { auditSite } from '../src/studio/audit.ts';
+import { approve, loadState, pageMain, preview, publish, runStage, startBuilder, stateView } from '../src/studio/builder.ts';
+import { encrypt } from '../src/core/crypto.ts';
+import { extractJson, llm } from '../src/studio/llm.ts';
+import { projectDir } from '../src/studio/projects.ts';
+import { assemblePage, buildCss, checkMain, contrast, type Plan, type Tokens } from '../src/studio/sitekit.ts';
 import { createEnv, type Env } from './helpers.ts';
 
 const PLAN = {

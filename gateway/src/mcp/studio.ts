@@ -1,10 +1,10 @@
 import { randomBytes } from 'node:crypto';
-import type { Principal } from '../auth.ts';
-import type { App } from '../context.ts';
-import { canonical, seal, sha256, unseal } from '../crypto.ts';
-import { AgentError, type Release } from '../agentclient.ts';
-import { hostView, needHost } from '../hosts.ts';
-import { atLeast, type Level } from '../levels.ts';
+import type { Principal } from '../auth/auth.ts';
+import type { App } from '../core/context.ts';
+import { canonical, seal, sha256, unseal } from '../core/crypto.ts';
+import { AgentError, type Release } from '../studio/agentclient.ts';
+import { hostView, needHost } from '../studio/hosts.ts';
+import { atLeast, type Level } from '../core/levels.ts';
 import {
   projectFramework,
   ProjectError,
@@ -16,8 +16,8 @@ import {
   readFile,
   TEMPLATES,
   writeFile,
-} from '../projects.ts';
-import { zipDirectory } from '../zip.ts';
+} from '../studio/projects.ts';
+import { zipDirectory } from '../core/zip.ts';
 import type { ToolDef, ToolResult } from './tools.ts';
 
 /**

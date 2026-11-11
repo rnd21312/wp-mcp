@@ -1,21 +1,21 @@
 import { readFileSync, existsSync, statSync } from 'node:fs';
-import { dirname, extname, join, normalize, resolve, sep } from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { createApiKey, stdioLevel, type Principal } from './auth.ts';
-import type { App, Reply } from './context.ts';
-import { isLevel, LEVELS } from './levels.ts';
-import { callTool } from './mcp/tools.ts';
-import { OPS, TOOLS } from './registry.ts';
-import { chat, PRESETS, sealKey } from './ai.ts';
-import { authUrl, disconnect, GscError, gscStatus, handleCallback, runGsc, saveClient } from './gsc.ts';
-import { previewInfo } from './preview.ts';
+import { extname, join, normalize, resolve, sep } from 'node:path';
+import { ROOT } from '../core/paths.ts';
+import { createApiKey, stdioLevel, type Principal } from '../auth/auth.ts';
+import type { App, Reply } from '../core/context.ts';
+import { isLevel, LEVELS } from '../core/levels.ts';
+import { callTool } from '../mcp/tools.ts';
+import { OPS, TOOLS } from '../sites/registry.ts';
+import { chat, PRESETS, sealKey } from '../studio/ai.ts';
+import { authUrl, disconnect, GscError, gscStatus, handleCallback, runGsc, saveClient } from '../seo/gsc.ts';
+import { previewInfo } from '../studio/preview.ts';
 import { connectorStatus, startConnector, stopConnector } from './connector.ts';
-import * as ws from './workspace.ts';
-import { addSite, testSite } from './siteadmin.ts';
-import { parseScope } from './store.ts';
-import { safeRequest, SsrfError } from './ssrf.ts';
-import { studioApi } from './studio.ts';
-import { SiteError } from './wpclient.ts';
+import * as ws from '../studio/workspace.ts';
+import { addSite, testSite } from '../sites/siteadmin.ts';
+import { parseScope } from '../core/store.ts';
+import { safeRequest, SsrfError } from '../core/ssrf.ts';
+import { studioApi } from '../studio/studio.ts';
+import { SiteError } from '../sites/wpclient.ts';
 
 /**
  * The local panel: a single-page app plus a small JSON API, with no password.
@@ -24,7 +24,7 @@ import { SiteError } from './wpclient.ts';
  * foreign web page cannot add without a CORS preflight (which is never granted).
  */
 
-const here = dirname(fileURLToPath(import.meta.url));
+const here = ROOT;
 export const panelDir = resolve(here, 'panel');
 const ENTRY = resolve(here, 'index.js');
 

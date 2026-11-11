@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { addSite } from '../src/siteadmin.ts';
+import { addSite } from '../src/sites/siteadmin.ts';
 import { createEnv, FakeSite, key, rpc, tool, type Env } from './helpers.ts';
 
 describe('levels and the site ceiling', () => {

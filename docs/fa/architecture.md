@@ -73,3 +73,18 @@ spec/build-spec.mjs ──► spec/ops.json ──► gateway/src/generated/ops.
 * هر gateway یک مالک دارد؛ rate limit در حافظه است (یک پروسه).
 * افزونه همه‌چیز را نمی‌تواند snapshot کند (حذف افزونه، پاکسازی دیتابیس، به‌روزرسانی‌ها و حذف‌های دائمی undo ندارند؛ `maintain.update` قبلش بکاپ دیتابیس می‌گیرد).
 * سایت‌ها باید از gateway با HTTPS در دسترس باشند.
+
+## ساختار سورس gateway
+
+```
+gateway/src/
+  index.ts     ورودی خط فرمان (serve، local، stdio، add-site)
+  core/        تنظیمات، مسیرها، store (SQLite)، رمزنگاری، سطح‌ها، محدودیت نرخ، محافظ SSRF، zip
+  auth/        کلیدهای API، OAuth 2.1، نشست مالک
+  sites/       فهرست عملیات، کلاینت امضاشده‌ای که با bridge حرف می‌زند، جفت‌سازی
+  mcp/         سرور MCP، فراخوانی ابزار و تأیید، راهنما و promptها، انتقال
+  web/         مسیریاب HTTP، پنل مالک، پنل محلی، تونل کانکتور Claude.ai
+  studio/      هاست‌ها و Host Agent، پروژه‌ها، build، سازنده‌ی سایت با AI، پیش‌نمایش
+  seo/         Google Search Console
+  generated/   ops.json که scripts/sync-spec.mjs از spec/ کپی می‌کند (کامیت نمی‌شود)
+```

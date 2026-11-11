@@ -1,7 +1,7 @@
 import { randomBytes } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { join, resolve } from 'node:path';
+import { ROOT } from './paths.ts';
 import { isLevel, type Level } from './levels.ts';
 
 export interface Config {
@@ -55,7 +55,7 @@ function masterKey(dataDir: string, env: NodeJS.ProcessEnv): Buffer {
 }
 
 /** One fixed folder next to the project (gateway/dist -> ../../wpmcp-data), never the current directory, so every way of starting WP MCP sees the same sites. */
-const DEFAULT_DATA_DIR = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', 'wpmcp-data');
+const DEFAULT_DATA_DIR = resolve(ROOT, '..', '..', 'wpmcp-data');
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env, overrides: Partial<Config> = {}): Config {
   const dataDir = resolve(overrides.dataDir ?? env.WPMCP_DATA_DIR ?? DEFAULT_DATA_DIR);

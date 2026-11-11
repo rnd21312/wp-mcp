@@ -1,13 +1,13 @@
 import { randomBytes } from 'node:crypto';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
-import { dirname, join, relative, resolve, sep } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { join, relative, resolve, sep } from 'node:path';
+import { ROOT } from '../core/paths.ts';
 import { AgentError, normalizeAgentUrl } from './agentclient.ts';
-import type { App } from './context.ts';
-import { encrypt } from './crypto.ts';
-import { safeRequest } from './ssrf.ts';
-import { createZip, type ZipEntry } from './zip.ts';
-import type { HostRow } from './store.ts';
+import type { App } from '../core/context.ts';
+import { encrypt } from '../core/crypto.ts';
+import { safeRequest } from '../core/ssrf.ts';
+import { createZip, type ZipEntry } from '../core/zip.ts';
+import type { HostRow } from '../core/store.ts';
 
 export const HOST_NAME = /^[a-z0-9][a-z0-9._-]{1,39}$/;
 
@@ -92,7 +92,7 @@ export function needHost(app: App, name: string): HostRow {
 
 // ---- the agent zip ----------------------------------------------------------------------------------------------
 
-const here = dirname(fileURLToPath(import.meta.url));
+const here = ROOT;
 
 /** Where the agent sources live: next to the build (dist/agent) or in the repository (agent/wpm-agent). */
 export function agentSourceDir(): string {

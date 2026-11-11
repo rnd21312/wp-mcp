@@ -1,11 +1,11 @@
 import { randomBytes } from 'node:crypto';
-import { canUseSite, type Principal } from '../auth.ts';
-import type { App } from '../context.ts';
-import { canonical, seal, sha256, unseal } from '../crypto.ts';
-import { atLeast, minLevel, type Level } from '../levels.ts';
-import type { OpSpec } from '../registry.ts';
-import type { SiteRow } from '../store.ts';
-import { SiteError } from '../wpclient.ts';
+import { canUseSite, type Principal } from '../auth/auth.ts';
+import type { App } from '../core/context.ts';
+import { canonical, seal, sha256, unseal } from '../core/crypto.ts';
+import { atLeast, minLevel, type Level } from '../core/levels.ts';
+import type { OpSpec } from '../sites/registry.ts';
+import type { SiteRow } from '../core/store.ts';
+import { SiteError } from '../sites/wpclient.ts';
 
 export interface Helpers {
   text: (body: unknown, isError?: boolean) => { content: { type: 'text'; text: string }[]; isError?: boolean };

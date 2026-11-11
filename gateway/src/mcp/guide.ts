@@ -1,6 +1,6 @@
-import type { Principal } from '../auth.ts';
-import { LEVEL_HELP, LEVELS } from '../levels.ts';
-import { OPS, TOOLS, opsOf, signature } from '../registry.ts';
+import type { Principal } from '../auth/auth.ts';
+import { LEVEL_HELP, LEVELS } from '../core/levels.ts';
+import { OPS, TOOLS, opsOf, signature } from '../sites/registry.ts';
 
 export const INSTRUCTIONS = `You manage WordPress sites through the WP MCP gateway. Tools are grouped by job (site, content, design, media, seo, inspect, maintain, plugins, users, options, rest, shop, forms, activity). Every tool takes {site, action, args} (site is optional with one site; each tool lists its actions, * = required; unsure about an argument: site.describe {tool, action}). A write result's "revision" is undone with activity.undo {revision}.
 

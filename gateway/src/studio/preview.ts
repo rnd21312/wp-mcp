@@ -1,8 +1,8 @@
 import { randomBytes } from 'node:crypto';
 import http from 'node:http';
 import { AGENT_JS } from './agent.ts';
-import type { App } from './context.ts';
-import { safeRequest } from './ssrf.ts';
+import type { App } from '../core/context.ts';
+import { safeRequest } from '../core/ssrf.ts';
 
 /**
  * Preview origin for the visual editor. It serves a site's pages on a different origin than the panel (port + 1), with

@@ -1,10 +1,10 @@
 import http from 'node:http';
-import { authenticate, bearerFrom } from './auth.ts';
+import { authenticate, bearerFrom } from '../auth/auth.ts';
 import { handleLocal } from './local.ts';
 import { handleAdmin, loginRedirect, sessionOf } from './admin.ts';
-import type { App, Reply } from './context.ts';
-import { json } from './context.ts';
-import { handleMessage } from './mcp/server.ts';
+import type { App, Reply } from '../core/context.ts';
+import { json } from '../core/context.ts';
+import { handleMessage } from '../mcp/server.ts';
 import {
   authorizationServer,
   checkAuthorize,
@@ -17,9 +17,9 @@ import {
   revoke,
   silentGrant,
   tokenEndpoint,
-} from './oauth.ts';
+} from '../auth/oauth.ts';
 import { esc, page, securityHeaders } from './html.ts';
-import { encodeScope } from './store.ts';
+import { encodeScope } from '../core/store.ts';
 
 const MCP_LIMIT = 16 * 1024 * 1024;
 const SMALL_LIMIT = 256 * 1024;

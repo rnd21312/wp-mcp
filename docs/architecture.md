@@ -73,3 +73,18 @@ spec/build-spec.mjs ──► spec/ops.json ──► gateway/src/generated/ops.
 * One owner per gateway; rate limits are in memory (single process).
 * The plugin cannot snapshot everything (plugin deletion, DB cleanup, updates and permanent deletes are not undoable; maintain.update takes a DB backup first).
 * Sites must be reachable from the gateway over HTTPS.
+
+## Gateway source layout
+
+```
+gateway/src/
+  index.ts     command line entry (serve, local, stdio, add-site)
+  core/        config, paths, store (SQLite), crypto, levels, rate limits, SSRF guard, zip
+  auth/        API keys, OAuth 2.1, owner sessions
+  sites/       the operation registry, the signed client that talks to a bridge, pairing
+  mcp/         MCP server, tool calls and confirmation, guide/prompts, transfer
+  web/         HTTP router, owner panel, local panel, Claude.ai connector tunnel
+  studio/      hosts and the Host Agent, projects, builds, the AI site builder, previews
+  seo/         Google Search Console
+  generated/   ops.json, copied from spec/ by scripts/sync-spec.mjs (not committed)
+```

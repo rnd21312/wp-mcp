@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { AgentError, type RemoteSite, type Release } from './agentclient.ts';
-import type { App, Reply } from './context.ts';
+import type { App, Reply } from '../core/context.ts';
 import { addHost, agentRelease, buildAgentZip, checkHost, hostView, needHost, testHost, updateAgent } from './hosts.ts';
 import { buildStatus, hasBuildScript, startBuild } from './build.ts';
 import * as projects from './projects.ts';

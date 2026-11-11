@@ -1,5 +1,5 @@
-import type { App } from './context.ts';
-import { hmacHex, safeEqual, seal, unseal } from './crypto.ts';
+import type { App } from '../core/context.ts';
+import { hmacHex, safeEqual, seal, unseal } from '../core/crypto.ts';
 import { randomBytes } from 'node:crypto';
 
 const COOKIE = 'wpm_session';
