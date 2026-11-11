@@ -1,0 +1,13 @@
+{
+ "title": "Block theme, RTL ready",
+ "kind": "block",
+ "description": "Full site editing theme (theme.json, templates, parts). Persian and RTL friendly, Vazirmatn font stack, uses the design tokens as global styles.",
+ "tokens": {
+  "colors": { "primary": "#1d4ed8", "secondary": "#0f172a", "accent": "#f59e0b", "background": "#ffffff", "surface": "#f1f5f9", "text": "#0f172a", "muted": "#64748b" },
+  "fonts": { "body": "Vazirmatn, Tahoma, Arial, sans-serif", "heading": "Vazirmatn, Tahoma, Arial, sans-serif" },
+  "font_sizes": { "small": "0.875rem", "base": "1rem", "large": "1.25rem", "xl": "1.75rem", "xxl": "2.5rem" },
+  "spacing": { "s": "0.5rem", "m": "1rem", "l": "2rem" },
+  "radius": "8px",
+  "content_width": "1100px"
+ }
+}

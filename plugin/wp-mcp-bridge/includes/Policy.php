@@ -374,6 +374,94 @@ final class Policy {
         return array( 'template' => 'default', 'note' => "the page template \"$current\" no longer exists in the active theme; reset to the default template" );
     }
 
+    /** A theme or plugin folder name: lowercase letters, digits and dashes, 3-40 characters. */
+    public static function scaffold_slug( string $slug ): string {
+        $slug = trim( $slug );
+        if ( 1 !== preg_match( '/^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/', $slug ) || str_contains( $slug, '--' ) ) {
+            throw new BridgeError( 'bad_arguments', 'slug must be 3-40 characters: lowercase letters, digits and single dashes (for example my-shop).', 400 );
+        }
+
+        return $slug;
+    }
+
+    /** A display name that is safe inside a PHP comment, a CSS comment and HTML. */
+    public static function scaffold_name( string $name ): string {
+        $name = trim( $name );
+        if ( 1 !== preg_match( '/^[\p{L}\p{N} _.&()\-]{1,60}$/u', $name ) ) {
+            throw new BridgeError( 'bad_arguments', 'name must be 1-60 letters, digits, spaces and . _ - & ( ).', 400 );
+        }
+
+        return $name;
+    }
+
+    /**
+     * Default tokens with the caller's changes on top. Groups: colors, fonts, font_sizes, spacing (slug => value), plus radius and content_width.
+     *
+     * @param array<string, mixed> $defaults Tokens of the base theme.
+     * @param array<string, mixed> $given    Caller's tokens.
+     * @return array<string, mixed>
+     */
+    public static function scaffold_tokens( array $defaults, array $given ): array {
+        $out = $defaults;
+        foreach ( array( 'colors', 'fonts', 'font_sizes', 'spacing' ) as $group ) {
+            foreach ( (array) ( $given[ $group ] ?? array() ) as $slug => $value ) {
+                $slug = (string) $slug;
+                $text = trim( (string) $value );
+                if ( 1 !== preg_match( '/^[a-z0-9_-]{1,40}$/', $slug ) || '' === $text || strlen( $text ) > 200 || 1 === preg_match( '/[;{}<>\\\\"`]/', $text ) ) {
+                    throw new BridgeError( 'bad_token', "Invalid token \"$group.$slug\": a lowercase slug and a value without ; { } < > \" ` or backslash, max 200 characters.", 400 );
+                }
+                $out[ $group ][ $slug ] = $text;
+            }
+        }
+        foreach ( array( 'radius', 'content_width' ) as $single ) {
+            if ( isset( $given[ $single ] ) ) {
+                $text = trim( (string) $given[ $single ] );
+                if ( '' === $text || strlen( $text ) > 60 || 1 === preg_match( '/[;{}<>\\\\"`]/', $text ) ) {
+                    throw new BridgeError( 'bad_token', "Invalid $single.", 400 );
+                }
+                $out[ $single ] = $text;
+            }
+        }
+
+        return $out;
+    }
+
+    /**
+     * Placeholders for the theme templates: {{slug}}, {{name}}, {{color_primary}}, {{font_body}}, {{size_base}}, {{space_m}}, {{radius}}, {{content_width}}.
+     *
+     * @param array<string, mixed> $tokens Final tokens.
+     * @return array<string, string>
+     */
+    public static function scaffold_vars( array $tokens, string $slug, string $name ): array {
+        $vars = array( 'slug' => $slug, 'name' => $name, 'radius' => (string) ( $tokens['radius'] ?? '8px' ), 'content_width' => (string) ( $tokens['content_width'] ?? '1100px' ) );
+        foreach ( array( 'colors' => 'color', 'fonts' => 'font', 'font_sizes' => 'size', 'spacing' => 'space' ) as $group => $prefix ) {
+            foreach ( (array) ( $tokens[ $group ] ?? array() ) as $key => $value ) {
+                $vars[ $prefix . '_' . str_replace( '-', '_', (string) $key ) ] = (string) $value;
+            }
+        }
+
+        return $vars;
+    }
+
+    /**
+     * Fills {{placeholders}}. A placeholder without a value is an error (a token the base theme needs was removed).
+     *
+     * @param array<string, string> $vars Values.
+     */
+    public static function scaffold_render( string $template, array $vars ): string {
+        return (string) preg_replace_callback(
+            '/\{\{([a-z0-9_]+)\}\}/',
+            static function ( array $m ) use ( $vars ): string {
+                if ( ! isset( $vars[ $m[1] ] ) ) {
+                    throw new BridgeError( 'bad_token', "The theme needs the value \"{$m[1]}\", but it is missing (a token was removed?).", 400 );
+                }
+
+                return $vars[ $m[1] ];
+            },
+            $template
+        );
+    }
+
     /**
      * Is this checksum entry part of what core_verify checks? wp-content, wp-config.php and the loose documentation files that
      * hardening guides tell people to delete are left out.

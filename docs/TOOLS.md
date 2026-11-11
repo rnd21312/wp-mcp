@@ -1,6 +1,6 @@
 # Tools reference
 
-Generated from `spec/ops.json` (169 site actions + gateway actions). Every tool is called as `{site, action, args, dry_run?, confirm_token?, idempotency_key?}`.
+Generated from `spec/ops.json` (171 site actions + gateway actions). Every tool is called as `{site, action, args, dry_run?, confirm_token?, idempotency_key?}`.
 
 Levels: **read** < **draft** < **live** < **admin**. `A>B` means the action starts at A and the site raises it to B from the real target (for example editing a published page). **confirm** = two-step: the first call returns a preview and a `confirm_token`, nothing changes until it is repeated with the token. **site content** = the result contains text written on the website (treated as untrusted).
 
@@ -63,6 +63,8 @@ Levels: **read** < **draft** < **live** < **admin**. `A>B` means the action star
 | `theme_activate` | admin | `slug*` | Switch the active theme. *(confirm, write)* |
 | `theme_install` | admin | `slug*, activate` | Install a theme from WordPress.org by slug. *(confirm, write)* |
 | `theme_install_zip` | admin | `url*, activate, overwrite` | Install a theme from an https zip URL (GitHub release, your own server; redirects are re-checked). *(confirm, write)* |
+| `theme_bases` | draft |  | Ready-made base themes design.theme_scaffold can build: block-rtl (full site editing), classic-rtl, shop-rtl (classic + WooCommerce). All RTL and Persian friendly. Shows the default tokens of each. |
+| `theme_scaffold` | admin | `base*, slug*, name*, tokens, activate, apply_tokens, overwrite` | Build a theme on the site from a base (see theme_bases) with your name, slug and design tokens, in one all-or-nothing write. The tokens also become the site design tokens unless apply_tokens is false. Existing folders need overwrite. Undoable. *(confirm, write)* |
 | `theme_delete` | admin | `theme*` | Delete an installed theme that is not active. *(confirm, write)* |
 | `theme_files` | admin | `theme` | List files of the active (or given) theme. |
 | `theme_file_read` | admin | `path*, theme, offset` | Read a theme file. *(site content)* |

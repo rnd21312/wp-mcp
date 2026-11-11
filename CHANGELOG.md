@@ -19,6 +19,9 @@
 
 - Security: in Claude.ai connector mode (no login) the gateway now registers and auto-approves only Claude's own callback addresses; any other redirect address is refused at registration and has to sign in. Note: anyone who knows the tunnel address can still add it as a connector in their own Claude account, so keep the address secret and stop the tunnel when unused.
 
+### Building a site
+- `design.theme_bases` and `design.theme_scaffold`: build a theme from three bundled bases (block-rtl, classic-rtl, shop-rtl with WooCommerce), all RTL and Persian friendly, with your name, slug and design tokens, in one all-or-nothing write. The tokens also become the site design tokens. Undoable.
+
 ### Easier for AI clients
 - Argument and action aliases, `describe` on any tool, wp-content paths as roots.
 - A confirmed call sends the token alone; the arguments are remembered.

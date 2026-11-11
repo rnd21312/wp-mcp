@@ -61,6 +61,14 @@ describe('names the AI guesses', () => {
     expect(gate.data.needs_confirmation).toBe(true);
   });
 
+  it('theme_scaffold knows its bases and is confirmed before it writes', async () => {
+    const k = key(env, 'admin');
+    const bad = await tool(env, k, 'design', { action: 'theme_scaffold', args: { base: 'nope', slug: 'x-shop', name: 'X' } });
+    expect(bad.data.error.code).toBe('bad_arguments');
+    const gate = await tool(env, k, 'design', { action: 'theme_scaffold', args: { base: 'shop-rtl', slug: 'x-shop', name: 'X' } });
+    expect(gate.data.needs_confirmation).toBe(true);
+  });
+
   it('turns {name, value} into one option', async () => {
     const k = key(env, 'admin');
     await tool(env, k, 'options', { action: 'set', args: { name: 'blogname', value: 'Shop' }, dry_run: true });

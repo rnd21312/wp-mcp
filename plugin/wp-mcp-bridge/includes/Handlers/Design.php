@@ -825,4 +825,28 @@ final class Design {
 
         return "Removed $rel (it did not exist before).";
     }
+
+    /**
+     * @param array<string, mixed> $a Arguments.
+     * @return array<string, mixed>
+     */
+    public static function op_theme_bases( array $a, Context $c ): array {
+        return Scaffold::bases_info( $a, $c );
+    }
+
+    /**
+     * @param array<string, mixed> $a Arguments.
+     * @return array<string, mixed>
+     */
+    public static function preview_theme_scaffold( array $a, Context $c ): array {
+        return Scaffold::preview( $a, $c );
+    }
+
+    /**
+     * @param array<string, mixed> $a Arguments.
+     * @return array<string, mixed>
+     */
+    public static function op_theme_scaffold( array $a, Context $c ): array {
+        return Scaffold::create( $a, $c );
+    }
 }

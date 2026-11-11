@@ -1,0 +1,47 @@
+{
+ "$schema": "https://schemas.wp.org/trunk/theme.json",
+ "version": 3,
+ "settings": {
+  "appearanceTools": true,
+  "layout": { "contentSize": "{{content_width}}", "wideSize": "1400px" },
+  "color": { "palette": [
+   { "slug": "primary", "name": "Primary", "color": "{{color_primary}}" },
+   { "slug": "secondary", "name": "Secondary", "color": "{{color_secondary}}" },
+   { "slug": "accent", "name": "Accent", "color": "{{color_accent}}" },
+   { "slug": "background", "name": "Background", "color": "{{color_background}}" },
+   { "slug": "surface", "name": "Surface", "color": "{{color_surface}}" },
+   { "slug": "text", "name": "Text", "color": "{{color_text}}" },
+   { "slug": "muted", "name": "Muted", "color": "{{color_muted}}" }
+  ] },
+  "typography": {
+   "fontFamilies": [
+    { "slug": "body", "name": "Body", "fontFamily": "{{font_body}}" },
+    { "slug": "heading", "name": "Heading", "fontFamily": "{{font_heading}}" }
+   ],
+   "fontSizes": [
+    { "slug": "small", "name": "Small", "size": "{{size_small}}" },
+    { "slug": "base", "name": "Base", "size": "{{size_base}}" },
+    { "slug": "large", "name": "Large", "size": "{{size_large}}" },
+    { "slug": "xl", "name": "XL", "size": "{{size_xl}}" },
+    { "slug": "xxl", "name": "XXL", "size": "{{size_xxl}}" }
+   ]
+  },
+  "spacing": { "spacingSizes": [
+   { "slug": "s", "name": "S", "size": "{{space_s}}" },
+   { "slug": "m", "name": "M", "size": "{{space_m}}" },
+   { "slug": "l", "name": "L", "size": "{{space_l}}" }
+  ] }
+ },
+ "styles": {
+  "color": { "background": "var(--wp--preset--color--background)", "text": "var(--wp--preset--color--text)" },
+  "typography": { "fontFamily": "var(--wp--preset--font-family--body)", "fontSize": "var(--wp--preset--font-size--base)", "lineHeight": "1.8" },
+  "elements": {
+   "link": { "color": { "text": "var(--wp--preset--color--primary)" } },
+   "heading": { "typography": { "fontFamily": "var(--wp--preset--font-family--heading)", "lineHeight": "1.3" } }
+  }
+ },
+ "templateParts": [
+  { "name": "header", "title": "Header", "area": "header" },
+  { "name": "footer", "title": "Footer", "area": "footer" }
+ ]
+}

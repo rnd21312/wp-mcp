@@ -353,6 +353,42 @@ unlink( $tmpzip );
 check( 'updater: the repository ships a release public key', 44 === strlen( (string) ( include WPMCP_DIR . 'includes/UpdateKey.php' ) ) );
 
 
+/* theme scaffold: every shipped base renders to valid files */
+$bases = \WPMCP\Bridge\Handlers\Scaffold::bases();
+check( 'scaffold: block-rtl, classic-rtl and shop-rtl are shipped', array( 'block-rtl', 'classic-rtl', 'shop-rtl' ) === array_keys( $bases ) );
+foreach ( array_keys( $bases ) as $base ) {
+    $plan   = \WPMCP\Bridge\Handlers\Scaffold::plan( array( 'base' => $base, 'slug' => 'my-shop', 'name' => 'My Shop', 'tokens' => array( 'colors' => array( 'primary' => '#0a7f5a' ) ) ) );
+    $paths  = array_column( $plan['files'], 'path' );
+    $all_ok = true;
+    foreach ( $plan['files'] as $f ) {
+        $all_ok = $all_ok && ! str_contains( $f['content'], '{{' );
+        if ( str_ends_with( $f['path'], '.php' ) ) {
+            $all_ok = $all_ok && null === \WPMCP\Bridge\PhpGuard::problem( $f['content'] );
+        }
+        if ( str_ends_with( $f['path'], '.json' ) ) {
+            $all_ok = $all_ok && is_array( json_decode( $f['content'], true ) );
+        }
+    }
+    check( "scaffold: $base renders with no placeholder left, valid PHP and JSON", $all_ok );
+    $css = in_array( 'style.css', $paths, true ) ? $plan['files'][ array_search( 'style.css', $paths, true ) ]['content'] : '';
+    check( "scaffold: $base has style.css with the theme name and the chosen primary color", str_contains( $css, 'Theme Name: My Shop' ) && str_contains( $css, '#0a7f5a' ) );
+}
+$shop = array_column( \WPMCP\Bridge\Handlers\Scaffold::plan( array( 'base' => 'shop-rtl', 'slug' => 'my-shop', 'name' => 'My Shop' ) )['files'], 'path' );
+check( 'scaffold: the shop theme extends the classic one and adds WooCommerce', in_array( 'woocommerce.php', $shop, true ) && in_array( 'index.php', $shop, true ) && 1 === count( array_keys( $shop, 'functions.php', true ) ) );
+$scaffold_error = static function ( array $args ): ?string {
+    try {
+        \WPMCP\Bridge\Handlers\Scaffold::plan( $args );
+    } catch ( \WPMCP\Bridge\BridgeError $e ) {
+        return $e->error_code;
+    }
+
+    return null;
+};
+$okargs = array( 'base' => 'classic-rtl', 'slug' => 'my-shop', 'name' => 'My Shop' );
+check( 'scaffold: bad base, slug and name are refused', 'bad_arguments' === $scaffold_error( array_merge( $okargs, array( 'base' => 'x' ) ) ) && 'bad_arguments' === $scaffold_error( array_merge( $okargs, array( 'slug' => '../evil' ) ) ) && 'bad_arguments' === $scaffold_error( array_merge( $okargs, array( 'name' => 'a */ phpinfo(); /*' ) ) ) && null === $scaffold_error( $okargs ) );
+check( 'scaffold: dangerous token values and slugs are refused', 'bad_token' === $scaffold_error( array_merge( $okargs, array( 'tokens' => array( 'colors' => array( 'primary' => 'red;}</style>' ) ) ) ) ) && 'bad_token' === $scaffold_error( array_merge( $okargs, array( 'tokens' => array( 'fonts' => array( 'Bad Slug' => 'x' ) ) ) ) ) );
+check( 'scaffold: a Persian name is allowed', null === $scaffold_error( array_merge( $okargs, array( 'name' => 'فروشگاه من' ) ) ) );
+
 /* core checksums */
 $sums = array( 'index.php' => md5( 'a' ), 'wp-admin/admin.php' => md5( 'b' ), 'wp-includes/load.php' => md5( 'c' ), 'wp-includes/gone.php' => md5( 'd' ) );
 $disk = array( 'index.php' => md5( 'a' ), 'wp-admin/admin.php' => md5( 'HACKED' ), 'wp-includes/load.php' => strtoupper( md5( 'c' ) ) );

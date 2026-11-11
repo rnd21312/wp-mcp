@@ -153,7 +153,7 @@ export const TOOLS: ToolInfo[] = [
     name: 'design',
     title: 'Design: templates, CSS, tokens, menus, themes',
     intro:
-      'Header/footer and templates (block themes), additional CSS in named sections, design tokens, menus, homepage, branding, themes and theme files.',
+      'Header/footer and templates (block themes), additional CSS in named sections, design tokens, menus, homepage, branding, themes, theme files and ready-made theme bases (theme_scaffold).',
   },
   {
     name: 'builder',
