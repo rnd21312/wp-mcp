@@ -1473,6 +1473,51 @@
    "escalates": null
   },
   {
+   "id": "seo.indexnow_status",
+   "tool": "seo",
+   "action": "indexnow_status",
+   "level": "read",
+   "summary": "IndexNow (Bing, Yandex, Naver, Seznam, Yep): is a key set up, where it is served, and does the key file answer.",
+   "params": {},
+   "required": [],
+   "write": false,
+   "confirm": false,
+   "untrusted": false,
+   "escalates": null
+  },
+  {
+   "id": "seo.indexnow_setup",
+   "tool": "seo",
+   "action": "indexnow_setup",
+   "level": "live",
+   "summary": "Create the IndexNow key (kept in an option, served by the bridge at /<key>.txt, no file written). regenerate:true makes a new one.",
+   "params": {
+    "regenerate": "bool|Replace the existing key"
+   },
+   "required": [],
+   "write": true,
+   "confirm": false,
+   "untrusted": false,
+   "escalates": null
+  },
+  {
+   "id": "seo.indexnow_submit",
+   "tool": "seo",
+   "action": "indexnow_submit",
+   "level": "live",
+   "summary": "Tell IndexNow engines that URLs of this site changed: urls, or post ids, or the N most recently changed published items (max 500 per call). Not for Google.",
+   "params": {
+    "urls": "array|Full URLs on this site",
+    "ids": "array|Post IDs (published, not password protected)",
+    "recent": "int|Instead: the N most recently modified published items"
+   },
+   "required": [],
+   "write": true,
+   "confirm": false,
+   "untrusted": false,
+   "escalates": null
+  },
+  {
    "id": "inspect.ticket",
    "tool": "inspect",
    "action": "ticket",

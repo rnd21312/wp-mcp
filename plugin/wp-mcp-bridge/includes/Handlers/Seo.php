@@ -514,4 +514,28 @@ final class Seo {
 
         return array( 'id' => $post->ID, 'schema' => $state );
     }
+
+    /**
+     * @param array<string, mixed> $a Arguments.
+     * @return array<string, mixed>
+     */
+    public static function op_indexnow_status( array $a, Context $c ): array {
+        return IndexNow::status( $a, $c );
+    }
+
+    /**
+     * @param array<string, mixed> $a Arguments.
+     * @return array<string, mixed>
+     */
+    public static function op_indexnow_setup( array $a, Context $c ): array {
+        return IndexNow::setup( $a, $c );
+    }
+
+    /**
+     * @param array<string, mixed> $a Arguments.
+     * @return array<string, mixed>
+     */
+    public static function op_indexnow_submit( array $a, Context $c ): array {
+        return IndexNow::submit( $a, $c );
+    }
 }

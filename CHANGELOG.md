@@ -28,6 +28,7 @@
 
 ### SEO and Google
 - Search Console: `sitemap_submit` and `sitemap_delete`. They need the new panel button "Connect and allow changes" (scope `webmasters`, a reconnect), level live and a confirmation; the sitemap must be on the property. The default connection stays read-only.
+- IndexNow for Bing, Yandex, Naver, Seznam and Yep: `seo.indexnow_setup` makes a key that the bridge serves at `/<key>.txt` (no file written), `seo.indexnow_status` checks it, `seo.indexnow_submit` sends URLs, post ids or the most recently changed items (max 500 per call, this site only, nothing when the site is hidden from search).
 
 ### Easier for AI clients
 - Argument and action aliases, `describe` on any tool, wp-content paths as roots.

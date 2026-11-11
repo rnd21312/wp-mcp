@@ -89,6 +89,15 @@ describe('names the AI guesses', () => {
     expect(gate.data.needs_confirmation).toBe(true);
   });
 
+  it('indexnow: reading is free, setup and submit need live', async () => {
+    expect((await tool(env, key(env, 'read'), 'seo', { action: 'indexnow_status' })).isError).toBe(false);
+    expect((await tool(env, key(env, 'draft'), 'seo', { action: 'indexnow_submit', args: { recent: 5 } })).data.error.code).toBe(
+      'level_too_low',
+    );
+    await tool(env, key(env, 'live'), 'seo', { action: 'indexnow_submit', args: { ids: [3] } });
+    expect(last('seo.indexnow_submit').args).toEqual({ ids: [3] });
+  });
+
   it('turns {name, value} into one option', async () => {
     const k = key(env, 'admin');
     await tool(env, k, 'options', { action: 'set', args: { name: 'blogname', value: 'Shop' }, dry_run: true });

@@ -374,6 +374,42 @@ final class Policy {
         return array( 'template' => 'default', 'note' => "the page template \"$current\" no longer exists in the active theme; reset to the default template" );
     }
 
+    /** An IndexNow key: 8-128 letters, digits and dashes. */
+    public static function indexnow_key_ok( string $key ): bool {
+        return 1 === preg_match( '/^[A-Za-z0-9-]{8,128}$/', $key );
+    }
+
+    /**
+     * Splits URLs into those IndexNow accepts for this site (https or http on exactly this host, no credentials, no fragment) and
+     * the rest with a reason. Duplicates are dropped.
+     *
+     * @param mixed  $urls List of URLs.
+     * @param string $host Host of the site.
+     * @return array{ok: list<string>, rejected: list<array{url: string, reason: string}>}
+     */
+    public static function indexnow_urls( $urls, string $host ): array {
+        $ok       = array();
+        $rejected = array();
+        foreach ( (array) $urls as $url ) {
+            $url   = trim( (string) $url );
+            $parts = wp_parse_url( $url );
+            if ( ! is_array( $parts ) || empty( $parts['host'] ) || ! in_array( strtolower( (string) ( $parts['scheme'] ?? '' ) ), array( 'http', 'https' ), true ) ) {
+                $rejected[] = array( 'url' => $url, 'reason' => 'not a full http(s) address' );
+            } elseif ( strtolower( (string) $parts['host'] ) !== strtolower( $host ) ) {
+                $rejected[] = array( 'url' => $url, 'reason' => 'not on ' . $host );
+            } elseif ( isset( $parts['user'] ) || isset( $parts['pass'] ) || isset( $parts['fragment'] ) ) {
+                $rejected[] = array( 'url' => $url, 'reason' => 'credentials or a #fragment' );
+            } else {
+                $same = strtolower( (string) $parts['scheme'] ) . '://' . strtolower( (string) $parts['host'] ) . ( isset( $parts['port'] ) ? ':' . $parts['port'] : '' ) . ( $parts['path'] ?? '/' ) . ( isset( $parts['query'] ) ? '?' . $parts['query'] : '' );
+                if ( ! isset( $ok[ $same ] ) ) {
+                    $ok[ $same ] = $url;
+                }
+            }
+        }
+
+        return array( 'ok' => array_values( $ok ), 'rejected' => $rejected );
+    }
+
     /** A theme or plugin folder name: lowercase letters, digits and dashes, 3-40 characters. */
     public static function scaffold_slug( string $slug ): string {
         $slug = trim( $slug );

@@ -389,6 +389,12 @@ check( 'scaffold: bad base, slug and name are refused', 'bad_arguments' === $sca
 check( 'scaffold: dangerous token values and slugs are refused', 'bad_token' === $scaffold_error( array_merge( $okargs, array( 'tokens' => array( 'colors' => array( 'primary' => 'red;}</style>' ) ) ) ) ) && 'bad_token' === $scaffold_error( array_merge( $okargs, array( 'tokens' => array( 'fonts' => array( 'Bad Slug' => 'x' ) ) ) ) ) );
 check( 'scaffold: a Persian name is allowed', null === $scaffold_error( array_merge( $okargs, array( 'name' => 'فروشگاه من' ) ) ) );
 
+/* IndexNow */
+check( 'indexnow: keys are 8-128 letters, digits and dashes', Policy::indexnow_key_ok( 'abc12345-DEF' ) && ! Policy::indexnow_key_ok( 'short' ) && ! Policy::indexnow_key_ok( 'bad key!!' ) && ! Policy::indexnow_key_ok( str_repeat( 'a', 129 ) ) );
+$inow = Policy::indexnow_urls( array( 'https://Example.com/a/', 'https://example.com/a/', 'http://example.com/b', 'https://other.test/c', 'ftp://example.com/d', 'https://u:p@example.com/e', 'https://example.com/f#top', 'nonsense', 'https://example.com.evil.test/g' ), 'example.com' );
+check( 'indexnow: only URLs on exactly this host are kept, duplicates dropped', array( 'https://Example.com/a/', 'http://example.com/b' ) === $inow['ok'] && 6 === count( $inow['rejected'] ) );
+check( 'indexnow: rejected URLs say why', 'not on example.com' === $inow['rejected'][0]['reason'] && 'credentials or a #fragment' === $inow['rejected'][2]['reason'] );
+
 /* design system rules */
 use WPMCP\Bridge\DesignRules;
 $tk = array( 'colors' => array( 'primary' => '#0a7f5a', 'surface' => '#F1F5F9', 'brand-dark' => '#102030' ), 'fonts' => array( 'body' => 'Vazirmatn, Tahoma, sans-serif', 'heading' => '"Shabnam", sans-serif' ), 'font_sizes' => array( 'base' => '1rem' ), 'spacing' => array( 'm' => '1rem' ), 'content_width' => '1100px' );
