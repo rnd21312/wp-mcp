@@ -195,7 +195,7 @@ final class CoreFiles {
         try {
             foreach ( $plan as $path => $bytes ) {
                 $before[] = Files::snapshot( 'core', $path, ABSPATH . $path );
-                Files::put( ABSPATH . $path, $bytes );
+                \WPMCP\Bridge\Util::write_atomic( ABSPATH . $path, $bytes );
             }
             if ( true === $healthy && false === PhpGuard::front_ok() ) {
                 throw new BridgeError( 'broke_site', 'The site returned a server error after restoring, so the files were put back as they were.', 409 );

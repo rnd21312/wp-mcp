@@ -389,6 +389,15 @@ check( 'scaffold: bad base, slug and name are refused', 'bad_arguments' === $sca
 check( 'scaffold: dangerous token values and slugs are refused', 'bad_token' === $scaffold_error( array_merge( $okargs, array( 'tokens' => array( 'colors' => array( 'primary' => 'red;}</style>' ) ) ) ) ) && 'bad_token' === $scaffold_error( array_merge( $okargs, array( 'tokens' => array( 'fonts' => array( 'Bad Slug' => 'x' ) ) ) ) ) );
 check( 'scaffold: a Persian name is allowed', null === $scaffold_error( array_merge( $okargs, array( 'name' => 'فروشگاه من' ) ) ) );
 
+/* one syntax check for every PHP-writing operation */
+check( 'phpguard: only .php files are parsed, errors name the line', null === \WPMCP\Bridge\PhpGuard::file_problem( 'style.css', 'not php {' ) && null === \WPMCP\Bridge\PhpGuard::file_problem( 'a.PHP', "<?php\necho 1;\n" ) && str_contains( (string) \WPMCP\Bridge\PhpGuard::file_problem( 'a.php', "<?php\n\$a = ;\n" ), 'line 2' ) );
+$no_dup = true;
+foreach ( glob( WPMCP_DIR . 'includes/Handlers/*.php' ) as $hf ) {
+    $src    = (string) file_get_contents( $hf );
+    $no_dup = $no_dup && ! str_contains( $src, 'TOKEN_PARSE' ) && ! preg_match( '/function (php_problem|front_ok|atomic_write|site_answers)\(/', $src );
+}
+check( 'phpguard: no handler keeps its own syntax check, front probe or atomic write', $no_dup );
+
 /* bulk SEO rules */
 use WPMCP\Bridge\SeoRules;
 check( 'alt: titles and file names become readable text', 'Red bicycle by the sea' === SeoRules::alt_from( 'Red bicycle by the sea', 'x.jpg' ) && 'summer sale banner' === SeoRules::alt_from( '', 'summer-sale_banner-300x200.jpg' ) && 'logo dark' === SeoRules::alt_from( 'logo-dark', 'logo-dark.png' ) );

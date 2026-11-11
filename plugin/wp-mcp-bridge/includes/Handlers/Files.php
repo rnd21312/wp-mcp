@@ -11,6 +11,7 @@ namespace WPMCP\Bridge\Handlers;
 
 use WPMCP\Bridge\BridgeError;
 use WPMCP\Bridge\Context;
+use WPMCP\Bridge\PhpGuard;
 use WPMCP\Bridge\Policy;
 use WPMCP\Bridge\Revisions;
 use WPMCP\Bridge\Util;
@@ -245,7 +246,7 @@ final class Files {
         $full  = self::full( $dir, $up, (string) $a['path'], false, true );
         $bytes = self::payload( $a );
 
-        return array( 'will_write' => $a['path'], 'root' => $a['root'], 'exists' => is_file( $full ), 'old_bytes' => is_file( $full ) ? filesize( $full ) : 0, 'new_bytes' => strlen( $bytes ), 'syntax' => self::php_problem( (string) $a['path'], $bytes ) ?? 'ok', 'warning' => str_ends_with( strtolower( (string) $a['path'] ), '.php' ) ? 'PHP runs with full access to the site.' : null );
+        return array( 'will_write' => $a['path'], 'root' => $a['root'], 'exists' => is_file( $full ), 'old_bytes' => is_file( $full ) ? filesize( $full ) : 0, 'new_bytes' => strlen( $bytes ), 'syntax' => PhpGuard::file_problem( (string) $a['path'], $bytes ) ?? 'ok', 'warning' => str_ends_with( strtolower( (string) $a['path'] ), '.php' ) ? 'PHP runs with full access to the site.' : null );
     }
 
     private static function payload( array $a ): string {
@@ -262,39 +263,6 @@ final class Files {
         }
 
         return $bytes;
-    }
-
-    private static function php_problem( string $path, string $bytes ): ?string {
-        if ( 'php' !== strtolower( pathinfo( $path, PATHINFO_EXTENSION ) ) ) {
-            return null;
-        }
-        try {
-            token_get_all( $bytes, TOKEN_PARSE );
-        } catch ( \ParseError $e ) {
-            return 'PHP syntax error on line ' . $e->getLine() . ': ' . $e->getMessage();
-        }
-
-        return null;
-    }
-
-    public static function put( string $full, string $bytes ): void {
-        wp_mkdir_p( dirname( $full ) );
-        $tmp = $full . '.wpm-' . bin2hex( random_bytes( 4 ) );
-        if ( false === file_put_contents( $tmp, $bytes ) || ! rename( $tmp, $full ) ) {
-            @unlink( $tmp ); // phpcs:ignore WordPress.PHP.NoSilencedErrors
-            throw new BridgeError( 'write_failed', 'The file could not be written (permissions?).', 500 );
-        }
-        if ( function_exists( 'opcache_invalidate' ) ) {
-            @opcache_invalidate( $full, true ); // phpcs:ignore WordPress.PHP.NoSilencedErrors
-        }
-    }
-
-    private static function front_ok(): ?bool {
-        try {
-            return Util::fetch_own( home_url( '/?wpm_check=' . time() ) )['status'] < 500;
-        } catch ( BridgeError $e ) {
-            return null;
-        }
     }
 
     /** @return array<string, mixed> */
@@ -316,16 +284,8 @@ final class Files {
         $path         = trim( str_replace( '\\', '/', (string) $a['path'] ), '/' );
         $full         = self::full( $dir, $up, $path, false, true );
         $bytes        = self::payload( $a );
-        if ( null !== ( $problem = self::php_problem( $path, $bytes ) ) ) {
-            throw new BridgeError( 'syntax_error', $problem . ' Nothing was written.', 400 );
-        }
-        $before  = self::snapshot( $root, $path, $full );
-        $healthy = 'php' === strtolower( pathinfo( $path, PATHINFO_EXTENSION ) ) ? self::front_ok() : null;
-        self::put( $full, $bytes );
-        if ( true === $healthy && false === self::front_ok() ) {
-            self::restore( $before );
-            throw new BridgeError( 'broke_site', 'The site returned a server error after this change, so it was reverted automatically.', 409 );
-        }
+        $before = self::snapshot( $root, $path, $full );
+        PhpGuard::write( $full, $path, $bytes, fn () => self::restore( $before ) );
         Revisions::record( $c, 'xfile', "$root|$path", $before );
         $c->summary = "wrote $root/$path (" . strlen( $bytes ) . ' bytes)';
 
@@ -364,7 +324,7 @@ final class Files {
             try {
                 $full    = self::full( $dir, $up, $path, false, true );
                 $bytes   = self::payload( $f );
-                $problem = self::php_problem( $path, $bytes );
+                $problem = PhpGuard::file_problem( $path, $bytes );
                 if ( null !== $problem ) {
                     throw new BridgeError( 'syntax_error', $problem, 400 );
                 }
@@ -377,14 +337,14 @@ final class Files {
         if ( array() !== $problems ) {
             throw new BridgeError( 'rejected', count( $problems ) . ' of ' . ( count( $plan ) + count( $problems ) ) . ' files have a problem. Nothing was written.', 400, array( 'files' => $problems ) );
         }
-        $healthy = $has_php ? self::front_ok() : null;
+        $healthy = $has_php ? PhpGuard::front_ok() : null;
         $before  = array();
         try {
             foreach ( $plan as $f ) {
                 $before[] = self::snapshot( $root, $f['path'], $f['full'] );
-                self::put( $f['full'], $f['bytes'] );
+                Util::write_atomic( $f['full'], $f['bytes'] );
             }
-            if ( true === $healthy && false === self::front_ok() ) {
+            if ( true === $healthy && false === PhpGuard::front_ok() ) {
                 throw new BridgeError( 'broke_site', 'The site returned a server error after these changes, so all of them were reverted automatically. Check maintain.logs for the PHP error.', 409 );
             }
         } catch ( BridgeError $e ) {
@@ -620,7 +580,7 @@ final class Files {
             if ( null === ( $before['data'] ?? null ) ) {
                 throw new BridgeError( 'not_undoable', 'The old content was too large to snapshot.', 409 );
             }
-            self::put( $full, (string) base64_decode( (string) $before['data'], true ) );
+            Util::write_atomic( $full, (string) base64_decode( (string) $before['data'], true ) );
 
             return "Restored $root/$path.";
         }
@@ -804,11 +764,11 @@ final class Files {
         if ( strlen( $got['body'] ) > 20971520 || '' === $got['body'] ) {
             throw new BridgeError( 'bad_size', 'The download is empty or larger than 20 MB.', 400 );
         }
-        if ( null !== ( $problem = self::php_problem( $path, $got['body'] ) ) ) {
+        if ( null !== ( $problem = PhpGuard::file_problem( $path, $got['body'] ) ) ) {
             throw new BridgeError( 'syntax_error', $problem . ' Nothing was written.', 400 );
         }
         $before = self::snapshot( $root, $path, $full );
-        self::put( $full, $got['body'] );
+        Util::write_atomic( $full, $got['body'] );
         Revisions::record( $c, 'xfile', "$root|$path", $before );
 
         return array( 'root' => $root, 'path' => $path, 'bytes' => strlen( $got['body'] ), 'source' => $got['url'] );
@@ -935,7 +895,7 @@ final class Files {
                     throw new BridgeError( 'too_large', 'The zip expands to more than 200 MB (or a file is over 20 MB).', 400 );
                 }
                 $full = self::full( $dir, $up, $rel, false, true );
-                self::put( $full, (string) $zip->getFromIndex( $i ) );
+                Util::write_atomic( $full, (string) $zip->getFromIndex( $i ) );
                 ++$written;
             }
             $zip->close();

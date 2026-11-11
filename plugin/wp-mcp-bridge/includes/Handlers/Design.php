@@ -11,6 +11,7 @@ namespace WPMCP\Bridge\Handlers;
 
 use WPMCP\Bridge\BridgeError;
 use WPMCP\Bridge\Context;
+use WPMCP\Bridge\PhpGuard;
 use WPMCP\Bridge\Policy;
 use WPMCP\Bridge\Revisions;
 use WPMCP\Bridge\Util;
@@ -739,41 +740,7 @@ final class Design {
         $dir  = self::theme_dir( (string) ( $a['theme'] ?? '' ) );
         $full = self::resolve( $dir, (string) $a['path'], false );
 
-        return array( 'will_write' => (string) $a['path'], 'exists' => is_file( $full ), 'old_bytes' => is_file( $full ) ? filesize( $full ) : 0, 'new_bytes' => strlen( (string) $a['content'] ), 'syntax' => self::php_problem( (string) $a['path'], (string) $a['content'] ) ?? 'ok', 'safety_net' => 'For PHP files the front page is checked afterwards and the change is reverted automatically if it causes a fatal error.' );
-    }
-
-    private static function php_problem( string $path, string $content ): ?string {
-        if ( 'php' !== strtolower( pathinfo( $path, PATHINFO_EXTENSION ) ) ) {
-            return null;
-        }
-        try {
-            token_get_all( $content, TOKEN_PARSE );
-        } catch ( \ParseError $e ) {
-            return 'PHP syntax error on line ' . $e->getLine() . ': ' . $e->getMessage();
-        }
-
-        return null;
-    }
-
-    private static function atomic_write( string $full, string $content ): void {
-        wp_mkdir_p( dirname( $full ) );
-        $tmp = $full . '.wpm-' . bin2hex( random_bytes( 4 ) );
-        if ( false === file_put_contents( $tmp, $content ) || ! rename( $tmp, $full ) ) {
-            @unlink( $tmp ); // phpcs:ignore WordPress.PHP.NoSilencedErrors
-            throw new BridgeError( 'write_failed', 'The file could not be written (permissions?).', 500 );
-        }
-        if ( function_exists( 'opcache_invalidate' ) ) {
-            @opcache_invalidate( $full, true ); // phpcs:ignore WordPress.PHP.NoSilencedErrors
-        }
-    }
-
-    /** True when the home page answers without a server error (null if it cannot be checked). */
-    private static function front_ok(): ?bool {
-        try {
-            return Util::fetch_own( home_url( '/?wpm_check=' . time() ) )['status'] < 500;
-        } catch ( BridgeError $e ) {
-            return null;
-        }
+        return array( 'will_write' => (string) $a['path'], 'exists' => is_file( $full ), 'old_bytes' => is_file( $full ) ? filesize( $full ) : 0, 'new_bytes' => strlen( (string) $a['content'] ), 'syntax' => PhpGuard::file_problem( (string) $a['path'], (string) $a['content'] ) ?? 'ok', 'safety_net' => 'For PHP files the front page is checked afterwards and the change is reverted automatically if it causes a fatal error.' );
     }
 
     /**
@@ -789,18 +756,9 @@ final class Design {
         if ( strlen( $content ) > 500000 ) {
             throw new BridgeError( 'too_large', 'File is larger than 500 KB.', 400 );
         }
-        if ( null !== ( $problem = self::php_problem( $rel, $content ) ) ) {
-            throw new BridgeError( 'syntax_error', $problem . ' Nothing was written.', 400 );
-        }
         $existed = is_file( $full );
         $old     = $existed ? (string) file_get_contents( $full ) : '';
-        $healthy = 'php' === strtolower( pathinfo( $rel, PATHINFO_EXTENSION ) ) ? self::front_ok() : null;
-
-        self::atomic_write( $full, $content );
-        if ( true === $healthy && false === self::front_ok() ) {
-            $existed ? self::atomic_write( $full, $old ) : @unlink( $full ); // phpcs:ignore WordPress.PHP.NoSilencedErrors
-            throw new BridgeError( 'broke_site', 'The site returned a server error after this change, so it was reverted automatically.', 409 );
-        }
+        PhpGuard::write( $full, $rel, $content, fn () => $existed ? Util::write_atomic( $full, $old ) : @unlink( $full ) ); // phpcs:ignore WordPress.PHP.NoSilencedErrors
         Revisions::record( $c, 'file', basename( $dir ) . '|' . $rel, array( 'theme' => basename( $dir ), 'path' => $rel, 'exists' => $existed, 'content' => $old ) );
         $c->summary = "wrote theme file $rel (" . strlen( $content ) . ' bytes)';
 
@@ -815,7 +773,7 @@ final class Design {
         $rel  = (string) ( $before['path'] ?? '' );
         $full = self::resolve( $dir, $rel, false );
         if ( ! empty( $before['exists'] ) ) {
-            self::atomic_write( $full, (string) $before['content'] );
+            Util::write_atomic( $full, (string) $before['content'] );
 
             return "Restored $rel.";
         }

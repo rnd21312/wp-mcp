@@ -26,6 +26,30 @@ final class PhpGuard {
         return null;
     }
 
+    /** Parse error of a file about to be written, by its name: only .php files are checked. */
+    public static function file_problem( string $path, string $bytes ): ?string {
+        return 'php' === strtolower( pathinfo( $path, PATHINFO_EXTENSION ) ) ? self::problem( $bytes ) : null;
+    }
+
+    /**
+     * Writes a file with the safety net every PHP-writing operation shares: syntax check first (nothing is written on an error),
+     * a probe of the front page before and after, and a revert when the site stops answering.
+     *
+     * @param callable $revert Puts the file back as it was; called only when the site broke.
+     */
+    public static function write( string $full, string $path, string $bytes, callable $revert ): void {
+        $problem = self::file_problem( $path, $bytes );
+        if ( null !== $problem ) {
+            throw new BridgeError( 'syntax_error', $problem . ' Nothing was written.', 400 );
+        }
+        $healthy = 'php' === strtolower( pathinfo( $path, PATHINFO_EXTENSION ) ) ? self::front_ok() : null;
+        Util::write_atomic( $full, $bytes );
+        if ( true === $healthy && false === self::front_ok() ) {
+            $revert();
+            throw new BridgeError( 'broke_site', 'The site returned a server error after this change, so it was reverted automatically. Check maintain.logs for the PHP error.', 409 );
+        }
+    }
+
     /**
      * Same check for a bare code fragment (no opening tag), as a code snippet is stored. Line numbers count from the fragment.
      */

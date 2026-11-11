@@ -11,6 +11,7 @@ namespace WPMCP\Bridge\Handlers;
 
 use WPMCP\Bridge\BridgeError;
 use WPMCP\Bridge\Context;
+use WPMCP\Bridge\PhpGuard;
 use WPMCP\Bridge\Policy;
 use WPMCP\Bridge\Revisions;
 use WPMCP\Bridge\Util;
@@ -950,14 +951,6 @@ final class Maintain {
         return is_string( $value ) && in_array( strtolower( $value ), array( 'true', 'false' ), true ) ? 'true' === strtolower( $value ) : $value;
     }
 
-    private static function site_answers(): ?bool {
-        try {
-            return Util::fetch_own( home_url( '/?wpm_check=' . time() ) )['status'] < 500;
-        } catch ( BridgeError $e ) {
-            return null;
-        }
-    }
-
     /**
      * Sets one constant in wp-config.php (WP_DEBUG, WP_MEMORY_LIMIT, DISALLOW_FILE_EDIT...).
      *
@@ -970,20 +963,18 @@ final class Maintain {
         $file   = self::config_file();
         $before = (string) file_get_contents( $file );
         $after  = Policy::config_set( $before, $name, $value );
-        try {
-            token_get_all( $after, TOKEN_PARSE );
-        } catch ( \ParseError $e ) {
-            throw new BridgeError( 'syntax_error', 'The edited wp-config.php would not parse (' . $e->getMessage() . '). Nothing was written.', 400 );
+        if ( null !== ( $problem = PhpGuard::problem( $after ) ) ) {
+            throw new BridgeError( 'syntax_error', 'The edited wp-config.php would not parse (' . $problem . '). Nothing was written.', 400 );
         }
         $was     = self::config_now( $name );
-        $healthy = self::site_answers();
+        $healthy = PhpGuard::front_ok();
         if ( false === file_put_contents( $file, $after, LOCK_EX ) ) {
             throw new BridgeError( 'write_failed', 'wp-config.php is not writable on this host.', 500 );
         }
         if ( function_exists( 'opcache_invalidate' ) ) {
             @opcache_invalidate( $file, true ); // phpcs:ignore WordPress.PHP.NoSilencedErrors
         }
-        if ( true === $healthy && false === self::site_answers() ) {
+        if ( true === $healthy && false === PhpGuard::front_ok() ) {
             file_put_contents( $file, $before, LOCK_EX );
             if ( function_exists( 'opcache_invalidate' ) ) {
                 @opcache_invalidate( $file, true ); // phpcs:ignore WordPress.PHP.NoSilencedErrors

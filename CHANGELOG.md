@@ -44,6 +44,7 @@
 - Fixed: `content.save` failed on a page whose stored page template no longer exists (WordPress re-validates it on every save, even with `template: ""`). `""` now means the default template and a stale template is reset with a note; an unknown template is refused with the list of real ones.
 
 ### Project
+- One PHP safety net (`PhpGuard`, `Util::write_atomic`) for files.write, theme files, wp-config and snippets: syntax check, front page probe before and after, revert when the site breaks. The three private copies are gone.
 - ESLint and Prettier, gateway sources grouped into folders, one tracked `ops.json`.
 
 ## Unreleased

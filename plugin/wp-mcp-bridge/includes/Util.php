@@ -184,6 +184,19 @@ final class Util {
         throw new BridgeError( 'download_failed', 'Too many redirects.', 502 );
     }
 
+    /** Writes a file in one step (temporary file, then rename) and clears PHP's opcode cache for it. */
+    public static function write_atomic( string $full, string $bytes ): void {
+        wp_mkdir_p( dirname( $full ) );
+        $tmp = $full . '.wpm-' . bin2hex( random_bytes( 4 ) );
+        if ( false === file_put_contents( $tmp, $bytes ) || ! rename( $tmp, $full ) ) {
+            @unlink( $tmp ); // phpcs:ignore WordPress.PHP.NoSilencedErrors
+            throw new BridgeError( 'write_failed', 'The file could not be written (permissions?).', 500 );
+        }
+        if ( function_exists( 'opcache_invalidate' ) ) {
+            @opcache_invalidate( $full, true ); // phpcs:ignore WordPress.PHP.NoSilencedErrors
+        }
+    }
+
     /** Absolute URL on this site from a path or URL. */
     public static function own_url( string $path ): string {
         if ( str_starts_with( $path, 'http' ) ) {
