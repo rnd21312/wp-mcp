@@ -23,6 +23,7 @@
 - `design.theme_bases` and `design.theme_scaffold`: build a theme from three bundled bases (block-rtl, classic-rtl, shop-rtl with WooCommerce), all RTL and Persian friendly, with your name, slug and design tokens, in one all-or-nothing write. The tokens also become the site design tokens. Undoable.
 - `plugins.scaffold`: skeleton of a new plugin (header, class, uninstall, readme, optional admin page, shortcode, REST route, custom post type). It returns the files, or writes plugins/<slug> (never activates), optionally with a zip.
 - `design.tokens_sync` writes the design tokens into the active block theme's theme.json and the Elementor kit (Global Colors and Fonts). `design.tokens_audit` finds colors and fonts written directly in the site CSS and says which ones equal a token. `design.patterns_list` and `design.pattern_get`: five block patterns (hero, features, pricing, contact, footer) with English and Persian texts that follow the token slugs; they are also in the editor inserter under "WP MCP".
+- `site.build`: build or extend a whole site from one JSON map (plugins, theme scaffold, tokens, pages from text or bundled patterns, menu, home page, branding, options). `dry_run` lists the steps, a real run is confirmed once, stops at the first failure and resumes with `from_step` and `page_ids`. Checked against your level before anything runs.
 
 ### Easier for AI clients
 - Argument and action aliases, `describe` on any tool, wp-content paths as roots.

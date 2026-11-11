@@ -7,6 +7,7 @@ import { VERSION } from '../core/version.ts';
 import { checkArgs, HELP_ACTIONS, OPS, opsOf, paramSchema, resolveAction, signature, TOOLS, type OpSpec } from '../sites/registry.ts';
 import type { SiteRow } from '../core/store.ts';
 import { SiteError } from '../sites/wpclient.ts';
+import { runBuild } from './build.ts';
 import { callGsc, gscTool } from './gsc.ts';
 import { callStudio, studioTool } from './studio.ts';
 import { runTransfer } from './transfer.ts';
@@ -466,6 +467,9 @@ async function runLocal(
     case 'site.transfer':
     case 'site.transfer_files':
       return runTransfer(app, principal, op, args, input as Record<string, unknown>, { text, fail, log });
+
+    case 'site.build':
+      return runBuild(app, principal, op, args, input as Record<string, unknown>, { text, fail, log });
 
     case 'site.sites':
       return text({

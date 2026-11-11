@@ -112,6 +112,25 @@ const LOCAL: OpSpec[] = [
     local: true,
   },
   {
+    id: 'site.build',
+    tool: 'site',
+    action: 'build',
+    level: 'live',
+    summary:
+      'Build or extend a whole site from one JSON map, in order: plugins, theme (design.theme_scaffold), tokens, pages (text or bundled patterns), menu, home page, branding, options. dry_run lists the steps; a real run is confirmed once, stops at the first failure and tells you how to resume (from_step, page_ids). Plugins, theme and options need admin.',
+    params: {
+      map: 'object|{plugins:[{wporg|zip_url|scaffold|activate}], theme:{scaffold:{base,slug,name,tokens}|wporg|activate, activate}, tokens:{colors,fonts,...}, pages:[{key,title,slug?,content|patterns:[{name,text}],status?,parent?}], menu:{name,location,items:[{title,page|url,children}]}, homepage:{front,posts}, branding:{title,tagline}, options:{...}, sync_tokens, publish_pages}',
+      from_step: 'int|Resume at this step (after a failure)',
+      page_ids: 'object|{pageKey: id} returned by a failed run, so a resume can link menu and home page',
+    },
+    required: ['map'],
+    write: true,
+    confirm: true,
+    untrusted: false,
+    escalates: 'admin',
+    local: true,
+  },
+  {
     id: 'activity.log',
     tool: 'activity',
     action: 'log',
@@ -142,7 +161,7 @@ export const TOOLS: ToolInfo[] = [
     name: 'site',
     title: 'Site overview and connections',
     intro:
-      'START HERE. Which sites exist, what a site contains (theme, plugins, content types, SEO plugin, WooCommerce), who you are, and the schema of any action.',
+      'START HERE. Which sites exist, what a site contains (theme, plugins, content types, SEO plugin, WooCommerce), who you are, the schema of any action, and site.build to create a whole site from one map.',
   },
   {
     name: 'content',
