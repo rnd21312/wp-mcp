@@ -56,9 +56,9 @@ function Setup({ status, reload }: { status: Status; reload: () => Promise<void>
       await reload();
     }
   };
-  const connect = async (write = false): Promise<void> => {
+  const connect = async (write = false, indexing = false): Promise<void> => {
     setErr('');
-    const r = await api.post<any>('gsc/connect', { write });
+    const r = await api.post<any>('gsc/connect', { write, indexing });
     if (r.ok && r.url) window.open(r.url, '_blank', 'noopener');
     else setErr(r.error?.message ?? 'Failed');
   };
@@ -135,6 +135,26 @@ function Setup({ status, reload }: { status: Status; reload: () => Promise<void>
             </Button>
             <Button variant="outline" disabled={!status.configured} onClick={() => connect(true)}>
               {t('Connect and allow changes (sitemaps)', 'اتصال با اجازه‌ی تغییر (سایت‌مپ)')}
+            </Button>
+            <Button
+              variant="outline"
+              disabled={!status.configured}
+              onClick={() => {
+                if (
+                  window.confirm(
+                    t(
+                      'Google allows the Indexing API only for pages with JobPosting or BroadcastEvent (live stream) markup, 200 requests a day. On other pages it may do nothing and misuse can cost you the quota. Continue?',
+                      'گوگل «API ایندکس» را فقط برای صفحه‌های دارای نشانه‌گذاری JobPosting یا BroadcastEvent (پخش زنده) مجاز می‌داند، روزی ۲۰۰ درخواست. روی صفحه‌های دیگر ممکن است اثری نداشته باشد و سوءاستفاده می‌تواند سهمیه را از شما بگیرد. ادامه می‌دهید؟',
+                    ),
+                  )
+                )
+                  connect(true, true);
+              }}
+            >
+              {t(
+                'Connect with Indexing API access (job posts and live streams only)',
+                'اتصال با دسترسی Indexing API (فقط آگهی شغلی و پخش زنده)',
+              )}
             </Button>
             <Button variant="ghost" onClick={reload}>
               {t('I connected: refresh', 'وصل شدم: بازخوانی')}

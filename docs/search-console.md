@@ -12,7 +12,11 @@ Google only hands data to an app you own, so you create a private sign-in once. 
 4. Open [Clients](https://console.cloud.google.com/auth/clients), **Create client**, type **Desktop app**. Copy the Client ID and Client secret.
 5. Open the local panel (`wpmcp.cmd`), page **Search Console**, paste both, press **Save**, then **Connect with Google** and sign in with the account that owns the property in Search Console.
 
-By default only the scope `webmasters.readonly` (plus your email address for display) is requested. "Connect and allow changes" asks for `webmasters` instead, which allows `sitemap_submit` and `sitemap_delete` (and nothing else this project uses); reconnect with the plain button to go back to read-only. The refresh token and the client secret are stored encrypted with the gateway master key in the data folder.
+By default only the scope `webmasters.readonly` (plus your email address for display) is requested. "Connect and allow changes" asks for `webmasters` instead, which allows `sitemap_submit` and `sitemap_delete` (and nothing else this project uses); reconnect with the plain button to go back to read-only (each connect button asks Google for exactly the access it names).
+
+## Indexing API (optional, with a warning)
+
+Google documents the Indexing API only for pages with `JobPosting` or `BroadcastEvent` (live stream, inside a `VideoObject`) structured data, 200 publish requests per day by default. There is no API for the "Request indexing" button of Search Console. For any other page the API may accept a request and do nothing, and misuse can cost the quota. So it is off by default: press "Connect with Indexing API access" in the panel (after a warning) and enable the "Web Search Indexing API" in your Google Cloud project. Then `indexing_publish {url, acknowledge_restriction:true}` (level live, confirmed, URL must be inside one of your properties, counted against 200 a day) and `indexing_status {url}` work. For ordinary pages use sitemaps, and IndexNow for Bing and Yandex. The refresh token and the client secret are stored encrypted with the gateway master key in the data folder.
 
 ## The MCP tool
 

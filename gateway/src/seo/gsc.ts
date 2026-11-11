@@ -16,6 +16,11 @@ const INSPECT_API = 'https://searchconsole.googleapis.com/v1/urlInspection/index
 const SCOPE_READ = 'https://www.googleapis.com/auth/webmasters.readonly';
 /** Needed to submit and delete sitemaps. Asked for only when the owner chooses it in the panel. */
 const SCOPE_WRITE = 'https://www.googleapis.com/auth/webmasters';
+/** Google Indexing API. Officially only for JobPosting and BroadcastEvent pages; opt-in with a warning in the panel. */
+const SCOPE_INDEXING = 'https://www.googleapis.com/auth/indexing';
+const INDEXING_API = 'https://indexing.googleapis.com/v3/urlNotifications';
+/** Default Google quota of the Indexing API: publish requests per day and project. */
+export const INDEXING_DAILY_LIMIT = 200;
 
 export class GscError extends Error {
   constructor(
@@ -33,6 +38,8 @@ interface Client {
 interface Tokens {
   /** The connection may change things (sitemaps), not only read. */
   write?: boolean;
+  /** The connection may use the Indexing API. */
+  indexing?: boolean;
   refresh: string;
   access: string;
   exp: number;
@@ -65,6 +72,7 @@ export function gscStatus(app: App): Record<string, unknown> {
     configured: !!client,
     connected: !!tokens?.refresh,
     write_access: !!tokens?.write,
+    indexing_access: !!tokens?.indexing,
     email: tokens?.email ?? '',
     client_id: client ? `${client.id.slice(0, 12)}…` : '',
     redirect_uri: redirectUri(app),
@@ -86,7 +94,7 @@ export function saveClient(app: App, id: string, secret: string): void {
 export const disconnect = (app: App): void => writeSetting(app, KEY_TOKENS, null);
 
 /** The Google sign-in address. The state is signed and carries the PKCE verifier, so nothing is stored server-side. */
-export function authUrl(app: App, write = false): string {
+export function authUrl(app: App, write = false, indexing = false): string {
   const client = readSetting<Client>(app, KEY_CLIENT);
   if (!client) throw new GscError('no_client', 'Save the Google client ID and secret first.');
   const verifier = randomBytes(32).toString('base64url');
@@ -95,10 +103,9 @@ export function authUrl(app: App, write = false): string {
     client_id: client.id,
     redirect_uri: redirectUri(app),
     response_type: 'code',
-    scope: [write ? SCOPE_WRITE : SCOPE_READ, 'openid', 'email'].join(' '),
+    scope: [write ? SCOPE_WRITE : SCOPE_READ, ...(indexing ? [SCOPE_INDEXING] : []), 'openid', 'email'].join(' '),
     access_type: 'offline',
     prompt: 'consent',
-    include_granted_scopes: 'true',
     code_challenge: createHash('sha256').update(verifier).digest('base64url'),
     code_challenge_method: 'S256',
     state,
@@ -185,6 +192,7 @@ export async function handleCallback(app: App, query: URLSearchParams): Promise<
     exp: Math.floor(Date.now() / 1000) + (out.expires_in ?? 3000),
     email: emailOf(out.id_token),
     write: (out.scope ?? '').split(' ').includes(SCOPE_WRITE),
+    indexing: (out.scope ?? '').split(' ').includes(SCOPE_INDEXING),
   } satisfies Tokens);
 
   return page('Search Console is connected', 'You can close this tab and go back to the panel or to your AI client.');
@@ -481,6 +489,77 @@ async function sitemapWrite(app: App, method: 'PUT' | 'DELETE', a: { site?: stri
 export const sitemapSubmit = (app: App, a: { site?: string; url?: string }) => sitemapWrite(app, 'PUT', a);
 export const sitemapDelete = (app: App, a: { site?: string; url?: string }) => sitemapWrite(app, 'DELETE', a);
 
+/** Publish requests already sent today (Pacific time, when Google resets the quota), kept to stop before Google does. */
+export function indexingQuota(state: { day?: string; n?: number } | null, now = new Date()): { day: string; used: number; left: number } {
+  const day = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Los_Angeles' }).format(now);
+  const used = state?.day === day ? Number(state.n ?? 0) : 0;
+
+  return { day, used, left: Math.max(0, INDEXING_DAILY_LIMIT - used) };
+}
+
+const KEY_INDEXING = 'gsc_indexing_count';
+
+function needIndexing(app: App): void {
+  if (!readSetting<Tokens>(app, KEY_TOKENS)?.indexing)
+    throw new GscError(
+      'no_indexing_access',
+      'This Google connection has no Indexing API access. In the local panel, Search Console page, press "Connect with Indexing API access" (read the warning there first), and enable the "Web Search Indexing API" in your Google Cloud project.',
+    );
+}
+
+/**
+ * Google Indexing API. Google documents it for pages with JobPosting or BroadcastEvent (inside a VideoObject) markup only. For other
+ * pages it may accept the call and still do nothing, and misuse can cost you the quota. Hence: explicit opt-in on connect, an
+ * acknowledgement in every call, the URL must be inside a property of this account, and a local daily counter.
+ */
+export async function indexingPublish(
+  app: App,
+  a: { url?: string; type?: string; site?: string; acknowledge_restriction?: boolean },
+): Promise<Record<string, unknown>> {
+  needIndexing(app);
+  if (a.acknowledge_restriction !== true)
+    throw new GscError(
+      'acknowledge_restriction',
+      'Google supports the Indexing API only for pages with JobPosting or BroadcastEvent (livestream) structured data. For any other page it is not guaranteed to do anything. Pass acknowledge_restriction:true to confirm this page is such a page.',
+    );
+  const type = a.type === 'URL_DELETED' ? 'URL_DELETED' : 'URL_UPDATED';
+  const url = String(a.url ?? '');
+  if (!/^https?:\/\//i.test(url)) throw new GscError('bad_arguments', 'url* must be a full address (https://…).');
+  const site = await pickSite(app, a.site);
+  const problem = sitemapUrlProblem(site, url);
+  if (problem) throw new GscError('bad_arguments', problem.replace('sitemap', 'URL'));
+  const quota = indexingQuota(readSetting<{ day: string; n: number }>(app, KEY_INDEXING));
+  if (quota.left <= 0)
+    throw new GscError(
+      'quota_reached',
+      `${INDEXING_DAILY_LIMIT} Indexing API requests were sent today (Google's default quota, reset at midnight Pacific time). Try again tomorrow.`,
+    );
+  const out = await google<{ urlNotificationMetadata?: Record<string, unknown> }>(app, `${INDEXING_API}:publish`, {
+    method: 'POST',
+    body: { url, type },
+  });
+  writeSetting(app, KEY_INDEXING, { day: quota.day, n: quota.used + 1 });
+
+  return {
+    ok: true,
+    site,
+    url,
+    type,
+    left_today: quota.left - 1,
+    google: out.urlNotificationMetadata,
+    warning: 'Accepted by the API does not mean indexed. Check with the inspect action later.',
+  };
+}
+
+export async function indexingStatus(app: App, a: { url?: string }): Promise<Record<string, unknown>> {
+  needIndexing(app);
+  const url = String(a.url ?? '');
+  if (!/^https?:\/\//i.test(url)) throw new GscError('bad_arguments', 'url* must be a full address (https://…).');
+  const out = await google<Record<string, unknown>>(app, `${INDEXING_API}/metadata?url=${encodeURIComponent(url)}`);
+
+  return { ok: true, url, ...out, quota_today: indexingQuota(readSetting<{ day: string; n: number }>(app, KEY_INDEXING)) };
+}
+
 const pickInspection = (r: any): Record<string, unknown> => {
   const i = r.inspectionResult ?? {};
   const idx = i.indexStatusResult ?? {};
@@ -697,6 +776,15 @@ export const GSC_ACTIONS: Record<string, { summary: string; args: string }> = {
       'Remove a sitemap from Search Console (needs level live, confirmation, and a connection that allows changes). Does not delete the file.',
     args: 'url*, site',
   },
+  indexing_publish: {
+    summary:
+      'WARNING: Google allows the Indexing API only for pages with JobPosting or BroadcastEvent markup; for anything else it may do nothing. Tell Google a URL was updated or deleted (200 per day). Needs level live, confirmation, a connection with Indexing API access and acknowledge_restriction:true.',
+    args: 'url*, acknowledge_restriction*, type (URL_UPDATED|URL_DELETED), site',
+  },
+  indexing_status: {
+    summary: "When Google last received an Indexing API notification for a URL, and how many of today's 200 requests are left.",
+    args: 'url*',
+  },
   inspect: {
     summary: 'URL Inspection: is this page indexed, why not, canonical, robots, mobile usability, rich results.',
     args: 'url*, site',
@@ -743,6 +831,10 @@ async function runGscRaw(app: App, action: string, args: Record<string, any> = {
       return sitemapSubmit(app, args);
     case 'sitemap_delete':
       return sitemapDelete(app, args);
+    case 'indexing_publish':
+      return indexingPublish(app, args);
+    case 'indexing_status':
+      return indexingStatus(app, args);
     case 'inspect':
       return inspect(app, args);
     case 'coverage':

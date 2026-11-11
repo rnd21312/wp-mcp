@@ -301,7 +301,7 @@ async function api(app: App, req: LocalReq): Promise<Reply> {
         saveClient(app, String(body.client_id ?? ''), String(body.client_secret ?? ''));
         return json(200, gscStatus(app));
       case 'gsc/connect':
-        return json(200, { ok: true, url: authUrl(app, body.write === true) });
+        return json(200, { ok: true, url: authUrl(app, body.write === true, body.indexing === true) });
       case 'gsc/disconnect':
         disconnect(app);
         return json(200, gscStatus(app));

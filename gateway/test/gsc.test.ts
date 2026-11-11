@@ -24,11 +24,15 @@ function fakeGoogle(calls: { url: string; body?: any }[]): typeof fetch {
               expires_in: 3600,
               id_token: idToken,
               scope:
-                body.code === 'w'
-                  ? 'https://www.googleapis.com/auth/webmasters openid email'
-                  : 'https://www.googleapis.com/auth/webmasters.readonly openid email',
+                body.code === 'i'
+                  ? 'https://www.googleapis.com/auth/webmasters.readonly https://www.googleapis.com/auth/indexing openid email'
+                  : body.code === 'w'
+                    ? 'https://www.googleapis.com/auth/webmasters openid email'
+                    : 'https://www.googleapis.com/auth/webmasters.readonly openid email',
             },
       );
+    if (url.startsWith('https://indexing.googleapis.com/v3/urlNotifications:publish'))
+      return ok({ urlNotificationMetadata: { url: body.url, latestUpdate: { type: body.type } } });
     if (url.includes('/sitemaps/') && ['PUT', 'DELETE'].includes(init.method)) return ok({});
     if (url.endsWith('/webmasters/v3/sites'))
       return ok({ siteEntry: [{ siteUrl: 'sc-domain:example.com', permissionLevel: 'siteOwner' }] });
@@ -180,5 +184,51 @@ describe('Google Search Console', () => {
     expect(sitemapUrlProblem('https://example.com/', 'https://example.org/s.xml')).toMatch(/must start with/);
     expect(sitemapUrlProblem('sc-domain:example.com', 'ftp://example.com/s.xml')).toMatch(/https/);
     expect(sitemapUrlProblem('sc-domain:example.com', 'nope')).toMatch(/full sitemap/);
+  });
+
+  it('indexing_publish: opt-in connection, acknowledged restriction, URL inside the property, confirmed, counted', async () => {
+    const live: Principal = { ...who(), id: 'i-live', level: 'live' };
+    const call = async (action: string, args: Record<string, unknown>, confirm_token?: string) =>
+      JSON.parse((await callTool(env.app, live, 'search_console', { action, args, confirm_token })).content[0].text);
+    vi.stubGlobal('fetch', fakeGoogle(calls));
+    const args = { url: 'https://example.com/jobs/1/', acknowledge_restriction: true };
+
+    // a connection without Indexing API access is refused, after the confirmation step
+    await handleCallback(env.app, new URLSearchParams({ code: 'r', state: new URL(authUrl(env.app)).searchParams.get('state')! }));
+    expect(gscStatus(env.app)).toMatchObject({ write_access: false, indexing_access: false });
+    const t0 = await call('indexing_publish', args);
+    expect(t0.needs_confirmation).toBe(true);
+    expect(t0.preview.warning).toMatch(/JobPosting or BroadcastEvent/);
+    expect((await call('indexing_publish', args, t0.confirm_token)).error.code).toBe('no_indexing_access');
+
+    const u = new URL(authUrl(env.app, false, true));
+    expect(u.searchParams.get('scope')).toContain('auth/indexing');
+    expect(u.searchParams.get('scope')).not.toContain('include_granted');
+    expect(u.searchParams.has('include_granted_scopes')).toBe(false);
+    await handleCallback(env.app, new URLSearchParams({ code: 'i', state: u.searchParams.get('state')! }));
+    expect(gscStatus(env.app)).toMatchObject({ indexing_access: true, write_access: false });
+
+    const noAck = { url: args.url };
+    const t1 = await call('indexing_publish', noAck);
+    expect((await call('indexing_publish', noAck, t1.confirm_token)).error.code).toBe('acknowledge_restriction');
+    const t2 = await call('indexing_publish', { ...args, url: 'https://elsewhere.test/x' });
+    expect((await call('indexing_publish', { ...args, url: 'https://elsewhere.test/x' }, t2.confirm_token)).error.code).toBe(
+      'bad_arguments',
+    );
+
+    const t3 = await call('indexing_publish', args);
+    const done = await call('indexing_publish', args, t3.confirm_token);
+    expect(done).toMatchObject({ ok: true, type: 'URL_UPDATED', left_today: 199 });
+    const post = calls.filter((c) => c.url.includes('urlNotifications:publish')).at(-1)!;
+    expect(post.body).toEqual({ url: args.url, type: 'URL_UPDATED' });
+  });
+
+  it('the daily Indexing API counter resets by Pacific day', async () => {
+    const { indexingQuota } = await import('../src/seo/gsc.ts');
+    const noon = new Date('2026-03-10T20:00:00Z');
+    expect(indexingQuota(null, noon)).toEqual({ day: '2026-03-10', used: 0, left: 200 });
+    expect(indexingQuota({ day: '2026-03-10', n: 199 }, noon).left).toBe(1);
+    expect(indexingQuota({ day: '2026-03-10', n: 250 }, noon).left).toBe(0);
+    expect(indexingQuota({ day: '2026-03-09', n: 200 }, noon).used).toBe(0);
   });
 });
