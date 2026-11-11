@@ -389,6 +389,30 @@ check( 'scaffold: bad base, slug and name are refused', 'bad_arguments' === $sca
 check( 'scaffold: dangerous token values and slugs are refused', 'bad_token' === $scaffold_error( array_merge( $okargs, array( 'tokens' => array( 'colors' => array( 'primary' => 'red;}</style>' ) ) ) ) ) && 'bad_token' === $scaffold_error( array_merge( $okargs, array( 'tokens' => array( 'fonts' => array( 'Bad Slug' => 'x' ) ) ) ) ) );
 check( 'scaffold: a Persian name is allowed', null === $scaffold_error( array_merge( $okargs, array( 'name' => 'فروشگاه من' ) ) ) );
 
+/* plugin scaffold */
+$pp = \WPMCP\Bridge\Handlers\PluginScaffold::plan( array( 'slug' => 'my-tool', 'name' => 'My Tool', 'description' => 'Does a thing.', 'features' => array( 'admin_page', 'shortcode', 'rest', 'cpt' ) ) );
+$pp_paths = array_column( $pp['files'], 'path' );
+check( 'plugin scaffold: main file, class, uninstall, readme and every feature are produced', array( 'includes/class-my-tool.php', 'includes/features/admin-page.php', 'includes/features/post-type.php', 'includes/features/rest.php', 'includes/features/shortcode.php', 'index.php', 'my-tool.php', 'readme.txt', 'uninstall.php' ) === $pp_paths );
+$pp_ok = true;
+foreach ( $pp['files'] as $f ) {
+    $pp_ok = $pp_ok && ! str_contains( $f['content'], '{{' ) && ( ! str_ends_with( $f['path'], '.php' ) || null === \WPMCP\Bridge\PhpGuard::problem( $f['content'] ) );
+}
+check( 'plugin scaffold: no placeholder left and every PHP file parses', $pp_ok );
+$main = $pp['files'][ array_search( 'my-tool.php', $pp_paths, true ) ]['content'];
+check( 'plugin scaffold: header has name, text domain and the ABSPATH guard; names are derived from the slug', str_contains( $main, 'Plugin Name: My Tool' ) && str_contains( $main, 'Text Domain: my-tool' ) && str_contains( $main, "defined( 'ABSPATH' )" ) && str_contains( $main, "array( 'My_Tool', 'boot' )" ) && str_contains( $main, 'MY_TOOL_VERSION' ) );
+$bare = \WPMCP\Bridge\Handlers\PluginScaffold::plan( array( 'slug' => 'bare-one', 'name' => 'Bare' ) );
+check( 'plugin scaffold: without features there are no feature files', 5 === count( $bare['files'] ) && ! in_array( 'includes/features/rest.php', array_column( $bare['files'], 'path' ), true ) );
+$ps_error = static function ( array $args ): ?string {
+    try {
+        \WPMCP\Bridge\Handlers\PluginScaffold::plan( $args );
+    } catch ( \WPMCP\Bridge\BridgeError $e ) {
+        return $e->error_code;
+    }
+
+    return null;
+};
+check( 'plugin scaffold: bad slug, feature, description are refused', 'bad_arguments' === $ps_error( array( 'slug' => 'Bad Slug', 'name' => 'X' ) ) && 'bad_arguments' === $ps_error( array( 'slug' => 'good-one', 'name' => 'X', 'features' => array( 'exec' ) ) ) && 'bad_arguments' === $ps_error( array( 'slug' => 'good-one', 'name' => 'X', 'description' => '*/ evil();' ) ) && null === $ps_error( array( 'slug' => 'good-one', 'name' => 'X' ) ) );
+
 /* core checksums */
 $sums = array( 'index.php' => md5( 'a' ), 'wp-admin/admin.php' => md5( 'b' ), 'wp-includes/load.php' => md5( 'c' ), 'wp-includes/gone.php' => md5( 'd' ) );
 $disk = array( 'index.php' => md5( 'a' ), 'wp-admin/admin.php' => md5( 'HACKED' ), 'wp-includes/load.php' => strtoupper( md5( 'c' ) ) );

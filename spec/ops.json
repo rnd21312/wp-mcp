@@ -1949,6 +1949,31 @@
    "escalates": null
   },
   {
+   "id": "plugins.scaffold",
+   "tool": "plugins",
+   "action": "scaffold",
+   "level": "admin",
+   "summary": "Skeleton of a new plugin: header, main file, class, uninstall.php, readme.txt and optional features (admin_page, shortcode, rest, cpt). Without install or zip it only returns the files; install:true writes plugins/<slug> (never activates), zip:true also packs a zip in uploads/wpmcp-exports.",
+   "params": {
+    "slug": "string|Folder name, 3-40 lowercase letters, digits, dashes",
+    "name": "string|Plugin name",
+    "description": "string|Short description (plain text)",
+    "author": "string|Author name",
+    "features": "array|Any of: admin_page, shortcode, rest, cpt",
+    "install": "bool|Write it to wp-content/plugins/<slug>",
+    "zip": "bool|Also make a zip",
+    "overwrite": "bool|Replace the files of an existing plugin folder"
+   },
+   "required": [
+    "slug",
+    "name"
+   ],
+   "write": true,
+   "confirm": "maybe",
+   "untrusted": false,
+   "escalates": null
+  },
+  {
    "id": "plugins.activate",
    "tool": "plugins",
    "action": "activate",

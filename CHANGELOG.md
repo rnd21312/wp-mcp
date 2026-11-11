@@ -21,6 +21,7 @@
 
 ### Building a site
 - `design.theme_bases` and `design.theme_scaffold`: build a theme from three bundled bases (block-rtl, classic-rtl, shop-rtl with WooCommerce), all RTL and Persian friendly, with your name, slug and design tokens, in one all-or-nothing write. The tokens also become the site design tokens. Undoable.
+- `plugins.scaffold`: skeleton of a new plugin (header, class, uninstall, readme, optional admin page, shortcode, REST route, custom post type). It returns the files, or writes plugins/<slug> (never activates), optionally with a zip.
 
 ### Easier for AI clients
 - Argument and action aliases, `describe` on any tool, wp-content paths as roots.

@@ -394,6 +394,19 @@ final class Policy {
         return $name;
     }
 
+    /** Free text for a plugin header (description, author): no comment end, tags or quotes. Empty gives the default. */
+    public static function scaffold_text( string $text, string $default ): string {
+        $text = trim( $text );
+        if ( '' === $text ) {
+            return $default;
+        }
+        if ( 1 !== preg_match( '/^[\p{L}\p{N} _.,&()\-:!?]{1,200}$/u', $text ) ) {
+            throw new BridgeError( 'bad_arguments', 'description and author must be plain text of up to 200 letters, digits, spaces and . , & ( ) - : ! ?', 400 );
+        }
+
+        return $text;
+    }
+
     /**
      * Default tokens with the caller's changes on top. Groups: colors, fonts, font_sizes, spacing (slug => value), plus radius and content_width.
      *

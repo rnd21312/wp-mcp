@@ -1,6 +1,6 @@
 # Tools reference
 
-Generated from `spec/ops.json` (171 site actions + gateway actions). Every tool is called as `{site, action, args, dry_run?, confirm_token?, idempotency_key?}`.
+Generated from `spec/ops.json` (172 site actions + gateway actions). Every tool is called as `{site, action, args, dry_run?, confirm_token?, idempotency_key?}`.
 
 Levels: **read** < **draft** < **live** < **admin**. `A>B` means the action starts at A and the site raises it to B from the real target (for example editing a published page). **confirm** = two-step: the first call returns a preview and a `confirm_token`, nothing changes until it is repeated with the token. **site content** = the result contains text written on the website (treated as untrusted).
 
@@ -146,6 +146,7 @@ Levels: **read** < **draft** < **live** < **admin**. `A>B` means the action star
 | `search` | draft | `query*, per_page` | Search WordPress.org. *(site content)* |
 | `install` | admin | `slug*, activate` | Install a plugin from WordPress.org by slug. *(confirm, write)* |
 | `install_zip` | admin | `url*, activate` | Install a plugin from an https zip URL (no redirects, no private addresses). *(confirm, write)* |
+| `scaffold` | admin | `slug*, name*, description, author, features, install, zip, overwrite` | Skeleton of a new plugin: header, main file, class, uninstall.php, readme.txt and optional features (admin_page, shortcode, rest, cpt). Without install or zip it only returns the files; install:true writes plugins/<slug> (never activates), zip:true also packs a zip in uploads/wpmcp-exports. *(confirm if risky, write)* |
 | `activate` | admin | `plugin*` | Activate a plugin. *(write)* |
 | `deactivate` | admin | `plugin*` | Deactivate a plugin (the bridge itself cannot be deactivated). *(write)* |
 | `delete` | admin | `plugin*` | Delete an inactive plugin and its files. *(confirm, write)* |

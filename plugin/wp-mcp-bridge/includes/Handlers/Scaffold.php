@@ -55,7 +55,7 @@ final class Scaffold {
         $it = new \RecursiveIteratorIterator( new \RecursiveDirectoryIterator( $root, \FilesystemIterator::SKIP_DOTS ) );
         foreach ( $it as $file ) {
             if ( $file->isFile() ) {
-                $rel           = ltrim( str_replace( '\\', '/', substr( $file->getPathname(), strlen( $root ) ) ), '/' );
+                $rel           = (string) preg_replace( '/\.tpl$/', '', ltrim( str_replace( '\\', '/', substr( $file->getPathname(), strlen( $root ) ) ), '/' ) ); // templates are stored as *.php.tpl so they are not linted or run as PHP
                 $files[ $rel ] = (string) file_get_contents( $file->getPathname() );
             }
         }

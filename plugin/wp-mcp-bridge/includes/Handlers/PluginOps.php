@@ -259,4 +259,20 @@ final class PluginOps {
 
         return array( 'options' => $out, 'hint' => 'Read values with options.get (secret-looking options are hidden). Many plugins also expose settings under rest.routes.' );
     }
+
+    /**
+     * @param array<string, mixed> $a Arguments.
+     * @return array<string, mixed>
+     */
+    public static function preview_scaffold( array $a, Context $c ): array {
+        return PluginScaffold::preview( $a, $c );
+    }
+
+    /**
+     * @param array<string, mixed> $a Arguments.
+     * @return array<string, mixed>
+     */
+    public static function op_scaffold( array $a, Context $c ): array {
+        return PluginScaffold::create( $a, $c );
+    }
 }

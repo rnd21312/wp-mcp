@@ -69,6 +69,15 @@ describe('names the AI guesses', () => {
     expect(gate.data.needs_confirmation).toBe(true);
   });
 
+  it('plugins.scaffold is confirmed only when it writes', async () => {
+    const k = key(env, 'admin');
+    env.sites.alpha.answers['plugins.scaffold'] = (args, c) => (c.dry_run ? { needs_confirmation: !!args.install } : { plugin: args.slug });
+    const free = await tool(env, k, 'plugins', { action: 'scaffold', args: { slug: 'my-tool', name: 'My Tool' } });
+    expect(free.data.needs_confirmation).toBeUndefined();
+    const gate = await tool(env, k, 'plugins', { action: 'scaffold', args: { slug: 'my-tool', name: 'My Tool', install: true } });
+    expect(gate.data.needs_confirmation).toBe(true);
+  });
+
   it('turns {name, value} into one option', async () => {
     const k = key(env, 'admin');
     await tool(env, k, 'options', { action: 'set', args: { name: 'blogname', value: 'Shop' }, dry_run: true });
