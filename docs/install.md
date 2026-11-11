@@ -45,6 +45,7 @@ nginx: proxy to `127.0.0.1:8787`, pass `Host` and `X-Forwarded-For`, set `client
 | `WPMCP_ADMIN_PASSWORD` | none | Create the owner at start-up (12+ chars) instead of using the setup token |
 | `WPMCP_TRUST_PROXY` | off | `1` to trust `X-Forwarded-For` |
 | `WPMCP_ACCESS_TTL` / `WPMCP_REFRESH_TTL` / `WPMCP_REFRESH_GRACE` | 3600 / 15552000 / 600 | Seconds: access token, refresh token (sliding), retry grace |
+| `WPMCP_ALLOW_SELF_SIGNED` | off | Accept a self-signed/untrusted TLS certificate on a site (fixes `DEPTH_ZERO_SELF_SIGNED_CERT`). Replies stay HMAC-signed by the bridge |
 | `WPMCP_ALLOW_PRIVATE_SITES`, `WPMCP_ALLOW_INSECURE_SITES` | off | **Development only**: allow sites on `localhost`/private IPs and plain http |
 
 **Back up `data/`** (the database *and* `master.key`; without the key the stored site secrets cannot be decrypted and every site must be paired again).

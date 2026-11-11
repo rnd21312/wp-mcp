@@ -14,6 +14,8 @@ export interface Config {
   allowPrivateSites: boolean;
   /** Allow http:// site URLs (development only). */
   allowInsecureSites: boolean;
+  /** Accept self-signed or otherwise untrusted TLS certificates from sites (the signed replies still authenticate the bridge). */
+  allowSelfSignedSites: boolean;
   trustProxy: boolean;
   /** Passwordless panel for this computer only (command "local"). */
   localPanel: boolean;
@@ -61,6 +63,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env, overrides: Part
     masterKey: overrides.masterKey ?? masterKey(dataDir, env),
     allowPrivateSites: env.WPMCP_ALLOW_PRIVATE_SITES === '1',
     allowInsecureSites: env.WPMCP_ALLOW_INSECURE_SITES === '1',
+    allowSelfSignedSites: env.WPMCP_ALLOW_SELF_SIGNED === '1',
     trustProxy: env.WPMCP_TRUST_PROXY === '1',
     localPanel: env.WPMCP_LOCAL_PANEL === '1',
     connectorLevel: env.WPMCP_LOCAL_PANEL === '1' && isLevel(env.WPMCP_CONNECTOR_LEVEL) ? env.WPMCP_CONNECTOR_LEVEL : undefined,

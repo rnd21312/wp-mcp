@@ -27,6 +27,7 @@ export function isPrivateAddress(address: string): boolean {
 export interface UrlPolicy {
   allowPrivate: boolean;
   allowHttp: boolean;
+  allowSelfSigned?: boolean;
 }
 
 export class SsrfError extends Error {}
@@ -89,7 +90,7 @@ export function safeRequest(raw: string, policy: UrlPolicy, init: SafeRequest = 
   return new Promise((resolve, reject) => {
     const req = client.request(
       url,
-      { method: init.method ?? 'GET', headers: init.headers, lookup: guardedLookup(policy) as never, timeout: init.timeoutMs ?? 25000, agent: false },
+      { method: init.method ?? 'GET', headers: init.headers, lookup: guardedLookup(policy) as never, timeout: init.timeoutMs ?? 25000, agent: false, ...(policy.allowSelfSigned ? { rejectUnauthorized: false } : {}) },
       (res) => {
         const chunks: Buffer[] = [];
         let size = 0;

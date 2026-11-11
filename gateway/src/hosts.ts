@@ -201,7 +201,7 @@ export interface Exposure {
 export async function checkHost(app: App, name: string): Promise<{ checks: { id: string; status: string; msg: string }[]; exposure: Exposure[] }> {
   const host = needHost(app, name);
   const { checks } = await app.agents.call<{ checks: { id: string; status: string; msg: string }[] }>(host, 'host.selftest', { online: true }, { timeoutMs: 90000 });
-  const policy = { allowPrivate: app.config.allowPrivateSites, allowHttp: app.config.allowInsecureSites };
+  const policy = { allowPrivate: app.config.allowPrivateSites, allowHttp: app.config.allowInsecureSites, allowSelfSigned: app.config.allowSelfSignedSites };
   const exposure: Exposure[] = [];
   for (const path of ['src/Auth.php', 'src/Store.php', 'data-location.php', 'wpm-setup.php', '.htaccess', 'data/config.json.php', 'README.txt']) {
     try {

@@ -1,5 +1,6 @@
 import { spawn, execFileSync, type ChildProcess } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { appendFileSync, existsSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 import type { App } from './context.ts';
 import { isLevel, type Level } from './levels.ts';
 
@@ -69,6 +70,8 @@ export async function startConnector(app: App, level: unknown, port: number): Pr
   starting = true;
   try {
     const child = spawn(bin, ['tunnel', '--no-autoupdate', '--protocol', 'http2', '--url', `http://127.0.0.1:${port}`], { windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
+    const log = join(app.config.dataDir, 'tunnel.log');
+    writeFileSync(log, '');
     const url = await new Promise<string | null>((resolve) => {
       let text = '';
       const done = (value: string | null): void => {
@@ -77,6 +80,7 @@ export async function startConnector(app: App, level: unknown, port: number): Pr
       };
       const timer = setTimeout(() => done(null), 30000);
       const feed = (chunk: Buffer): void => {
+        appendFileSync(log, chunk);
         text += chunk.toString('utf8');
         const found = parseTunnelUrl(text);
         if (found && /Registered tunnel connection/.test(text)) done(found); // the address exists before the tunnel is connected

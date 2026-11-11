@@ -74,7 +74,7 @@ export class SiteClient {
   ) {}
 
   private policy() {
-    return { allowPrivate: this.config.allowPrivateSites, allowHttp: this.config.allowInsecureSites };
+    return { allowPrivate: this.config.allowPrivateSites, allowHttp: this.config.allowInsecureSites, allowSelfSigned: this.config.allowSelfSignedSites };
   }
 
   /** Exchanges a one-time pairing code (made in the WordPress admin) for a signing secret. */

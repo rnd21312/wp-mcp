@@ -70,7 +70,7 @@ export class AgentClient {
   ) {}
 
   private policy() {
-    return { allowPrivate: this.config.allowPrivateSites, allowHttp: this.config.allowInsecureSites };
+    return { allowPrivate: this.config.allowPrivateSites, allowHttp: this.config.allowInsecureSites, allowSelfSigned: this.config.allowSelfSignedSites };
   }
 
   /** Exchanges the one-time pairing code (made in the agent panel) for a signing secret. */

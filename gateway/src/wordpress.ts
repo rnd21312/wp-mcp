@@ -109,7 +109,7 @@ export async function createWordPress(app: App, input: WordPressInput): Promise<
   }
 
   // 3. the standard WordPress installer, run from here over HTTP (the host often cannot call itself)
-  const policy = { allowPrivate: app.config.allowPrivateSites, allowHttp: app.config.allowInsecureSites };
+  const policy = { allowPrivate: app.config.allowPrivateSites, allowHttp: app.config.allowInsecureSites, allowSelfSigned: app.config.allowSelfSignedSites };
   const form = new URLSearchParams({ weblog_title: input.title, user_name: adminUser, admin_password: adminPassword, admin_password2: adminPassword, admin_email: input.adminEmail, blog_public: input.searchEngines === false ? '0' : '1', pw_weak: '1', Submit: 'Install WordPress', language: input.locale ?? '' }).toString();
   let done = false;
   let lastStatus = 0;
