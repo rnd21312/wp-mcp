@@ -10,8 +10,9 @@ Levels: **read** < **draft** < **live** < **admin**. `A>B` means the action star
 |---|---|---|---|
 | `transfer` | draft>live | `from*, to*, kinds, prefixes, post_type, ids, page, pages, id_map, overwrite, publish` | Copy content between two sites through the gateway (resumable, drafts by default). *(gateway)* |
 | `transfer_files` | admin | `from*, to*, root*, path, skip_existing` | Copy files between two sites (confirm). *(gateway)* |
+| `build` | live>admin | `map*, from_step, page_ids` | Build or extend a whole site from one JSON map: plugins, theme, tokens, pages, menu, home page, branding, options (dry_run, one confirmation, resumable). *(gateway)* |
 | `sites` | read |  | Every site you can use: name, URL, status, your effective level. *(gateway)* |
-| `whoami` | read |  | Who you are connected as: level, sites, rate limits. *(gateway)* |
+| `whoami` | read |  | Who you are connected as: level and where it is set, per-site caps, rate limits, gateway version. *(gateway)* |
 | `describe` | read | `tool*, action` | Full parameter schema of one action (or all actions of one tool). *(gateway)* |
 | `overview` | read |  | Name, URL, theme, active plugins, content types, taxonomies, menus, SEO plugin, WooCommerce, locale, bridge ceiling and ops. *(site content)* |
 | `ping` | read |  | Bridge version, PHP/WP versions, clock skew and round-trip check. |
@@ -73,6 +74,27 @@ Levels: **read** < **draft** < **live** < **admin**. `A>B` means the action star
 | `theme_files` | admin | `theme` | List files of the active (or given) theme. |
 | `theme_file_read` | admin | `path*, theme, offset` | Read a theme file. *(site content)* |
 | `theme_file_write` | admin | `path*, content*, theme` | Write a theme file (PHP is syntax-checked; previous content is kept for undo). *(confirm, write)* |
+
+## builder: Page builders (Elementor, Bricks, …)
+
+| Action | Level | Arguments (* required) | What it does |
+|---|---|---|---|
+| `detect` | read | `id` | Which page builders are active, and (with id) which one made a page. |
+| `get` | draft>draft | `id*, outline, element` | Read a page built with Elementor or Bricks as an element tree (outline:true gives a short overview, element returns one subtree). Divi, WPBakery, Avada: returns the markup. *(site content)* |
+| `set` | draft>live | `id*, data, content, builder` | Replace a whole page: data = full element tree (Elementor: nested elements; Bricks: flat list with parent/children), or content = markup for Divi/WPBakery/Avada. Needs live on published pages. Undo with activity.undo. *(write)* |
+| `element_update` | live | `id*, element*, settings*, builder` | Merge settings into one element by id (a null value removes that setting). Elementor and Bricks. *(write)* |
+| `element_add` | live | `id*, element*, parent, position, builder` | Add an element under a parent (or at the top). Elementor needs elType; Bricks needs name. *(write)* |
+| `element_remove` | live | `id*, element*, builder` | Remove an element and everything inside it. *(write)* |
+| `regenerate` | live | `id` | Clear the builder CSS cache (Elementor) so changes show on the front end. *(write)* |
+
+## fields: Custom fields (ACF, Meta Box)
+
+| Action | Level | Arguments (* required) | What it does |
+|---|---|---|---|
+| `groups` | read | `plugin` | Field groups and their fields (names, types, choices) of ACF or Meta Box. |
+| `get` | draft>draft | `object, id, field, plugin` | Read custom field values of a post, term, user or options page (one field or all). *(site content)* |
+| `set` | live>admin | `object, id, field*, value*, plugin` | Set a custom field value the right way for the plugin (ACF keeps its field reference). Returns the previous value; post changes can be undone. *(write)* |
+| `group_save` | admin | `group*` | Create or update an ACF field group from the ACF export format {key?, title, fields[], location[[]]}. *(write)* |
 
 ## media: Media library
 
@@ -238,6 +260,17 @@ Levels: **read** < **draft** < **live** < **admin**. `A>B` means the action star
 | `unzip` | admin | `root*, url*, path, strip_top` | Download a zip and extract it into a root (whole theme or plugin, assets). Known text/media types only; existing files are replaced; not syntax-checked. *(confirm, write)* |
 | `upload_part` | admin | `root*, path*, upload*, data_base64*, offset, last` | One piece of a large non-PHP file (64 MB in total), in order; the last piece puts the file in place. The gateway uses this for files.write with local_path; calling it by hand is rarely needed. *(confirm, write)* |
 | `delete` | admin | `root*, path*` | Delete a file permanently. *(confirm, write)* |
+
+## snippets: Code Snippets plugin
+
+| Action | Level | Arguments (* required) | What it does |
+|---|---|---|---|
+| `list` | admin | `search, scope, active, tag, page, per_page` | Snippets of the Code Snippets plugin (without code): id, name, scope, active, tags, priority. *(site content)* |
+| `get` | admin | `id*` | One snippet with its code. *(site content)* |
+| `save` | admin | `id, name, code, description, tags, scope, priority, active` | Create (name and code) or update (id) a snippet. New snippets stay inactive unless active is true. PHP code is given without <?php, is syntax-checked, and an active one is confirmed first, probed on the front page afterwards and reverted if the site breaks. Undoable. *(confirm if risky, write)* |
+| `activate` | admin | `id*` | Turn a snippet on: its code starts running. Syntax-checked, probed, deactivated again if the site breaks. Undoable. *(confirm, write)* |
+| `deactivate` | admin | `id*` | Turn a snippet off (the code is kept). Undoable. *(write)* |
+| `delete` | admin | `id*` | Delete a snippet. Undo recreates it with a new id. *(confirm, write)* |
 
 ## transfer: Export and import content
 

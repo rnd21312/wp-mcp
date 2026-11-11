@@ -96,4 +96,4 @@ Native add-ons are bundled as built on your computer, so a package with a compil
 
 ## Status
 
-Milestone M1 (this document): installer, auth, signed API, chunked upload, releases, atomic switch, rollback, static and SPA deploy. Symlink mode is covered by unit tests only on hosts that allow symlinks (not on the Windows development machine); sync mode is covered end to end. Next: WordPress provisioning (database creation through cPanel/DirectAdmin/Plesk APIs or the agent itself), see [v2-plan.md](v2-plan.md).
+Milestone M1 (this document): installer, auth, signed API, chunked upload, releases, atomic switch, rollback, static and SPA deploy. Symlink mode is covered by unit tests only on hosts that allow symlinks (not on the Windows development machine); sync mode is covered end to end. Next: WordPress provisioning (database creation through cPanel/DirectAdmin/Plesk APIs or the agent itself), see [roadmap.md](roadmap.md#implementation-plan-and-status).

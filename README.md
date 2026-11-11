@@ -29,7 +29,7 @@ Details: [docs/architecture.md](docs/architecture.md).
 
 ## Version 2: build any site from zero
 
-Upload **one zip** (the Host Agent, PHP 8.1+) to any hosting: cPanel, DirectAdmin, Plesk, shared or a VPS. Open it in a browser, set a username and password. From the Studio on your computer you then create sites from scratch and publish them: static, React/Vue/Svelte, Astro, Next, Node, **WordPress with its database**, or let the **AI builder** write the site while you approve each step. Every publish is a release you can roll back. [Setup and security model](docs/agent.md) · [AI builder](docs/builder.md) · [releases, signed updates, test matrix](docs/release.md) · [plan](docs/v2-plan.md).
+Upload **one zip** (the Host Agent, PHP 8.1+) to any hosting: cPanel, DirectAdmin, Plesk, shared or a VPS. Open it in a browser, set a username and password. From the Studio on your computer you then create sites from scratch and publish them: static, React/Vue/Svelte, Astro, Next, Node, **WordPress with its database**, or let the **AI builder** write the site while you approve each step. Every publish is a release you can roll back. [Setup and security model](docs/agent.md) · [AI builder](docs/builder.md) · [releases, signed updates, test matrix](docs/release.md) · [plan](docs/roadmap.md#implementation-plan-and-status).
 
 ## Quick start
 
@@ -120,6 +120,6 @@ npm run docs        # regenerate docs/TOOLS.md from spec/ops.json
 
 `spec/build-spec.mjs` is the single source of truth for every action (level, arguments, confirmation). `scripts/sync-spec.mjs` copies the generated `ops.json` to the gateway and the plugin (build output, not committed; only `spec/ops.json` is). Every build, test and package script runs it first.
 
-Version 2 (build any site from zero, with the [AI builder](docs/builder.md)): the **Host Agent** you upload to any PHP 8.1+ hosting is described in [docs/agent.md](docs/agent.md); plan and milestones: [docs/roadmap.md](docs/roadmap.md), [docs/v2-plan.md](docs/v2-plan.md).
+Version 2 (build any site from zero, with the [AI builder](docs/builder.md)): the **Host Agent** you upload to any PHP 8.1+ hosting is described in [docs/agent.md](docs/agent.md); plan and milestones: [docs/roadmap.md](docs/roadmap.md), [docs/roadmap.md#implementation-plan-and-status](docs/roadmap.md#implementation-plan-and-status).
 
 License: MIT.

@@ -1,0 +1,290 @@
+# مرجع ابزارها
+
+تولیدشده از `spec/ops.json` (182 عملیات سایت + عملیات gateway). هر ابزار به این شکل صدا زده می‌شود: `{site, action, args, dry_run?, confirm_token?, idempotency_key?}`. شرح عملیات از خود spec می‌آید و انگلیسی می‌ماند.
+
+سطح‌ها: **read** < **draft** < **live** < **admin**. `A>B` یعنی عملیات از سطح A شروع می‌شود و سایت بر اساس هدف واقعی آن را به B بالا می‌برد (مثلاً ویرایش برگه‌ی منتشرشده). **confirm** = دومرحله‌ای: فراخوانی اول پیش‌نمایش و `confirm_token` می‌دهد و تا تکرار با توکن چیزی تغییر نمی‌کند. **site content** = نتیجه شامل متنی است که روی سایت نوشته شده (نامطمئن حساب می‌شود).
+
+## site: نمای کلی سایت و اتصال‌ها
+
+| عملیات | سطح | آرگومان‌ها (* الزامی) | کار |
+|---|---|---|---|
+| `transfer` | draft>live | `from*, to*, kinds, prefixes, post_type, ids, page, pages, id_map, overwrite, publish` | Copy content between two sites through the gateway (resumable, drafts by default). *(gateway)* |
+| `transfer_files` | admin | `from*, to*, root*, path, skip_existing` | Copy files between two sites (confirm). *(gateway)* |
+| `build` | live>admin | `map*, from_step, page_ids` | Build or extend a whole site from one JSON map: plugins, theme, tokens, pages, menu, home page, branding, options (dry_run, one confirmation, resumable). *(gateway)* |
+| `sites` | read |  | Every site you can use: name, URL, status, your effective level. *(gateway)* |
+| `whoami` | read |  | Who you are connected as: level and where it is set, per-site caps, rate limits, gateway version. *(gateway)* |
+| `describe` | read | `tool*, action` | Full parameter schema of one action (or all actions of one tool). *(gateway)* |
+| `overview` | read |  | Name, URL, theme, active plugins, content types, taxonomies, menus, SEO plugin, WooCommerce, locale, bridge ceiling and ops. *(site content)* |
+| `ping` | read |  | Bridge version, PHP/WP versions, clock skew and round-trip check. |
+
+## content: نوشته، برگه، دسته و برچسب، نظر
+
+| عملیات | سطح | آرگومان‌ها (* الزامی) | کار |
+|---|---|---|---|
+| `list` | read>draft | `post_type, status, search, term, author, orderby, order, page, per_page` | List posts/pages/custom types (non-published statuses need draft level). *(site content)* |
+| `get` | read>draft | `id*, post_type, include` | Read one item with raw content, meta, terms, SEO, template. Drafts need draft level. *(site content)* |
+| `save` | draft>live | `id, post_type, title, content, excerpt, status, slug, parent, template, featured_media, date, terms, meta, menu_order, comment_status` | Create or update a post/page/custom item. Keep status draft/pending at draft level; publish or edit published items needs live. *(write)* |
+| `duplicate` | draft | `id*` | Copy an item as a new draft. *(write)* |
+| `trash` | live | `id*` | Move to trash (recoverable). *(write)* |
+| `restore` | live | `id*` | Restore from trash. *(write)* |
+| `delete` | admin | `id*` | Delete permanently. Cannot be undone. *(confirm, write)* |
+| `revisions` | draft | `id*, restore` | List WordPress revisions of an item, or restore one. *(write, site content)* |
+| `bulk` | live | `ids*, status*` | Change the status of up to 50 items at once. *(write)* |
+| `meta_get` | draft>admin | `object*, id*, key` | Read custom fields of a post, user, term or comment (one key or all). Underscore keys and user meta need admin. *(site content)* |
+| `meta_set` | live>admin | `object*, id*, key*, value*` | Set a custom field on a post, user, term or comment. Returns the previous value. *(write)* |
+| `meta_delete` | live>admin | `object*, id*, key*` | Delete a custom field. Returns the previous value. *(write)* |
+| `terms_list` | read | `taxonomy, search, hide_empty, page, per_page` | List categories, tags or any taxonomy terms. *(site content)* |
+| `terms_save` | live | `id, taxonomy, name*, slug, parent, description` | Create or update a term. *(write)* |
+| `terms_delete` | live | `id*, taxonomy` | Delete a term (posts keep existing). *(confirm, write)* |
+| `comments_list` | draft | `post_id, status, search, page, per_page` | List comments (author email only at admin level). *(site content)* |
+| `comments_moderate` | live | `ids*, action*` | Approve, hold, spam or trash comments. *(write)* |
+| `comments_reply` | live | `comment_id*, content*` | Reply to a comment as the connected admin. *(write)* |
+| `comments_delete` | admin | `ids*` | Delete comments permanently. *(confirm, write)* |
+
+## design: طراحی: قالب‌ها، CSS، توکن‌ها، منو، پوسته‌ها
+
+| عملیات | سطح | آرگومان‌ها (* الزامی) | کار |
+|---|---|---|---|
+| `tokens_get` | read |  | Design tokens: colors, fonts, font sizes, spacing, layout widths (theme.json + site tokens). |
+| `tokens_set` | live | `colors, fonts, font_sizes, spacing, radius, content_width` | Merge design tokens. Emitted as CSS variables (--wpm-*) and, on block themes, merged into Global Styles. *(write)* |
+| `tokens_sync` | live>admin | `target` | Write the site design tokens into the active block theme's theme.json (palette, fonts, sizes, spacing, content width; same slugs replaced, others kept) and into the Elementor kit (Global Colors and Fonts). theme.json needs admin and confirmation; the old file is kept for undo. *(confirm در صورت ریسک, write)* |
+| `tokens_audit` | read |  | Find colors and fonts written directly in the site CSS (bridge CSS sections, Additional CSS, theme style.css) instead of through the tokens: values that equal a token (use var(--wpm-color-x)) and values that are not tokens at all, with counts and an example selector. |
+| `patterns_list` | read | `lang` | Bundled block patterns that follow the design tokens: hero, features, pricing, contact, footer, with their editable texts (English or Persian). |
+| `pattern_get` | read | `name*, text, lang` | Block markup of one bundled pattern with your texts filled in, ready for content.save. The same patterns are in the editor inserter under "WP MCP". |
+| `css_get` | read | `section` | Additional CSS (named sections) as stored. |
+| `css_set` | live | `css*, section, mode` | Write CSS into a named section (replace, append or prepend). Other sections are untouched. *(write)* |
+| `css_remove` | live | `section*` | Remove a CSS section. *(write)* |
+| `templates_list` | read | `kind` | Block templates and template parts (header, footer…), or classic theme template files. |
+| `template_get` | read | `slug*, kind` | Read a template or part (raw block markup). *(site content)* |
+| `template_save` | live | `slug*, content*, kind, title, area` | Create or override a template/part (block themes). Revert with design.template_reset. *(write)* |
+| `template_reset` | live | `slug*, kind` | Drop the custom version, falling back to the theme file. *(write)* |
+| `menus_list` | read |  | Menus and theme locations. |
+| `menu_get` | read | `menu*` | One menu as a tree. |
+| `menu_save` | live | `name*, items*, locations` | Create or replace a menu from a tree and assign locations. *(write)* |
+| `menu_delete` | live | `menu*` | Delete a menu and its items (recoverable with activity.undo). *(confirm, write)* |
+| `homepage_set` | live | `show_on_front, front_page_id, posts_page_id` | Static front page / posts page, or latest posts. *(write)* |
+| `branding_set` | live | `title, tagline, logo_id, icon_id` | Site title, tagline, logo and site icon. *(write)* |
+| `themes_list` | draft |  | Installed themes and which is active. |
+| `theme_activate` | admin | `slug*` | Switch the active theme. *(confirm, write)* |
+| `theme_install` | admin | `slug*, activate` | Install a theme from WordPress.org by slug. *(confirm, write)* |
+| `theme_install_zip` | admin | `url*, activate, overwrite` | Install a theme from an https zip URL (GitHub release, your own server; redirects are re-checked). *(confirm, write)* |
+| `theme_bases` | draft |  | Ready-made base themes design.theme_scaffold can build: block-rtl (full site editing), classic-rtl, shop-rtl (classic + WooCommerce). All RTL and Persian friendly. Shows the default tokens of each. |
+| `theme_scaffold` | admin | `base*, slug*, name*, tokens, activate, apply_tokens, overwrite` | Build a theme on the site from a base (see theme_bases) with your name, slug and design tokens, in one all-or-nothing write. The tokens also become the site design tokens unless apply_tokens is false. Existing folders need overwrite. Undoable. *(confirm, write)* |
+| `theme_delete` | admin | `theme*` | Delete an installed theme that is not active. *(confirm, write)* |
+| `theme_files` | admin | `theme` | List files of the active (or given) theme. |
+| `theme_file_read` | admin | `path*, theme, offset` | Read a theme file. *(site content)* |
+| `theme_file_write` | admin | `path*, content*, theme` | Write a theme file (PHP is syntax-checked; previous content is kept for undo). *(confirm, write)* |
+
+## builder: صفحه‌سازها (Elementor، Bricks، …)
+
+| عملیات | سطح | آرگومان‌ها (* الزامی) | کار |
+|---|---|---|---|
+| `detect` | read | `id` | Which page builders are active, and (with id) which one made a page. |
+| `get` | draft>draft | `id*, outline, element` | Read a page built with Elementor or Bricks as an element tree (outline:true gives a short overview, element returns one subtree). Divi, WPBakery, Avada: returns the markup. *(site content)* |
+| `set` | draft>live | `id*, data, content, builder` | Replace a whole page: data = full element tree (Elementor: nested elements; Bricks: flat list with parent/children), or content = markup for Divi/WPBakery/Avada. Needs live on published pages. Undo with activity.undo. *(write)* |
+| `element_update` | live | `id*, element*, settings*, builder` | Merge settings into one element by id (a null value removes that setting). Elementor and Bricks. *(write)* |
+| `element_add` | live | `id*, element*, parent, position, builder` | Add an element under a parent (or at the top). Elementor needs elType; Bricks needs name. *(write)* |
+| `element_remove` | live | `id*, element*, builder` | Remove an element and everything inside it. *(write)* |
+| `regenerate` | live | `id` | Clear the builder CSS cache (Elementor) so changes show on the front end. *(write)* |
+
+## fields: فیلدهای سفارشی (ACF، Meta Box)
+
+| عملیات | سطح | آرگومان‌ها (* الزامی) | کار |
+|---|---|---|---|
+| `groups` | read | `plugin` | Field groups and their fields (names, types, choices) of ACF or Meta Box. |
+| `get` | draft>draft | `object, id, field, plugin` | Read custom field values of a post, term, user or options page (one field or all). *(site content)* |
+| `set` | live>admin | `object, id, field*, value*, plugin` | Set a custom field value the right way for the plugin (ACF keeps its field reference). Returns the previous value; post changes can be undone. *(write)* |
+| `group_save` | admin | `group*` | Create or update an ACF field group from the ACF export format {key?, title, fields[], location[[]]}. *(write)* |
+
+## media: کتابخانه‌ی رسانه
+
+| عملیات | سطح | آرگومان‌ها (* الزامی) | کار |
+|---|---|---|---|
+| `list` | read | `search, mime, page, per_page` | Media library items with URLs, sizes and alt text. *(site content)* |
+| `get` | read | `id*` | One attachment with all sizes. *(site content)* |
+| `upload` | draft | `filename*, data_base64*, local_path, title, alt, caption, description, attach_to, featured, optimize` | Upload a file from base64 data (max 10 MB; bigger: put it in uploads and use media.register). *(write)* |
+| `import_url` | live | `url*, filename, title, alt, attach_to` | Download an image/file from an https URL (no redirects, no private addresses). *(confirm, write)* |
+| `register` | draft | `paths, scan, attach_to, featured, title, alt, caption, description, limit, optimize` | Add files that already lie in wp-content/uploads (copied by FTP/files.write) to the media library: makes sizes, alt text, optional featured image. scan:true finds all unregistered files. *(write)* |
+| `optimize` | live | `id, ids, max_width, quality, format, fix_links` | Shrink and/or convert existing library images (jpeg/png/webp/avif) or videos (ffmpeg needed) to save space. Replaces the file for good; links in posts are rewritten. *(confirm, write)* |
+| `update` | draft | `id*, alt, title, caption, description, slug` | Edit metadata of one item: alt text, title, caption, description, slug. *(write)* |
+| `delete` | admin | `id*` | Delete an attachment and its files permanently. *(confirm, write)* |
+
+## seo: سئو
+
+| عملیات | سطح | آرگومان‌ها (* الزامی) | کار |
+|---|---|---|---|
+| `get` | read>draft | `id*` | SEO fields of an item (title, description, canonical, robots, OG, schema), via Yoast/Rank Math/AIOSEO/SEOPress or the built-in fallback. *(site content)* |
+| `set` | draft>live | `id*, title, description, canonical, noindex, nofollow, og_title, og_description, og_image, focus_keyword` | Set SEO fields. Published items need live. *(write)* |
+| `audit` | read | `path, id` | Audit a page of this site: title/description length, headings, alt text, canonical, robots, OG, schema, links, size. Returns scored issues with fixes. *(site content)* |
+| `site_get` | read |  | Site-wide SEO: search visibility, robots.txt, sitemap provider, organisation schema, active SEO plugin. |
+| `site_set` | live>admin | `robots_txt, org_name, org_logo, org_same_as, title_separator, default_og_image, blog_public` | Site-wide SEO (built-in layer): robots.txt text, organisation schema, title separator, default OG image. Search visibility needs admin. *(write)* |
+| `sitemap` | read>live | `enable` | Sitemap provider, URL and number of URLs; can switch the core sitemap on or off. |
+| `redirects_list` | draft | `page, per_page` | Redirects managed by the bridge. |
+| `redirect_save` | live | `from*, to*, code, regex` | Add or update a redirect. *(write)* |
+| `redirect_delete` | live | `from*` | Remove a redirect. *(write)* |
+| `schema_get` | read | `id*` | Custom JSON-LD of an item. *(site content)* |
+| `schema_set` | live | `id*, json*` | Set custom JSON-LD for an item (empty removes it). *(write)* |
+| `bulk_set` | draft>live | `items*` | Set SEO fields on up to 50 items in one call: items = [{id, title?, description?, canonical?, noindex?, og_title?, og_description?, og_image?, focus_keyword?}]. Same rules as seo.set (published items need live). Not all or nothing: failures are listed, each item has its own revision. dry_run shows current and new values. *(write)* |
+| `alt_fill` | draft | `ids, limit` | Add missing alt text to images in the media library, made from the title or file name (camera names like IMG_1234 are skipped). dry_run lists what would be set; one undoable revision. *(write, site content)* |
+| `links_check` | draft | `paths, ids, recent, external, max_links` | Broken link report: scans the rendered body of pages (paths, post ids, or the most recently changed ones, max 20) and requests each link once (HEAD). Links to this site by default; external:true also checks outside links (safe HTTP only, no private addresses, 6 s each). *(site content)* |
+| `indexnow_status` | read |  | IndexNow (Bing, Yandex, Naver, Seznam, Yep): is a key set up, where it is served, and does the key file answer. |
+| `indexnow_setup` | live | `regenerate` | Create the IndexNow key (kept in an option, served by the bridge at /<key>.txt, no file written). regenerate:true makes a new one. *(write)* |
+| `indexnow_submit` | live | `urls, ids, recent` | Tell IndexNow engines that URLs of this site changed: urls, or post ids, or the N most recently changed published items (max 500 per call). Not for Google. *(write)* |
+
+## inspect: بازرسی صفحه‌های رندرشده
+
+| عملیات | سطح | آرگومان‌ها (* الزامی) | کار |
+|---|---|---|---|
+| `ticket` | live |  | Short-lived header that lets the visual editor load a page with source markers (template parts, theme files, post content). |
+| `page` | read | `path*, max_bytes, offset` | Rendered HTML of a page of this site (same host only, redirects not followed off-site). *(site content)* |
+| `render` | draft | `id*, max_bytes` | Render a post (also drafts) through the_content, without the theme. *(site content)* |
+| `outline` | read | `path*, selector, depth` | Compact structure of a page: headings, landmarks, images, links, forms, meta, scripts, and an element tree (depth-limited). *(site content)* |
+| `styles` | read | `path, css_url, offset, max_bytes` | Stylesheets used by a page, or the text of one local stylesheet. *(site content)* |
+
+## maintain: نگهداری
+
+| عملیات | سطح | آرگومان‌ها (* الزامی) | کار |
+|---|---|---|---|
+| `health` | draft |  | Site Health tests, versions, SSL, memory, disk, debug flags, cron, pending updates count. |
+| `updates_check` | draft | `refresh` | Available core, plugin and theme updates. |
+| `update` | admin | `type*, slug, backup` | Update core, a plugin or a theme (takes a database backup first by default). *(confirm, write)* |
+| `backup_create` | admin | `label` | Database backup (gzip SQL) stored outside public listing. *(write)* |
+| `backup_list` | admin |  | Backups made by the bridge. |
+| `backup_restore` | admin | `id*` | Restore a database backup (replaces current data). *(confirm, write)* |
+| `backup_delete` | admin | `id*` | Delete a backup. *(confirm, write)* |
+| `logs` | admin | `lines, contains` | Tail of debug.log / PHP error log with repeated lines grouped. *(site content)* |
+| `logs_clear` | admin |  | Empty debug.log. *(confirm, write)* |
+| `cache_flush` | live | `scope` | Flush object cache, expired transients, rewrite rules and known cache plugins. *(write)* |
+| `db_info` | admin |  | Table sizes, overhead, autoload size, counts of revisions/transients/spam/trash. |
+| `db_cleanup` | admin | `targets*, keep_revisions` | Clean revisions, expired transients, spam, trash, auto-drafts, orphan meta. *(confirm, write)* |
+| `db_optimize` | admin |  | OPTIMIZE TABLE on the site tables. *(write)* |
+| `search_replace` | admin | `search*, replace*, tables, apply` | Serialization-safe search and replace across the database. Always preview first. *(confirm در صورت ریسک, write)* |
+| `language_install` | admin | `locale*, activate` | Download a language pack (core, plugins, themes), e.g. fa_IR, and optionally make it the site language. *(write)* |
+| `sql` | admin | `query*, limit` | Read-only SQL: one SELECT/SHOW/DESCRIBE/EXPLAIN. {prefix} stands for the table prefix. *(site content)* |
+| `sql_write` | admin | `query*` | One INSERT/UPDATE/DELETE/REPLACE/CREATE/ALTER/DROP/TRUNCATE. Confirmed; not undoable (take maintain.backup_create first). *(confirm, write)* |
+| `cron_list` | admin |  | Scheduled events. |
+| `cron_run` | admin | `hook*` | Run a scheduled hook now. *(write)* |
+| `config_get` | admin | `names` | Values of wp-config.php constants (WP_DEBUG, WP_MEMORY_LIMIT, DISALLOW_FILE_EDIT...). Credentials, keys, salts and paths are never shown. |
+| `config_set` | admin | `name*, value*` | Set one constant in wp-config.php: replaces its define() or adds one. Syntax-checked; put back if the site stops answering. Not for credentials, keys, salts or paths. *(confirm, write)* |
+| `core_verify` | admin |  | Compare the files of wp-admin, wp-includes and the root folder with the official checksums of api.wordpress.org: modified, missing and unexpected files (a sign of tampering or a failed update). wp-content and wp-config.php are not checked. |
+| `core_restore` | admin | `paths, all` | Put back the original of WordPress core files that core_verify reported as modified or missing. Each file comes from the official download and is written only if it matches the official checksum; the old content is kept for undo (undoing needs core edits switched on in Tools > WP MCP Bridge). Works without that switch. *(confirm, write)* |
+| `maintenance_mode` | admin | `enabled*, message` | Serve a 503 maintenance page to visitors (admins and the bridge still see the site). *(write)* |
+
+## plugins: افزونه‌ها
+
+| عملیات | سطح | آرگومان‌ها (* الزامی) | کار |
+|---|---|---|---|
+| `list` | draft | `status` | Installed plugins with version, status and update availability. |
+| `search` | draft | `query*, per_page` | Search WordPress.org. *(site content)* |
+| `install` | admin | `slug*, activate` | Install a plugin from WordPress.org by slug. *(confirm, write)* |
+| `install_zip` | admin | `url*, activate` | Install a plugin from an https zip URL (no redirects, no private addresses). *(confirm, write)* |
+| `scaffold` | admin | `slug*, name*, description, author, features, install, zip, overwrite` | Skeleton of a new plugin: header, main file, class, uninstall.php, readme.txt and optional features (admin_page, shortcode, rest, cpt). Without install or zip it only returns the files; install:true writes plugins/<slug> (never activates), zip:true also packs a zip in uploads/wpmcp-exports. *(confirm در صورت ریسک, write)* |
+| `activate` | admin | `plugin*` | Activate a plugin. *(write)* |
+| `deactivate` | admin | `plugin*` | Deactivate a plugin (the bridge itself cannot be deactivated). *(write)* |
+| `delete` | admin | `plugin*` | Delete an inactive plugin and its files. *(confirm, write)* |
+| `settings_find` | admin | `slug*` | Names of options that belong to a plugin (values hidden; read them with options.get). |
+
+## users: کاربران
+
+| عملیات | سطح | آرگومان‌ها (* الزامی) | کار |
+|---|---|---|---|
+| `authors` | read | `page, per_page` | Public authors: ID, name, slug, post count. |
+| `list` | admin | `role, search, page, per_page` | Users with roles (emails included). *(site content)* |
+| `get` | admin | `id*` | One user, by ID, login or email. *(site content)* |
+| `create` | admin | `login*, email*, role, display_name` | Create a user and send the standard set-password email. *(confirm, write)* |
+| `update` | admin | `id*, display_name, email, role` | Update name, email or role (role changes are confirmed). *(confirm, write)* |
+| `delete` | admin | `id*, reassign` | Delete a user, reassigning content. *(confirm, write)* |
+| `send_reset` | admin | `id*` | Send a password-reset email to a user. *(write)* |
+| `roles` | admin |  | Roles and their capabilities. |
+
+## options: گزینه‌های سایت
+
+| عملیات | سطح | آرگومان‌ها (* الزامی) | کار |
+|---|---|---|---|
+| `get` | read>admin | `keys*` | Read options. Safe keys at read level, everything else at admin; keys that look like secrets are never returned. |
+| `list` | read>admin | `prefix, page, per_page` | Names of readable options, optionally by prefix. |
+| `set` | live>admin | `values*` | Write options. Safe keys (title, tagline, permalinks, reading…) at live, others at admin (confirmed); secrets are refused. *(confirm در صورت ریسک, write)* |
+| `delete` | admin | `key*` | Delete an option. *(confirm, write)* |
+
+## rest: لایه‌ی عمومی REST
+
+| عملیات | سطح | آرگومان‌ها (* الزامی) | کار |
+|---|---|---|---|
+| `routes` | draft | `namespace, search` | REST namespaces and routes (with methods) so you can reach any plugin. |
+| `call` | read>admin | `method*, path*, query, body` | Call any REST route internally as the connected admin. Level depends on method and route: public content GET = read, sensitive routes and unknown namespaces = admin, DELETE needs confirmation. *(confirm در صورت ریسک, write, site content)* |
+
+## shop: ووکامرس
+
+| عملیات | سطح | آرگومان‌ها (* الزامی) | کار |
+|---|---|---|---|
+| `status` | read |  | Is WooCommerce active: version, currency, product/order counts, pages. |
+| `products_list` | read>draft | `search, category, status, page, per_page` | Products (published only at read level). *(site content)* |
+| `product_get` | read>draft | `id*` | One product with prices, stock, attributes, variations summary. *(site content)* |
+| `product_save` | draft>live | `id, name, type, status, description, short_description, sku, regular_price, sale_price, manage_stock, stock_quantity, categories, images, attributes` | Create or update a simple/variable product (publishing needs live). *(write)* |
+| `product_delete` | admin | `id*` | Delete a product permanently. *(confirm, write)* |
+| `stock_update` | live | `items*` | Set stock or price of products quickly. *(write)* |
+| `coupons_list` | live | `page, per_page` | List discount coupons. |
+| `coupon_save` | live | `id, code*, discount_type, amount, date_expires, usage_limit` | Create or update a coupon. *(write)* |
+| `orders_list` | admin | `status, page, per_page` | Orders (customer data included). *(site content)* |
+| `order_get` | admin | `id*` | One order with billing and shipping details. *(site content)* |
+| `order_update` | admin | `id*, status, note` | Change order status or add a note. *(confirm, write)* |
+| `gateways_list` | admin |  | Payment gateways (Zarinpal, bank transfer, COD…): enabled state and non-secret settings. |
+| `gateway_set` | admin | `id*, enabled, settings` | Turn a payment gateway on/off and edit non-secret settings (keys and merchant codes are entered by the owner in WooCommerce). *(confirm, write)* |
+| `shipping_zones` | admin |  | Shipping zones with locations and methods. |
+
+## forms: فرم‌ها
+
+| عملیات | سطح | آرگومان‌ها (* الزامی) | کار |
+|---|---|---|---|
+| `list` | live |  | Forms from Contact Form 7, Gravity Forms, WPForms or Fluent Forms. |
+| `get` | live | `id*, provider` | Form definition (fields and mail settings, without secrets). *(site content)* |
+| `save` | live | `id, title, form, mail_to, mail_subject, mail_body` | Create or update a Contact Form 7 form (other providers: use rest.call). *(write)* |
+| `entries` | admin | `id*, provider, page, per_page` | Submitted entries (personal data). *(site content)* |
+
+## files: فایل‌های wp-content
+
+| عملیات | سطح | آرگومان‌ها (* الزامی) | کار |
+|---|---|---|---|
+| `list` | admin | `root*, path, depth` | List files under a root (root "themes" or "plugins" lists folders): core (WordPress folder; read-only except .htaccess and robots.txt unless the owner allowed core edits in Tools > WP MCP Bridge), themes/<slug>, plugins/<slug>, mu-plugins, uploads[/sub]. |
+| `read` | admin | `root*, path*, offset` | Read a file: text as text, other types as base64 (2 MB max). *(site content)* |
+| `search` | admin | `root*, query*, path, regex, case, max` | Find text in the files of one root (a function, hook, class name, string): path, line number and the line. Text files up to 1 MB, 4 folders deep. *(site content)* |
+| `patch` | admin | `root*, path*, edits*` | Change parts of a text file by exact replacement instead of sending the whole file. Each edit {old, new, all?}: old must occur exactly once unless all is true. Same checks and undo as files.write. *(confirm, write)* |
+| `write` | admin | `root*, path*, content, data_base64, local_path` | Create or replace a file; missing theme/plugin/mu-plugins folders are created. Text types in themes/plugins/mu-plugins, media types in uploads. PHP is syntax-checked and the front page probed; previous content is kept for undo. *(confirm, write)* |
+| `write_many` | admin | `root*, files*` | Write up to 60 files into one root in one call (a theme or plugin skeleton). New themes/<slug>, plugins/<slug>, mu-plugins and uploads folders are created. All or nothing: if a file is refused or the site stops answering, every file is put back. Each file is undoable. *(confirm, write)* |
+| `mkdir` | admin | `root*, path*` | Create a folder inside a root (themes/<slug>, plugins/<slug>, mu-plugins, uploads). *(write)* |
+| `rmdir` | admin | `root*, path*` | Delete a folder and everything in it. Not undoable. *(confirm, write)* |
+| `move` | admin | `root*, from*, to*` | Move or rename a file inside a root (2 MB max, undoable). *(confirm, write)* |
+| `copy` | admin | `root*, from*, to*` | Copy a file inside a root (2 MB max). *(write)* |
+| `fetch` | admin | `root*, path*, url*` | Download an https file (font, image, script; 20 MB max) straight into a root. Redirects are re-checked. *(confirm, write)* |
+| `fetch_many` | admin | `root*, items*` | Download up to 25 https files (fonts, images, scripts; 20 MB each, 100 MB together) into one root with one confirmation. Each file is checked and saved on its own (undoable); failures are listed and do not undo the others. Items left when the size or time budget ends come back as not_started: send them again. *(confirm, write)* |
+| `unzip` | admin | `root*, url*, path, strip_top` | Download a zip and extract it into a root (whole theme or plugin, assets). Known text/media types only; existing files are replaced; not syntax-checked. *(confirm, write)* |
+| `upload_part` | admin | `root*, path*, upload*, data_base64*, offset, last` | One piece of a large non-PHP file (64 MB in total), in order; the last piece puts the file in place. The gateway uses this for files.write with local_path; calling it by hand is rarely needed. *(confirm, write)* |
+| `delete` | admin | `root*, path*` | Delete a file permanently. *(confirm, write)* |
+
+## snippets: افزونه‌ی Code Snippets
+
+| عملیات | سطح | آرگومان‌ها (* الزامی) | کار |
+|---|---|---|---|
+| `list` | admin | `search, scope, active, tag, page, per_page` | Snippets of the Code Snippets plugin (without code): id, name, scope, active, tags, priority. *(site content)* |
+| `get` | admin | `id*` | One snippet with its code. *(site content)* |
+| `save` | admin | `id, name, code, description, tags, scope, priority, active` | Create (name and code) or update (id) a snippet. New snippets stay inactive unless active is true. PHP code is given without <?php, is syntax-checked, and an active one is confirmed first, probed on the front page afterwards and reverted if the site breaks. Undoable. *(confirm در صورت ریسک, write)* |
+| `activate` | admin | `id*` | Turn a snippet on: its code starts running. Syntax-checked, probed, deactivated again if the site breaks. Undoable. *(confirm, write)* |
+| `deactivate` | admin | `id*` | Turn a snippet off (the code is kept). Undoable. *(write)* |
+| `delete` | admin | `id*` | Delete a snippet. Undo recreates it with a new id. *(confirm, write)* |
+
+## transfer: برون‌بری و درون‌ریزی محتوا
+
+| عملیات | سطح | آرگومان‌ها (* الزامی) | کار |
+|---|---|---|---|
+| `export` | draft | `kind*, post_type, status, ids, page, per_page, prefixes` | Export a page of content as portable JSON: posts (with meta, terms, SEO, builder data), terms, menus, media index or design settings. *(site content)* |
+| `import` | draft>live | `kind*, items*, id_map, source_url, overwrite, publish` | Import items made by transfer.export. Creates drafts by default and skips slugs that already exist. *(confirm در صورت ریسک, write)* |
+
+## activity: فعالیت و بازگردانی
+
+| عملیات | سطح | آرگومان‌ها (* الزامی) | کار |
+|---|---|---|---|
+| `log` | read | `limit, mine` | Gateway log of calls made by AI clients. *(gateway)* |
+| `list` | read | `op, status, since, page, per_page` | What the bridge did on this site: operation, who, when, result, revision ID. |
+| `revisions` | draft | `target, id, page, per_page` | Undoable changes with before/after summary. |
+| `undo` | live | `revision*` | Revert a change by revision ID (needs at least the level of the original change). Permanent deletions cannot be undone. *(write)* |
+
