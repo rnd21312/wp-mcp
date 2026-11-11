@@ -9,6 +9,7 @@ import { SiteError } from '../sites/wpclient.ts';
 import { callGsc, gscTool } from './gsc.ts';
 import { callStudio, studioTool } from './studio.ts';
 import { runTransfer } from './transfer.ts';
+import { expandLocal, inPieces, piecesPreview, sendInPieces, UploadError } from './upload.ts';
 
 export interface ToolDef {
   name: string;
@@ -245,7 +246,16 @@ export async function callTool(app: App, principal: Principal, toolName: string,
       'The arguments of this confirm_token are no longer remembered (it expired or the gateway restarted). Call again with the full args to get a new one.',
     );
 
-  const checked = checkArgs(op, kept ?? rawArgs);
+  let source = kept ?? rawArgs;
+  if (!kept) {
+    try {
+      source = expandLocal(app, principal, op.id, rawArgs);
+    } catch (error) {
+      if (error instanceof UploadError) return fail(error.code, error.message);
+      throw error;
+    }
+  }
+  const checked = checkArgs(op, source);
   if (checked.errors.length) return fail('bad_arguments', checked.errors.join(' '), { signature: signature(op) });
 
   if (op.local) return await runLocal(app, principal, op, checked.args, { ...input, ...(given ? { confirm_token: given } : {}) }, log);
@@ -300,6 +310,7 @@ export async function callTool(app: App, principal: Principal, toolName: string,
   const dryRun = input.dry_run === true || input.dry_run === 'true' || inner === true || inner === 'true';
   if (op.params.max_bytes && checked.args.max_bytes === undefined) checked.args.max_bytes = WINDOW_BYTES;
   const argsHash = sha256(canonical(checked.args));
+  const pieces = inPieces(op.id, checked.args); // a large local file, sent in parts
 
   /* two-step confirmation: always for destructive actions, and for "maybe" actions when the site says the arguments are risky */
   if (op.confirm && !dryRun) {
@@ -315,19 +326,25 @@ export async function callTool(app: App, principal: Principal, toolName: string,
       let preview: unknown = null;
       try {
         preview = (
-          await app.sites.call(site, op.id, checked.args, {
-            level,
-            actor: principal.name,
-            client: principal.id,
-            requestId,
-            dryRun: true,
-            write: false,
-          })
+          await app.sites.call(
+            site,
+            pieces ? 'files.upload_part' : op.id,
+            pieces ? { root: checked.args.root, path: checked.args.path } : checked.args,
+            {
+              level,
+              actor: principal.name,
+              client: principal.id,
+              requestId,
+              dryRun: true,
+              write: false,
+            },
+          )
         ).data;
       } catch (error) {
         if (op.confirm === 'maybe' && error instanceof SiteError) return fail(error.code, error.message, { site: site.name });
         preview = { note: error instanceof SiteError ? `Preview unavailable: ${error.message}` : 'Preview unavailable.' };
       }
+      if (pieces) preview = { ...(preview as object), ...piecesPreview(checked.args) };
       const risky = op.confirm === true || (preview as { needs_confirmation?: boolean } | null)?.needs_confirmation === true;
       if (risky) {
         const confirmToken = seal(app.config.masterKey, {
@@ -368,15 +385,16 @@ export async function callTool(app: App, principal: Principal, toolName: string,
   }
 
   try {
-    const result = await app.sites.call(site, op.id, checked.args, {
-      level,
-      actor: principal.name,
-      client: principal.id,
-      requestId,
-      idempotencyKey: op.write ? clientKey || `gw-${requestId}` : undefined,
-      dryRun,
-      write: op.write && !dryRun,
-    });
+    const context = { level, actor: principal.name, client: principal.id, requestId, dryRun, write: op.write && !dryRun };
+    const idem = clientKey || `gw-${requestId}`;
+    const result =
+      pieces && !dryRun
+        ? await sendInPieces(checked.args, (part, args) =>
+            app.sites.call(site, part, args, { ...context, idempotencyKey: `${idem}-${args.offset}` }),
+          )
+        : pieces
+          ? { data: piecesPreview(checked.args), revision: 0, replayed: false, summary: '' }
+          : await app.sites.call(site, op.id, checked.args, { ...context, idempotencyKey: op.write ? idem : undefined });
     app.store.siteHealth(site.name, true);
     const body: Record<string, unknown> = {
       ok: true,

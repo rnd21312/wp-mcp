@@ -59,6 +59,9 @@ final class Admin {
             Connections::revoke( $post( 'key' ) );
         } elseif ( 'ceiling' === $do ) {
             Connections::set_ceiling( $post( 'key' ), sanitize_key( $post( 'ceiling' ) ) );
+        } elseif ( 'core_write' === $do ) {
+            update_option( 'wpm_bridge_core_write', ! empty( $_POST['on'] ), false ); // phpcs:ignore WordPress.Security.NonceVerification
+            $note = 'Saved.';
         } elseif ( 'media_save' === $do ) {
             Optimizer::save_settings( array( 'auto' => ! empty( $_POST['auto'] ), 'max_width' => $post( 'max_width' ), 'quality' => $post( 'quality' ), 'format' => $post( 'format' ) ) ); // phpcs:ignore WordPress.Security.NonceVerification
             $note = 'Saved.';
@@ -85,6 +88,12 @@ final class Admin {
         echo self::select( 'ceiling', 'admin' );
         echo '</label></p><p class="description">read: public data only. draft: + drafts and uploads. live: + publishing and design. admin: + plugins, updates, users, database. You can lower it later.</p>';
         echo '<p><button class="button button-primary">Create pairing code</button></p></form>';
+
+        echo '<h2>WordPress core files</h2><form method="post">';
+        wp_nonce_field( 'wpm_bridge' );
+        echo '<input type="hidden" name="do" value="core_write"><p><label><input type="checkbox" name="on" value="1"' . checked( (bool) get_option( 'wpm_bridge_core_write', false ), true, false ) . '> Let admin-level connections edit files of WordPress itself (wp-admin, wp-includes, files in the main folder)</label></p>';
+        echo '<p class="description">Off by default. WordPress updates overwrite such edits, so prefer a plugin or a child theme. wp-config.php is never editable as a file; its constants are set one at a time. Each write is confirmed, syntax-checked and reverted if the site stops answering.</p>';
+        echo '<p><button class="button">Save</button></p></form>';
 
         echo '<h2>Connections</h2>';
         $connections = Connections::all();

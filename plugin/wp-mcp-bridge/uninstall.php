@@ -8,7 +8,7 @@
 defined( 'WP_UNINSTALL_PLUGIN' ) || exit;
 
 global $wpdb;
-foreach ( array( 'wpm_bridge_connections', 'wpm_bridge_pairing', 'wpm_bridge_db', 'wpm_tokens', 'wpm_css_sections', 'wpm_redirects', 'wpm_robots_txt', 'wpm_seo_site', 'wpm_sitemap', 'wpm_maintenance', 'wpm_backups' ) as $option ) {
+foreach ( array( 'wpm_bridge_core_write', 'wpm_bridge_connections', 'wpm_bridge_pairing', 'wpm_bridge_db', 'wpm_tokens', 'wpm_css_sections', 'wpm_redirects', 'wpm_robots_txt', 'wpm_seo_site', 'wpm_sitemap', 'wpm_maintenance', 'wpm_backups' ) as $option ) {
     delete_option( $option );
 }
 $wpdb->query( 'DROP TABLE IF EXISTS ' . $wpdb->prefix . 'wpm_activity' ); // phpcs:ignore WordPress.DB

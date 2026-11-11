@@ -1050,8 +1050,9 @@
    "level": "draft",
    "summary": "Upload a file from base64 data (max 10 MB; bigger: put it in uploads and use media.register).",
    "params": {
-    "filename": "string|e.g. hero.jpg",
-    "data_base64": "string|File bytes, base64",
+    "filename": "string|e.g. hero.jpg (taken from local_path when that is used)",
+    "data_base64": "string|File bytes, base64 (or use local_path)",
+    "local_path": "string|Instead of the data: a file on the computer running the gateway (AI apps on that computer only; folders in WPMCP_UPLOAD_DIRS, default the working folder). Sent straight to the site",
     "title": "string|Title",
     "alt": "string|Alt text (default: title)",
     "caption": "string|Caption",
@@ -1756,6 +1757,40 @@
    ],
    "write": true,
    "confirm": false,
+   "untrusted": false,
+   "escalates": null
+  },
+  {
+   "id": "maintain.config_get",
+   "tool": "maintain",
+   "action": "config_get",
+   "level": "admin",
+   "summary": "Values of wp-config.php constants (WP_DEBUG, WP_MEMORY_LIMIT, DISALLOW_FILE_EDIT...). Credentials, keys, salts and paths are never shown.",
+   "params": {
+    "names": "array|Constant names (default: the common ones)"
+   },
+   "required": [],
+   "write": false,
+   "confirm": false,
+   "untrusted": false,
+   "escalates": null
+  },
+  {
+   "id": "maintain.config_set",
+   "tool": "maintain",
+   "action": "config_set",
+   "level": "admin",
+   "summary": "Set one constant in wp-config.php: replaces its define() or adds one. Syntax-checked; put back if the site stops answering. Not for credentials, keys, salts or paths.",
+   "params": {
+    "name": "string|Constant, e.g. WP_DEBUG",
+    "value": "any|true/false, a number or text such as 256M"
+   },
+   "required": [
+    "name",
+    "value"
+   ],
+   "write": true,
+   "confirm": true,
    "untrusted": false,
    "escalates": null
   },
@@ -2482,7 +2517,7 @@
    "tool": "files",
    "action": "list",
    "level": "admin",
-   "summary": "List files under a root (root \"themes\" or \"plugins\" lists folders): core (WordPress folder, read-only except .htaccess and robots.txt), themes/<slug>, plugins/<slug>, mu-plugins, uploads[/sub].",
+   "summary": "List files under a root (root \"themes\" or \"plugins\" lists folders): core (WordPress folder; read-only except .htaccess and robots.txt unless the owner allowed core edits in Tools > WP MCP Bridge), themes/<slug>, plugins/<slug>, mu-plugins, uploads[/sub].",
    "params": {
     "root": "string|e.g. themes/twentytwentyfive, plugins/akismet, mu-plugins, uploads/2026",
     "path": "string|Subfolder inside the root",
@@ -2517,6 +2552,50 @@
    "escalates": null
   },
   {
+   "id": "files.search",
+   "tool": "files",
+   "action": "search",
+   "level": "admin",
+   "summary": "Find text in the files of one root (a function, hook, class name, string): path, line number and the line. Text files up to 1 MB, 4 folders deep.",
+   "params": {
+    "root": "string|See files.list",
+    "query": "string|Text to find (or a regular expression with regex:true)",
+    "path": "string|Only inside this subfolder",
+    "regex": "bool|Treat query as a regular expression",
+    "case": "bool|Match case (default: ignore case)",
+    "max": "int|Max matches (default 50, max 200)"
+   },
+   "required": [
+    "root",
+    "query"
+   ],
+   "write": false,
+   "confirm": false,
+   "untrusted": true,
+   "escalates": null
+  },
+  {
+   "id": "files.patch",
+   "tool": "files",
+   "action": "patch",
+   "level": "admin",
+   "summary": "Change parts of a text file by exact replacement instead of sending the whole file. Each edit {old, new, all?}: old must occur exactly once unless all is true. Same checks and undo as files.write.",
+   "params": {
+    "root": "string|See files.list",
+    "path": "string|File path inside the root",
+    "edits": "array|[{old, new, all?}] applied in order"
+   },
+   "required": [
+    "root",
+    "path",
+    "edits"
+   ],
+   "write": true,
+   "confirm": true,
+   "untrusted": false,
+   "escalates": null
+  },
+  {
    "id": "files.write",
    "tool": "files",
    "action": "write",
@@ -2526,7 +2605,8 @@
     "root": "string|See files.list",
     "path": "string|File path inside the root",
     "content": "string|Text content",
-    "data_base64": "string|Binary content (instead of content)"
+    "data_base64": "string|Binary content (instead of content)",
+    "local_path": "string|Instead of the data: a file on the computer running the gateway (AI apps on that computer only; folders in WPMCP_UPLOAD_DIRS, default the working folder). Sent straight to the site, in pieces when large (64 MB max)"
    },
    "required": [
     "root",
@@ -2542,10 +2622,10 @@
    "tool": "files",
    "action": "write_many",
    "level": "admin",
-   "summary": "Write up to 60 files into one root in one call (a theme or plugin skeleton). New themes/<slug>, plugins/<slug>, mu-plugins and uploads folders are created. Each file is undoable.",
+   "summary": "Write up to 60 files into one root in one call (a theme or plugin skeleton). New themes/<slug>, plugins/<slug>, mu-plugins and uploads folders are created. All or nothing: if a file is refused or the site stops answering, every file is put back. Each file is undoable.",
    "params": {
     "root": "string|See files.list",
-    "files": "array|[{path, content | data_base64}]"
+    "files": "array|[{path, content | data_base64 | local_path}]"
    },
    "required": [
     "root",
@@ -2672,6 +2752,31 @@
    "required": [
     "root",
     "url"
+   ],
+   "write": true,
+   "confirm": true,
+   "untrusted": false,
+   "escalates": null
+  },
+  {
+   "id": "files.upload_part",
+   "tool": "files",
+   "action": "upload_part",
+   "level": "admin",
+   "summary": "One piece of a large non-PHP file (64 MB in total), in order; the last piece puts the file in place. The gateway uses this for files.write with local_path; calling it by hand is rarely needed.",
+   "params": {
+    "root": "string|See files.list",
+    "path": "string|Target path inside the root",
+    "upload": "string|16 hex characters, the same for every piece",
+    "data_base64": "string|This piece, base64 (2 MB max)",
+    "offset": "int|Bytes already sent (0 for the first piece)",
+    "last": "bool|true on the final piece"
+   },
+   "required": [
+    "root",
+    "path",
+    "upload",
+    "data_base64"
    ],
    "write": true,
    "confirm": true,

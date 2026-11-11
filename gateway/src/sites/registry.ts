@@ -185,7 +185,7 @@ export const TOOLS: ToolInfo[] = [
   {
     name: 'maintain',
     title: 'Maintenance',
-    intro: 'Health, updates, backups, error logs, caches, database cleanup, search-replace, cron, maintenance mode.',
+    intro: 'Health, updates, backups, error logs, caches, database cleanup, search-replace, cron, maintenance mode, wp-config constants.',
   },
   {
     name: 'plugins',
@@ -211,9 +211,9 @@ export const TOOLS: ToolInfo[] = [
   },
   {
     name: 'files',
-    title: 'Files in wp-content',
+    title: 'Files on the site',
     intro:
-      'Browse, read, write and delete files of themes, plugins, mu-plugins and uploads (admin; writes are confirmed and PHP is syntax-checked).',
+      'Browse, search, read, write, patch and delete files of themes, plugins, mu-plugins, uploads and (when the owner allows it) WordPress itself. Admin; writes are confirmed and PHP is syntax-checked. local_path uploads a file from this computer.',
   },
   {
     name: 'transfer',

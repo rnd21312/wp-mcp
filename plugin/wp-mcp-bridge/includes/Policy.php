@@ -276,6 +276,77 @@ final class Policy {
         return is_string( $bare ) && ! str_contains( rtrim( $bare, "; \t\n\r" ), ';' );
     }
 
+    /**
+     * Applies exact text replacements to a file. Each edit is {old, new, all?}: "old" must occur exactly once, unless "all" is set.
+     * Line endings follow the file, so an edit written with \n matches a \r\n file.
+     *
+     * @param list<mixed> $edits Edits.
+     * @return array{0: string, 1: int} The new text and how many replacements were made.
+     */
+    public static function apply_edits( string $text, array $edits ): array {
+        if ( array() === $edits || count( $edits ) > 50 ) {
+            throw new BridgeError( 'bad_arguments', 'edits must be a list of 1-50 items like {old, new}.', 400 );
+        }
+        $crlf  = str_contains( $text, "\r\n" );
+        $eol   = static fn ( string $s ): string => $crlf ? str_replace( "\n", "\r\n", str_replace( "\r\n", "\n", $s ) ) : $s;
+        $total = 0;
+        foreach ( array_values( $edits ) as $i => $edit ) {
+            $n = $i + 1;
+            if ( ! is_array( $edit ) || ! is_string( $edit['old'] ?? null ) || '' === $edit['old'] || ! is_string( $edit['new'] ?? null ) ) {
+                throw new BridgeError( 'bad_arguments', "Edit $n needs a non-empty \"old\" and a \"new\" (both text).", 400 );
+            }
+            $old   = $eol( $edit['old'] );
+            $count = substr_count( $text, $old );
+            if ( 0 === $count ) {
+                throw new BridgeError( 'no_match', "Edit $n: \"old\" was not found in the file. Read the file again and copy the text exactly, including spaces. Nothing was written.", 409 );
+            }
+            if ( $count > 1 && empty( $edit['all'] ) ) {
+                throw new BridgeError( 'ambiguous', "Edit $n: \"old\" occurs $count times. Add surrounding lines to make it unique, or set all:true. Nothing was written.", 409 );
+            }
+            $text   = str_replace( $old, $eol( $edit['new'] ), $text );
+            $total += $count;
+        }
+
+        return array( $text, $total );
+    }
+
+    /** wp-config constants that may be read and set: anything but database credentials, keys, salts and paths. */
+    public static function config_name_ok( string $name ): bool {
+        if ( 1 !== preg_match( '/^[A-Z][A-Z0-9_]{1,60}$/', $name ) ) {
+            return false;
+        }
+
+        return 1 !== preg_match( '/^(DB_|WPMCP_|ABSPATH$|WP_CONTENT_DIR$|WP_PLUGIN_DIR$|WPMU_PLUGIN_DIR$|UPLOADS$)|(_KEY|_SALT|_SECRET|_PASSWORD|_TOKEN)$/', $name );
+    }
+
+    /**
+     * Sets one define() in the text of wp-config.php: replaces the existing line, or adds one above "stop editing".
+     *
+     * @param bool|int|float|string $value Value.
+     */
+    public static function config_set( string $source, string $name, $value ): string {
+        if ( ! self::config_name_ok( $name ) || ! is_scalar( $value ) ) {
+            throw new BridgeError( 'bad_arguments', 'That constant cannot be set here (credentials, keys, salts and paths are off limits), or the value is not text, a number or true/false.', 400 );
+        }
+        $eol  = str_contains( $source, "\r\n" ) ? "\r\n" : "\n";
+        $line = "define( '$name', " . var_export( $value, true ) . ' );';
+        $seen = 0;
+        $out  = preg_replace_callback( '/^[ \t]*define\s*\(\s*([\'"])' . $name . '\1\s*,[^\r\n]*\)\s*;[^\r\n]*$/m', static fn (): string => $line, $source, 1, $seen );
+        if ( ! is_string( $out ) ) {
+            throw new BridgeError( 'config_unreadable', 'wp-config.php could not be parsed.', 500 );
+        }
+        if ( $seen > 0 ) {
+            return $out;
+        }
+        foreach ( array( '/^[^\r\n]*stop editing[^\r\n]*$/mi', '/^[^\r\n]*require(_once)?[^\r\n]*wp-settings\.php[^\r\n]*$/m' ) as $anchor ) {
+            $out = preg_replace_callback( $anchor, static fn ( array $m ): string => $line . $eol . $m[0], $source, 1, $seen );
+            if ( is_string( $out ) && $seen > 0 ) {
+                return $out;
+            }
+        }
+        throw new BridgeError( 'config_unreadable', 'wp-config.php has no "stop editing" line and does not load wp-settings.php, so there is no safe place for a new constant.', 409 );
+    }
+
     public static function level_for_status( string $status ): string {
         return in_array( $status, array( 'draft', 'pending', 'auto-draft', 'private', 'trash' ), true ) ? 'draft' : 'live';
     }

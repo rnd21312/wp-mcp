@@ -1,6 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { delimiter, join, resolve } from 'node:path';
 import { ROOT } from './paths.ts';
 import { isLevel, type Level } from './levels.ts';
 
@@ -17,6 +17,8 @@ export interface Config {
   /** Accept self-signed or otherwise untrusted TLS certificates from sites (the signed replies still authenticate the bridge). */
   allowSelfSignedSites: boolean;
   trustProxy: boolean;
+  /** Folders a local (stdio) connection may upload files from with local_path. */
+  uploadDirs: string[];
   /** Passwordless panel for this computer only (command "local"). */
   localPanel: boolean;
   /** Remote connector without a login (Claude.ai through a tunnel): OAuth approves itself at this level for every site. Only with the local panel. */
@@ -72,6 +74,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env, overrides: Part
     allowInsecureSites: env.WPMCP_ALLOW_INSECURE_SITES === '1',
     allowSelfSignedSites: env.WPMCP_ALLOW_SELF_SIGNED === '1',
     trustProxy: env.WPMCP_TRUST_PROXY === '1',
+    uploadDirs: env.WPMCP_UPLOAD_DIRS ? env.WPMCP_UPLOAD_DIRS.split(delimiter).filter(Boolean) : [process.cwd(), join(dataDir, 'uploads')],
     localPanel: env.WPMCP_LOCAL_PANEL === '1',
     connectorLevel: env.WPMCP_LOCAL_PANEL === '1' && isLevel(env.WPMCP_CONNECTOR_LEVEL) ? env.WPMCP_CONNECTOR_LEVEL : undefined,
     accessTtl: num(env.WPMCP_ACCESS_TTL, 3600),

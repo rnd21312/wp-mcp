@@ -77,6 +77,29 @@ check( 'sql: one statement, with or without a trailing semicolon', Policy::sql_i
 " ) );
 check( 'sql: semicolons inside quoted text are data', Policy::sql_is_single( "UPDATE wp_snippets SET code = REPLACE(code, 'a(); b();', 'c(\'x\'); d(''y'');') WHERE id = 1" ) && Policy::sql_is_single( 'UPDATE t SET a = "x;y", `b;c` = 1' ) );
 check( 'sql: a second statement is refused', ! Policy::sql_is_single( 'DELETE FROM a; DROP TABLE b' ) && ! Policy::sql_is_single( "UPDATE t SET a = 'x'; DROP TABLE b" ) && ! Policy::sql_is_single( "SELECT 'a' ; SELECT 'b'" ) );
+$throws = static function ( callable $fn ): string {
+    try {
+        $fn();
+    } catch ( \WPMCP\Bridge\BridgeError $e ) {
+        return $e->error_code;
+    }
+
+    return '';
+};
+check( 'patch: one exact replacement', array( "a\nB\nc", 1 ) === Policy::apply_edits( "a\nb\nc", array( array( 'old' => 'b', 'new' => 'B' ) ) ) );
+check( 'patch: edits run in order and all:true replaces every match', array( 'y-y z', 3 ) === Policy::apply_edits( 'x-x q', array( array( 'old' => 'x', 'new' => 'y', 'all' => true ), array( 'old' => 'q', 'new' => 'z' ) ) ) );
+check( 'patch: an edit written with \n matches a \r\n file and keeps its line endings', array( "a\r\nX\r\nY\r\nc", 1 ) === Policy::apply_edits( "a\r\nb\r\nc", array( array( 'old' => "a\nb", 'new' => "a\nX\nY" ) ) ) );
+check( 'patch: text that is not there, or there twice, changes nothing', 'no_match' === $throws( static fn () => Policy::apply_edits( 'abc', array( array( 'old' => 'zz', 'new' => '' ) ) ) ) && 'ambiguous' === $throws( static fn () => Policy::apply_edits( 'aa', array( array( 'old' => 'a', 'new' => 'b' ) ) ) ) );
+check( 'patch: empty or malformed edits are refused', 'bad_arguments' === $throws( static fn () => Policy::apply_edits( 'abc', array() ) ) && 'bad_arguments' === $throws( static fn () => Policy::apply_edits( 'abc', array( array( 'old' => '', 'new' => 'x' ) ) ) ) && 'bad_arguments' === $throws( static fn () => Policy::apply_edits( 'abc', array( 'nope' ) ) ) );
+$cfg = "<?php\ndefine( 'DB_NAME', 'wp' );\ndefine('WP_DEBUG', false); // off\n\n/* That's all, stop editing! Happy publishing. */\nrequire_once ABSPATH . 'wp-settings.php';\n";
+check( 'config: an existing define is replaced in place', str_contains( Policy::config_set( $cfg, 'WP_DEBUG', true ), "define( 'DB_NAME', 'wp' );\ndefine( 'WP_DEBUG', true );\n\n/* That's all" ) );
+$added = Policy::config_set( $cfg, 'WP_MEMORY_LIMIT', '256M' );
+check( 'config: a new constant goes above "stop editing"', str_contains( $added, "define( 'WP_MEMORY_LIMIT', '256M' );\n/* That's all" ) && 1 === substr_count( $added, 'WP_MEMORY_LIMIT' ) );
+check( 'config: without the comment it goes above wp-settings.php', str_contains( Policy::config_set( "<?php\nrequire_once ABSPATH . 'wp-settings.php';\n", 'WP_POST_REVISIONS', 5 ), "define( 'WP_POST_REVISIONS', 5 );\nrequire_once" ) );
+check( 'config: the result is valid PHP and quotes are escaped', array() !== token_get_all( Policy::config_set( $cfg, 'WP_HOME', "https://x.test/a'b" ), TOKEN_PARSE ) );
+check( 'config: credentials, keys, salts and paths are off limits', ! Policy::config_name_ok( 'DB_PASSWORD' ) && ! Policy::config_name_ok( 'AUTH_KEY' ) && ! Policy::config_name_ok( 'NONCE_SALT' ) && ! Policy::config_name_ok( 'ABSPATH' ) && ! Policy::config_name_ok( 'wp_debug' ) && ! Policy::config_name_ok( "X', 1); evil(); //" ) && Policy::config_name_ok( 'WP_DEBUG' ) );
+check( 'config: a forbidden name or a non-scalar value is refused, and a file with no anchor is left alone', 'bad_arguments' === $throws( static fn () => Policy::config_set( $cfg, 'DB_HOST', 'x' ) ) && 'bad_arguments' === $throws( static fn () => Policy::config_set( $cfg, 'WP_DEBUG', array( 1 ) ) ) && 'config_unreadable' === $throws( static fn () => Policy::config_set( "<?php\n", 'WP_DEBUG', true ) ) );
+check( 'the core-edit switch cannot be flipped through options', 'secret' === Policy::option_tier( 'wpm_bridge_core_write' ) );
 check( 'public options are safe', 'safe' === Policy::option_tier( 'blogname' ) && 'safe' === Policy::option_tier( 'permalink_structure' ) );
 check( 'unknown options are sensitive', 'sensitive' === Policy::option_tier( 'my_plugin_settings' ) && 'sensitive' === Policy::option_tier( 'active_plugins' ) );
 foreach ( array( 'stripe_secret_key', 'woocommerce_stripe_settings_api_key', 'smtp_password', 'jwt_auth_secret', 'github_token', 'AUTH_KEY', 'mailserver_pass_x', 'wpm_bridge_connections', 'license_key_pro' ) as $name ) {

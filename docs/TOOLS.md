@@ -1,6 +1,6 @@
 # Tools reference
 
-Generated from `spec/ops.json` (143 site actions + gateway actions). Every tool is called as `{site, action, args, dry_run?, confirm_token?, idempotency_key?}`.
+Generated from `spec/ops.json` (160 site actions + gateway actions). Every tool is called as `{site, action, args, dry_run?, confirm_token?, idempotency_key?}`.
 
 Levels: **read** < **draft** < **live** < **admin**. `A>B` means the action starts at A and the site raises it to B from the real target (for example editing a published page). **confirm** = two-step: the first call returns a preview and a `confirm_token`, nothing changes until it is repeated with the token. **site content** = the result contains text written on the website (treated as untrusted).
 
@@ -74,7 +74,7 @@ Levels: **read** < **draft** < **live** < **admin**. `A>B` means the action star
 |---|---|---|---|
 | `list` | read | `search, mime, page, per_page` | Media library items with URLs, sizes and alt text. *(site content)* |
 | `get` | read | `id*` | One attachment with all sizes. *(site content)* |
-| `upload` | draft | `filename*, data_base64*, title, alt, caption, description, attach_to, featured, optimize` | Upload a file from base64 data (max 10 MB; bigger: put it in uploads and use media.register). *(write)* |
+| `upload` | draft | `filename*, data_base64*, local_path, title, alt, caption, description, attach_to, featured, optimize` | Upload a file from base64 data (max 10 MB; bigger: put it in uploads and use media.register). *(write)* |
 | `import_url` | live | `url*, filename, title, alt, attach_to` | Download an image/file from an https URL (no redirects, no private addresses). *(confirm, write)* |
 | `register` | draft | `paths, scan, attach_to, featured, title, alt, caption, description, limit, optimize` | Add files that already lie in wp-content/uploads (copied by FTP/files.write) to the media library: makes sizes, alt text, optional featured image. scan:true finds all unregistered files. *(write)* |
 | `optimize` | live | `id, ids, max_width, quality, format, fix_links` | Shrink and/or convert existing library images (jpeg/png/webp/avif) or videos (ffmpeg needed) to save space. Replaces the file for good; links in posts are rewritten. *(confirm, write)* |
@@ -101,6 +101,7 @@ Levels: **read** < **draft** < **live** < **admin**. `A>B` means the action star
 
 | Action | Level | Arguments (* required) | What it does |
 |---|---|---|---|
+| `ticket` | live |  | Short-lived header that lets the visual editor load a page with source markers (template parts, theme files, post content). |
 | `page` | read | `path*, max_bytes, offset` | Rendered HTML of a page of this site (same host only, redirects not followed off-site). *(site content)* |
 | `render` | draft | `id*, max_bytes` | Render a post (also drafts) through the_content, without the theme. *(site content)* |
 | `outline` | read | `path*, selector, depth` | Compact structure of a page: headings, landmarks, images, links, forms, meta, scripts, and an element tree (depth-limited). *(site content)* |
@@ -129,6 +130,8 @@ Levels: **read** < **draft** < **live** < **admin**. `A>B` means the action star
 | `sql_write` | admin | `query*` | One INSERT/UPDATE/DELETE/REPLACE/CREATE/ALTER/DROP/TRUNCATE. Confirmed; not undoable (take maintain.backup_create first). *(confirm, write)* |
 | `cron_list` | admin |  | Scheduled events. |
 | `cron_run` | admin | `hook*` | Run a scheduled hook now. *(write)* |
+| `config_get` | admin | `names` | Values of wp-config.php constants (WP_DEBUG, WP_MEMORY_LIMIT, DISALLOW_FILE_EDIT...). Credentials, keys, salts and paths are never shown. |
+| `config_set` | admin | `name*, value*` | Set one constant in wp-config.php: replaces its define() or adds one. Syntax-checked; put back if the site stops answering. Not for credentials, keys, salts or paths. *(confirm, write)* |
 | `maintenance_mode` | admin | `enabled*, message` | Serve a 503 maintenance page to visitors (admins and the bridge still see the site). *(write)* |
 
 ## plugins: Plugins
@@ -205,16 +208,19 @@ Levels: **read** < **draft** < **live** < **admin**. `A>B` means the action star
 
 | Action | Level | Arguments (* required) | What it does |
 |---|---|---|---|
-| `list` | admin | `root*, path, depth` | List files under a root (root "themes" or "plugins" lists folders): core (WordPress folder, read-only except .htaccess and robots.txt), themes/<slug>, plugins/<slug>, mu-plugins, uploads[/sub]. |
+| `list` | admin | `root*, path, depth` | List files under a root (root "themes" or "plugins" lists folders): core (WordPress folder; read-only except .htaccess and robots.txt unless the owner allowed core edits in Tools > WP MCP Bridge), themes/<slug>, plugins/<slug>, mu-plugins, uploads[/sub]. |
 | `read` | admin | `root*, path*, offset` | Read a file: text as text, other types as base64 (2 MB max). *(site content)* |
-| `write` | admin | `root*, path*, content, data_base64` | Create or replace a file; missing theme/plugin/mu-plugins folders are created. Text types in themes/plugins/mu-plugins, media types in uploads. PHP is syntax-checked and the front page probed; previous content is kept for undo. *(confirm, write)* |
-| `write_many` | admin | `root*, files*` | Write up to 60 files into one root in one call (a theme or plugin skeleton). New themes/<slug>, plugins/<slug>, mu-plugins and uploads folders are created. Each file is undoable. *(confirm, write)* |
+| `search` | admin | `root*, query*, path, regex, case, max` | Find text in the files of one root (a function, hook, class name, string): path, line number and the line. Text files up to 1 MB, 4 folders deep. *(site content)* |
+| `patch` | admin | `root*, path*, edits*` | Change parts of a text file by exact replacement instead of sending the whole file. Each edit {old, new, all?}: old must occur exactly once unless all is true. Same checks and undo as files.write. *(confirm, write)* |
+| `write` | admin | `root*, path*, content, data_base64, local_path` | Create or replace a file; missing theme/plugin/mu-plugins folders are created. Text types in themes/plugins/mu-plugins, media types in uploads. PHP is syntax-checked and the front page probed; previous content is kept for undo. *(confirm, write)* |
+| `write_many` | admin | `root*, files*` | Write up to 60 files into one root in one call (a theme or plugin skeleton). New themes/<slug>, plugins/<slug>, mu-plugins and uploads folders are created. All or nothing: if a file is refused or the site stops answering, every file is put back. Each file is undoable. *(confirm, write)* |
 | `mkdir` | admin | `root*, path*` | Create a folder inside a root (themes/<slug>, plugins/<slug>, mu-plugins, uploads). *(write)* |
 | `rmdir` | admin | `root*, path*` | Delete a folder and everything in it. Not undoable. *(confirm, write)* |
 | `move` | admin | `root*, from*, to*` | Move or rename a file inside a root (2 MB max, undoable). *(confirm, write)* |
 | `copy` | admin | `root*, from*, to*` | Copy a file inside a root (2 MB max). *(write)* |
 | `fetch` | admin | `root*, path*, url*` | Download an https file (font, image, script; 20 MB max) straight into a root. Redirects are re-checked. *(confirm, write)* |
 | `unzip` | admin | `root*, url*, path, strip_top` | Download a zip and extract it into a root (whole theme or plugin, assets). Known text/media types only; existing files are replaced; not syntax-checked. *(confirm, write)* |
+| `upload_part` | admin | `root*, path*, upload*, data_base64*, offset, last` | One piece of a large non-PHP file (64 MB in total), in order; the last piece puts the file in place. The gateway uses this for files.write with local_path; calling it by hand is rarely needed. *(confirm, write)* |
 | `delete` | admin | `root*, path*` | Delete a file permanently. *(confirm, write)* |
 
 ## transfer: Export and import content
