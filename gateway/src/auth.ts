@@ -72,7 +72,16 @@ export function authenticate(app: App, bearer: string): AuthResult {
     if (!grant || !client) return { error: 'invalid' };
     if (now - client.last_used > 60) app.store.touchClient(client.id);
     // The owner's current grant wins over what the token was issued with, so lowering or revoking takes effect at once.
-    return { principal: { id: `oauth:${client.id}`, kind: 'oauth', name: client.name, level: minLevel(row.level, grant.level), sites: parseScope(grant.sites), clientId: client.id } };
+    return {
+      principal: {
+        id: `oauth:${client.id}`,
+        kind: 'oauth',
+        name: client.name,
+        level: minLevel(row.level, grant.level),
+        sites: parseScope(grant.sites),
+        clientId: client.id,
+      },
+    };
   }
 
   return { error: 'invalid' };
@@ -82,7 +91,10 @@ export function canUseSite(principal: Principal, site: string): boolean {
   return principal.sites === '*' || principal.sites.includes(site);
 }
 
-export function createApiKey(app: App, input: { name: string; level: Level; sites: SiteScope; expiresInDays?: number }): { id: string; token: string } {
+export function createApiKey(
+  app: App,
+  input: { name: string; level: Level; sites: SiteScope; expiresInDays?: number },
+): { id: string; token: string } {
   if (!isLevel(input.level)) throw new Error('Invalid level.');
   const secret = token(KEY_PREFIX);
   const id = token('', 6);

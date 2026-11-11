@@ -10,8 +10,22 @@ export const DEVICES: { key: 'desktop' | 'tablet' | 'mobile'; media: string; wid
 ];
 
 export function overridesToCss(ov: Overrides): string {
-  const block = (r: Record<string, Record<string, string>>, pad: string): string => Object.entries(r).filter(([, d]) => Object.keys(d).length).map(([sel, d]) => `${pad}${sel}{${Object.entries(d).map(([k, v]) => `${k}:${v} !important`).join(';')}}`).join('\n');
-  const parts = Object.entries(ov).map(([media, rules]) => { const body = block(rules, media ? '  ' : ''); return body ? (media ? `${media}{\n${body}\n}` : body) : ''; }).filter(Boolean);
+  const block = (r: Record<string, Record<string, string>>, pad: string): string =>
+    Object.entries(r)
+      .filter(([, d]) => Object.keys(d).length)
+      .map(
+        ([sel, d]) =>
+          `${pad}${sel}{${Object.entries(d)
+            .map(([k, v]) => `${k}:${v} !important`)
+            .join(';')}}`,
+      )
+      .join('\n');
+  const parts = Object.entries(ov)
+    .map(([media, rules]) => {
+      const body = block(rules, media ? '  ' : '');
+      return body ? (media ? `${media}{\n${body}\n}` : body) : '';
+    })
+    .filter(Boolean);
 
   return `/* wpm-visual:${JSON.stringify(ov)} */\n${parts.join('\n')}`;
 }

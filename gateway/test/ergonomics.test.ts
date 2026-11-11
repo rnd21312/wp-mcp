@@ -104,7 +104,8 @@ describe('confirming without sending the work twice', () => {
   let env: Env;
   beforeAll(async () => {
     env = await createEnv(['alpha']);
-    env.sites.alpha.answers['files.write'] = (args, call) => (call.dry_run ? { will_write: args.path } : { path: args.path, bytes: String(args.content).length });
+    env.sites.alpha.answers['files.write'] = (args, call) =>
+      call.dry_run ? { will_write: args.path } : { path: args.path, bytes: String(args.content).length };
   });
   afterAll(() => env.stop());
 
@@ -127,9 +128,13 @@ describe('confirming without sending the work twice', () => {
   it('finds the token inside args, with or without the arguments', async () => {
     const k = key(env, 'admin');
     const a = await tool(env, k, 'files', { action: 'write', args });
-    expect((await tool(env, k, 'files', { action: 'write', args: { confirm: a.data.confirm_token } })).data.data.path).toBe('functions.php');
+    expect((await tool(env, k, 'files', { action: 'write', args: { confirm: a.data.confirm_token } })).data.data.path).toBe(
+      'functions.php',
+    );
     const b = await tool(env, k, 'files', { action: 'write', args });
-    expect((await tool(env, k, 'files', { action: 'write', args: { ...args, confirm_token: b.data.confirm_token } })).data.data.path).toBe('functions.php');
+    expect((await tool(env, k, 'files', { action: 'write', args: { ...args, confirm_token: b.data.confirm_token } })).data.data.path).toBe(
+      'functions.php',
+    );
   });
 
   it('a remembered call belongs to its key and its action', async () => {
@@ -151,7 +156,13 @@ describe('results every client can take in one piece', () => {
     env = await createEnv(['alpha']);
     env.sites.alpha.answers['files.read'] = (args) => {
       const bytes = Buffer.from(file, 'utf8');
-      return { path: args.path, bytes: bytes.length, encoding: 'utf8', truncated: false, content: bytes.subarray(Number(args.offset ?? 0)).toString('utf8') };
+      return {
+        path: args.path,
+        bytes: bytes.length,
+        encoding: 'utf8',
+        truncated: false,
+        content: bytes.subarray(Number(args.offset ?? 0)).toString('utf8'),
+      };
     };
     env.sites.alpha.answers['inspect.page'] = (args) => ({ max: args.max_bytes });
   });

@@ -32,7 +32,16 @@ export interface State {
   entry: string;
   preview: { base: string; token: string };
   sites: Site[];
-  keys: { id: string; name: string; prefix: string; level: string; sites: string[] | '*'; created: number; last_used: number; expires: number }[];
+  keys: {
+    id: string;
+    name: string;
+    prefix: string;
+    level: string;
+    sites: string[] | '*';
+    created: number;
+    last_used: number;
+    expires: number;
+  }[];
   clients: { id: string; name: string; level: string; sites: string[] | '*'; last_used: number }[];
   activity: Activity[];
 }
@@ -109,7 +118,8 @@ export const api = {
 export const ago = (ts: number, lang: 'fa' | 'en'): string => {
   if (!ts) return lang === 'fa' ? 'هرگز' : 'never';
   const s = Math.max(0, Math.floor(Date.now() / 1000 - ts));
-  const unit = (n: number, fa: string, en: string): string => (lang === 'fa' ? `${n.toLocaleString('fa')} ${fa} پیش` : `${n} ${en}${n === 1 ? '' : 's'} ago`);
+  const unit = (n: number, fa: string, en: string): string =>
+    lang === 'fa' ? `${n.toLocaleString('fa')} ${fa} پیش` : `${n} ${en}${n === 1 ? '' : 's'} ago`;
   if (s < 60) return lang === 'fa' ? 'چند ثانیه پیش' : 'just now';
   if (s < 3600) return unit(Math.floor(s / 60), 'دقیقه', 'minute');
   if (s < 86400) return unit(Math.floor(s / 3600), 'ساعت', 'hour');

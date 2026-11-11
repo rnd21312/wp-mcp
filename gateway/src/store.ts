@@ -165,7 +165,10 @@ type Row = Record<string, unknown>;
 export class Store {
   readonly db: InstanceType<typeof DatabaseSync>;
 
-  constructor(path: string, private now: () => number = () => Math.floor(Date.now() / 1000)) {
+  constructor(
+    path: string,
+    private now: () => number = () => Math.floor(Date.now() / 1000),
+  ) {
     if (path !== ':memory:') mkdirSync(dirname(path), { recursive: true });
     this.db = new DatabaseSync(path);
     this.db.exec('PRAGMA journal_mode = WAL; PRAGMA busy_timeout = 5000; PRAGMA foreign_keys = ON;');
@@ -195,7 +198,11 @@ export class Store {
   }
 
   setOwnerHash(hash: string): void {
-    this.run('INSERT INTO owner (id, pass_hash, created) VALUES (1, ?, ?) ON CONFLICT(id) DO UPDATE SET pass_hash = excluded.pass_hash', hash, this.now());
+    this.run(
+      'INSERT INTO owner (id, pass_hash, created) VALUES (1, ?, ?) ON CONFLICT(id) DO UPDATE SET pass_hash = excluded.pass_hash',
+      hash,
+      this.now(),
+    );
   }
 
   /* sites */
@@ -203,7 +210,16 @@ export class Store {
   addSite(site: Pick<SiteRow, 'name' | 'url' | 'key_id' | 'secret_enc' | 'max_level' | 'title' | 'wp_version' | 'plugin_version'>): void {
     this.run(
       `INSERT INTO sites (name, url, key_id, secret_enc, max_level, status, created, title, wp_version, plugin_version, last_ok) VALUES (?, ?, ?, ?, ?, 'ok', ?, ?, ?, ?, ?)`,
-      site.name, site.url, site.key_id, site.secret_enc, site.max_level, this.now(), site.title, site.wp_version, site.plugin_version, this.now(),
+      site.name,
+      site.url,
+      site.key_id,
+      site.secret_enc,
+      site.max_level,
+      this.now(),
+      site.title,
+      site.wp_version,
+      site.plugin_version,
+      this.now(),
     );
   }
 
@@ -227,7 +243,11 @@ export class Store {
     if (ok) {
       this.run(
         `UPDATE sites SET status = 'ok', last_ok = ?, last_error = '', wp_version = COALESCE(NULLIF(?, ''), wp_version), plugin_version = COALESCE(NULLIF(?, ''), plugin_version), title = COALESCE(NULLIF(?, ''), title) WHERE name = ?`,
-        this.now(), info.wp ?? '', info.plugin ?? '', info.title ?? '', name,
+        this.now(),
+        info.wp ?? '',
+        info.plugin ?? '',
+        info.title ?? '',
+        name,
       );
     } else {
       this.run(`UPDATE sites SET status = 'error', last_error = ? WHERE name = ?`, detail.slice(0, 300), name);
@@ -237,7 +257,17 @@ export class Store {
   /* api keys */
 
   addKey(key: Pick<KeyRow, 'id' | 'name' | 'hash' | 'prefix' | 'level' | 'sites' | 'expires'>): void {
-    this.run('INSERT INTO api_keys (id, name, hash, prefix, level, sites, created, expires) VALUES (?, ?, ?, ?, ?, ?, ?, ?)', key.id, key.name, key.hash, key.prefix, key.level, key.sites, this.now(), key.expires);
+    this.run(
+      'INSERT INTO api_keys (id, name, hash, prefix, level, sites, created, expires) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      key.id,
+      key.name,
+      key.hash,
+      key.prefix,
+      key.level,
+      key.sites,
+      this.now(),
+      key.expires,
+    );
   }
 
   keyByHash(hash: string): KeyRow | undefined {
@@ -259,7 +289,13 @@ export class Store {
   /* oauth */
 
   addClient(client: Pick<ClientRow, 'id' | 'name' | 'redirect_uris'>): void {
-    this.run('INSERT INTO oauth_clients (id, name, redirect_uris, created) VALUES (?, ?, ?, ?)', client.id, client.name, client.redirect_uris, this.now());
+    this.run(
+      'INSERT INTO oauth_clients (id, name, redirect_uris, created) VALUES (?, ?, ?, ?)',
+      client.id,
+      client.name,
+      client.redirect_uris,
+      this.now(),
+    );
   }
 
   client(id: string): ClientRow | undefined {
@@ -267,7 +303,9 @@ export class Store {
   }
 
   clients(): (ClientRow & { grant_level: string | null; grant_sites: string | null })[] {
-    return this.all('SELECT c.*, g.level AS grant_level, g.sites AS grant_sites FROM oauth_clients c LEFT JOIN oauth_grants g ON g.client_id = c.id ORDER BY c.created DESC');
+    return this.all(
+      'SELECT c.*, g.level AS grant_level, g.sites AS grant_sites FROM oauth_clients c LEFT JOIN oauth_grants g ON g.client_id = c.id ORDER BY c.created DESC',
+    );
   }
 
   touchClient(id: string): void {
@@ -288,7 +326,11 @@ export class Store {
   setGrant(clientId: string, level: Level, sites: string): void {
     this.run(
       'INSERT INTO oauth_grants (client_id, level, sites, created, updated) VALUES (?, ?, ?, ?, ?) ON CONFLICT(client_id) DO UPDATE SET level = excluded.level, sites = excluded.sites, updated = excluded.updated',
-      clientId, level, sites, this.now(), this.now(),
+      clientId,
+      level,
+      sites,
+      this.now(),
+      this.now(),
     );
   }
 
@@ -297,7 +339,16 @@ export class Store {
   }
 
   putCode(code: CodeRow): void {
-    this.run('INSERT INTO oauth_codes (hash, client_id, redirect_uri, challenge, level, sites, expires) VALUES (?, ?, ?, ?, ?, ?, ?)', code.hash, code.client_id, code.redirect_uri, code.challenge, code.level, code.sites, code.expires);
+    this.run(
+      'INSERT INTO oauth_codes (hash, client_id, redirect_uri, challenge, level, sites, expires) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      code.hash,
+      code.client_id,
+      code.redirect_uri,
+      code.challenge,
+      code.level,
+      code.sites,
+      code.expires,
+    );
   }
 
   /** Single use: the row is gone after this call, valid or not. */
@@ -308,7 +359,17 @@ export class Store {
   }
 
   putToken(row: Omit<TokenRow, 'rotated_at' | 'revoked'>): void {
-    this.run('INSERT INTO oauth_tokens (hash, kind, client_id, family, level, sites, expires, created) VALUES (?, ?, ?, ?, ?, ?, ?, ?)', row.hash, row.kind, row.client_id, row.family, row.level, row.sites, row.expires, row.created);
+    this.run(
+      'INSERT INTO oauth_tokens (hash, kind, client_id, family, level, sites, expires, created) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      row.hash,
+      row.kind,
+      row.client_id,
+      row.family,
+      row.level,
+      row.sites,
+      row.expires,
+      row.created,
+    );
   }
 
   token(hash: string): TokenRow | undefined {
@@ -332,24 +393,59 @@ export class Store {
 
   log(row: Omit<ActivityRow, 'id' | 'ts'>): number {
     const result = this.db
-      .prepare('INSERT INTO activity (ts, principal, principal_name, tool, action, site, level, status, summary, request_id, revision) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
-      .run(this.now(), row.principal, row.principal_name, row.tool, row.action, row.site, row.level, row.status, row.summary.slice(0, 400), row.request_id, row.revision);
+      .prepare(
+        'INSERT INTO activity (ts, principal, principal_name, tool, action, site, level, status, summary, request_id, revision) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      )
+      .run(
+        this.now(),
+        row.principal,
+        row.principal_name,
+        row.tool,
+        row.action,
+        row.site,
+        row.level,
+        row.status,
+        row.summary.slice(0, 400),
+        row.request_id,
+        row.revision,
+      );
     return Number(result.lastInsertRowid);
   }
 
   activity(filter: { site?: string; principal?: string; limit?: number; before?: number } = {}): ActivityRow[] {
     const where: string[] = [];
     const params: (string | number)[] = [];
-    if (filter.site) { where.push('site = ?'); params.push(filter.site); }
-    if (filter.principal) { where.push('principal = ?'); params.push(filter.principal); }
-    if (filter.before) { where.push('id < ?'); params.push(filter.before); }
+    if (filter.site) {
+      where.push('site = ?');
+      params.push(filter.site);
+    }
+    if (filter.principal) {
+      where.push('principal = ?');
+      params.push(filter.principal);
+    }
+    if (filter.before) {
+      where.push('id < ?');
+      params.push(filter.before);
+    }
     params.push(Math.min(filter.limit ?? 50, 200));
-    return this.all<ActivityRow>(`SELECT * FROM activity ${where.length ? 'WHERE ' + where.join(' AND ') : ''} ORDER BY id DESC LIMIT ?`, ...params);
+    return this.all<ActivityRow>(
+      `SELECT * FROM activity ${where.length ? 'WHERE ' + where.join(' AND ') : ''} ORDER BY id DESC LIMIT ?`,
+      ...params,
+    );
   }
 
   /* ai providers */
 
-  aiProviders(): { id: string; name: string; preset: string; type: string; base_url: string; model: string; key_enc: string; created: number }[] {
+  aiProviders(): {
+    id: string;
+    name: string;
+    preset: string;
+    type: string;
+    base_url: string;
+    model: string;
+    key_enc: string;
+    created: number;
+  }[] {
     return this.all('SELECT * FROM ai_providers ORDER BY created');
   }
 
@@ -358,7 +454,17 @@ export class Store {
   }
 
   addAiProvider(p: { id: string; name: string; preset: string; type: string; base_url: string; model: string; key_enc: string }): void {
-    this.run('INSERT INTO ai_providers (id, name, preset, type, base_url, model, key_enc, created) VALUES (?, ?, ?, ?, ?, ?, ?, ?)', p.id, p.name, p.preset, p.type, p.base_url, p.model, p.key_enc, this.now());
+    this.run(
+      'INSERT INTO ai_providers (id, name, preset, type, base_url, model, key_enc, created) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      p.id,
+      p.name,
+      p.preset,
+      p.type,
+      p.base_url,
+      p.model,
+      p.key_enc,
+      this.now(),
+    );
   }
 
   removeAiProvider(id: string): void {
@@ -379,7 +485,15 @@ export class Store {
   /* hosts (Host Agents) */
 
   addHost(h: Pick<HostRow, 'name' | 'url' | 'key_id' | 'secret_enc' | 'level'>): void {
-    this.run(`INSERT INTO hosts (name, url, key_id, secret_enc, level, status, created) VALUES (?, ?, ?, ?, ?, 'new', ?)`, h.name, h.url, h.key_id, h.secret_enc, h.level, this.now());
+    this.run(
+      `INSERT INTO hosts (name, url, key_id, secret_enc, level, status, created) VALUES (?, ?, ?, ?, ?, 'new', ?)`,
+      h.name,
+      h.url,
+      h.key_id,
+      h.secret_enc,
+      h.level,
+      this.now(),
+    );
   }
 
   host(name: string): HostRow | undefined {
@@ -399,7 +513,10 @@ export class Store {
     if (ok) {
       this.run(
         `UPDATE hosts SET status = 'ok', last_ok = ?, last_error = '', agent_version = COALESCE(NULLIF(?, ''), agent_version), caps = COALESCE(NULLIF(?, ''), caps) WHERE name = ?`,
-        this.now(), info.version ?? '', info.caps === undefined ? '' : JSON.stringify(info.caps), name,
+        this.now(),
+        info.version ?? '',
+        info.caps === undefined ? '' : JSON.stringify(info.caps),
+        name,
       );
     } else {
       this.run("UPDATE hosts SET status = 'error', last_error = ? WHERE name = ?", detail.slice(0, 300), name);
@@ -429,7 +546,14 @@ export class Store {
   }
 
   projectDeployed(name: string, host: string, site: string, release: string): void {
-    this.run('UPDATE projects SET host = ?, site = ?, last_release = ?, last_deploy = ? WHERE name = ?', host, site, release, this.now(), name);
+    this.run(
+      'UPDATE projects SET host = ?, site = ?, last_release = ?, last_deploy = ? WHERE name = ?',
+      host,
+      site,
+      release,
+      this.now(),
+      name,
+    );
   }
 
   /* idempotency */
@@ -439,7 +563,13 @@ export class Store {
   }
 
   putIdem(key: string, argsHash: string, response: string): void {
-    this.run('INSERT OR REPLACE INTO idempotency (k, created, args_hash, response) VALUES (?, ?, ?, ?)', key, this.now(), argsHash, response);
+    this.run(
+      'INSERT OR REPLACE INTO idempotency (k, created, args_hash, response) VALUES (?, ?, ?, ?)',
+      key,
+      this.now(),
+      argsHash,
+      response,
+    );
   }
 
   /** Housekeeping: expired codes/tokens, old idempotency rows, activity beyond the newest 20000, unused clients. */

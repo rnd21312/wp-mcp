@@ -50,7 +50,8 @@ function needProject(app: App, name: string): ProjectRow {
 
 /** Resolves a path given by the UI or the AI inside the project folder only. */
 export function safePath(root: string, rel: string): string {
-  if (!rel || rel.includes('\0') || rel.includes('\\') || rel.startsWith('/') || /^[a-zA-Z]:/.test(rel)) throw new ProjectError('bad_path', 'That path is not allowed.');
+  if (!rel || rel.includes('\0') || rel.includes('\\') || rel.startsWith('/') || /^[a-zA-Z]:/.test(rel))
+    throw new ProjectError('bad_path', 'That path is not allowed.');
   const parts = rel.split('/').filter((p) => p && p !== '.');
   if (!parts.length || parts.some((p) => p === '..')) throw new ProjectError('bad_path', 'That path is not allowed.');
   const full = resolve(root, ...parts);
@@ -112,7 +113,10 @@ footer{padding:2rem;text-align:center;border-top:1px solid #e5e7eb}
   },
 };
 
-export function createProject(app: App, input: { name: string; kind?: string; template?: string; title?: string; rtl?: boolean }): ProjectRow {
+export function createProject(
+  app: App,
+  input: { name: string; kind?: string; template?: string; title?: string; rtl?: boolean },
+): ProjectRow {
   const name = input.name.trim().toLowerCase();
   if (!PROJECT_NAME.test(name)) throw new ProjectError('bad_name', 'Project names are 2-40 characters: a-z, 0-9 and dash.');
   if (app.store.project(name)) throw new ProjectError('name_taken', `A project named "${name}" already exists.`);
@@ -120,7 +124,7 @@ export function createProject(app: App, input: { name: string; kind?: string; te
   const framework = FRAMEWORKS[wanted];
   const template = framework ?? TEMPLATES[wanted];
   if (!template) throw new ProjectError('bad_template', 'Unknown template.');
-  const kind = (framework ? framework.kind : input.kind ?? 'static') as ProjectKind;
+  const kind = (framework ? framework.kind : (input.kind ?? 'static')) as ProjectKind;
   if (!PROJECT_KINDS.includes(kind)) throw new ProjectError('bad_kind', `Project type must be one of: ${PROJECT_KINDS.join(', ')}.`);
   const dir = projectDir(app, name);
   mkdirSync(dir, { recursive: true });
@@ -129,7 +133,11 @@ export function createProject(app: App, input: { name: string; kind?: string; te
     mkdirSync(dirname(target), { recursive: true });
     writeFileSync(target, content);
   }
-  if (framework) writeFileSync(join(dir, META), JSON.stringify({ framework: framework.framework, kind, publish: framework.publish, startup: framework.startup ?? '' }, null, 2));
+  if (framework)
+    writeFileSync(
+      join(dir, META),
+      JSON.stringify({ framework: framework.framework, kind, publish: framework.publish, startup: framework.startup ?? '' }, null, 2),
+    );
   app.store.addProject({ name, kind, publish: framework ? framework.publish : '.' });
 
   return app.store.project(name)!;
@@ -217,7 +225,16 @@ export interface DeployInput {
   node?: { appRoot?: string; docroot?: string; port?: number; env?: Record<string, string>; checkUrl?: string };
 }
 
-export async function deployProject(app: App, input: DeployInput): Promise<{ site: string; release: Release & { previous: string | null; mode: string }; files: number; bytes: number; check: { status: number; ms: number } | null }> {
+export async function deployProject(
+  app: App,
+  input: DeployInput,
+): Promise<{
+  site: string;
+  release: Release & { previous: string | null; mode: string };
+  files: number;
+  bytes: number;
+  check: { status: number; ms: number } | null;
+}> {
   const row = needProject(app, input.project);
   const host = needHost(app, input.host);
   const dir = publishDir(app, row);
@@ -225,8 +242,13 @@ export async function deployProject(app: App, input: DeployInput): Promise<{ sit
   const startup = projectMeta(app, row.name).startup || 'server.js';
   const where = relative(projectDir(app, row.name), dir) || 'the project';
   if (isNode) {
-    if (!existsSync(join(dir, startup))) throw new ProjectError('no_startup', `There is no ${startup} in ${where}. Build the project first, or add the file the host should start.`);
-  } else if (!existsSync(join(dir, 'index.html'))) throw new ProjectError('no_index', `There is no index.html in ${where}. Build the project first, or add an index.html.`);
+    if (!existsSync(join(dir, startup)))
+      throw new ProjectError(
+        'no_startup',
+        `There is no ${startup} in ${where}. Build the project first, or add the file the host should start.`,
+      );
+  } else if (!existsSync(join(dir, 'index.html')))
+    throw new ProjectError('no_index', `There is no index.html in ${where}. Build the project first, or add an index.html.`);
 
   let site = input.site || (row.host === host.name ? row.site : '');
   if (!site) {
@@ -235,16 +257,34 @@ export async function deployProject(app: App, input: DeployInput): Promise<{ sit
       const added = await app.agents.call<{ root: string }>(host, 'roots.add', { path: input.node.appRoot });
       root = added.root;
     }
-    const created = await app.agents.call<{ site: { id: string } }>(host, 'sites.create', { name: row.name, kind: row.kind, folder: input.folder ?? row.name, url: input.url ?? '', ...(isNode ? { root, startup, port: input.node?.port, docroot: input.node?.docroot, mode: 'auto' } : {}) });
+    const created = await app.agents.call<{ site: { id: string } }>(host, 'sites.create', {
+      name: row.name,
+      kind: row.kind,
+      folder: input.folder ?? row.name,
+      url: input.url ?? '',
+      ...(isNode ? { root, startup, port: input.node?.port, docroot: input.node?.docroot, mode: 'auto' } : {}),
+    });
     site = created.site.id;
   }
-  if (isNode && input.node?.env && Object.keys(input.node.env).length) await app.agents.call(host, 'sites.env', { site, env: input.node.env });
+  if (isNode && input.node?.env && Object.keys(input.node.env).length)
+    await app.agents.call(host, 'sites.env', { site, env: input.node.env });
   const packed = isNode ? zipDirectory(dir, { files: 120000, bytes: 400 * 1024 * 1024 }, { node: true }) : zipDirectory(dir);
   const release = await app.agents.deploy(host, site, packed.buffer, input.note ?? `Studio deploy of ${row.name}`);
   app.store.projectDeployed(row.name, host.name, site, release.id);
   let check: { status: number; ms: number } | null = null;
   if (isNode && input.node?.checkUrl) check = await healthCheck(app, input.node.checkUrl);
-  app.store.log({ principal: 'studio', principal_name: 'Studio', tool: 'deploy', action: 'push', site: host.name, level: 'live', status: 'ok', summary: `${row.name} -> ${host.name}/${site} (${packed.files} files, release ${release.id})`, request_id: release.id, revision: 0 });
+  app.store.log({
+    principal: 'studio',
+    principal_name: 'Studio',
+    tool: 'deploy',
+    action: 'push',
+    site: host.name,
+    level: 'live',
+    status: 'ok',
+    summary: `${row.name} -> ${host.name}/${site} (${packed.files} files, release ${release.id})`,
+    request_id: release.id,
+    revision: 0,
+  });
 
   return { site, release, files: packed.files, bytes: packed.bytes, check };
 }

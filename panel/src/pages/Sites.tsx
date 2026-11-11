@@ -29,10 +29,21 @@ export function Sites({ state, reload }: { state: State; reload: () => Promise<v
   };
   const updateBridge = async (name: string): Promise<void> => {
     setBusy(`up:${name}`);
-    const r = await run('maintain', 'update', { type: 'plugin', slug: 'wp-mcp-bridge/wp-mcp-bridge.php' }, { site: name, quiet: true, silent: true });
+    const r = await run(
+      'maintain',
+      'update',
+      { type: 'plugin', slug: 'wp-mcp-bridge/wp-mcp-bridge.php' },
+      { site: name, quiet: true, silent: true },
+    );
     setBusy('');
     if (r.ok) toast.success(t('Bridge updated', 'افزونه به‌روز شد'));
-    else if (!r.cancelled) toast.error(r.error?.message ?? 'Update failed', { description: t('Older bridges (before 2.3) cannot update themselves: upload the new zip once in WordPress.', 'افزونه‌های قدیمی‌تر از ۲.۳ خودشان را به‌روز نمی‌کنند: یک بار زیپ جدید را در وردپرس آپلود کنید.') });
+    else if (!r.cancelled)
+      toast.error(r.error?.message ?? 'Update failed', {
+        description: t(
+          'Older bridges (before 2.3) cannot update themselves: upload the new zip once in WordPress.',
+          'افزونه‌های قدیمی‌تر از ۲.۳ خودشان را به‌روز نمی‌کنند: یک بار زیپ جدید را در وردپرس آپلود کنید.',
+        ),
+      });
     await api.post('sites/test', { name });
     await reload();
   };
@@ -54,12 +65,23 @@ export function Sites({ state, reload }: { state: State; reload: () => Promise<v
     a.download = r.filename;
     a.click();
     URL.revokeObjectURL(url);
-    toast.success(t(`Plugin ${r.version} downloaded. Upload it in Plugins → Add New (replace the old one).`, `افزونه ${r.version} دانلود شد. در «افزونه‌ها ← افزودن» آپلود و جایگزین کنید.`));
+    toast.success(
+      t(
+        `Plugin ${r.version} downloaded. Upload it in Plugins → Add New (replace the old one).`,
+        `افزونه ${r.version} دانلود شد. در «افزونه‌ها ← افزودن» آپلود و جایگزین کنید.`,
+      ),
+    );
   };
 
   return (
     <>
-      <PageTitle title={t('Sites', 'سایت‌ها')} hint={t('Every WordPress site the AI can work on. Names are unique and shown in every result.', 'همه‌ی سایت‌های وردپرسی که هوش مصنوعی می‌تواند رویشان کار کند. نام‌ها یکتا هستند و در هر نتیجه تکرار می‌شوند.')}>
+      <PageTitle
+        title={t('Sites', 'سایت‌ها')}
+        hint={t(
+          'Every WordPress site the AI can work on. Names are unique and shown in every result.',
+          'همه‌ی سایت‌های وردپرسی که هوش مصنوعی می‌تواند رویشان کار کند. نام‌ها یکتا هستند و در هر نتیجه تکرار می‌شوند.',
+        )}
+      >
         <Button variant="outline" onClick={downloadPlugin}>
           <DownloadIcon /> {t('Download plugin', 'دانلود افزونه')}
         </Button>
@@ -71,7 +93,10 @@ export function Sites({ state, reload }: { state: State; reload: () => Promise<v
       {state.sites.length === 0 ? (
         <Empty>
           <GlobeIcon className="mx-auto mb-3 size-8 opacity-50" />
-          {t('No site yet. Install the plugin on your site, create a pairing code and connect it here.', 'هنوز سایتی نیست. افزونه را روی سایت نصب کنید، کد جفت‌سازی بسازید و اینجا وصلش کنید.')}
+          {t(
+            'No site yet. Install the plugin on your site, create a pairing code and connect it here.',
+            'هنوز سایتی نیست. افزونه را روی سایت نصب کنید، کد جفت‌سازی بسازید و اینجا وصلش کنید.',
+          )}
         </Empty>
       ) : (
         <div className="grid gap-4 md:grid-cols-2">
@@ -98,7 +123,9 @@ export function Sites({ state, reload }: { state: State; reload: () => Promise<v
                       <DownloadIcon /> {t(`Update to ${state.version}`, `به‌روزرسانی به ${state.version}`)}
                     </Button>
                   )}
-                  <span>{t('Last OK', 'آخرین موفق')}: {ago(s.last_ok, lang)}</span>
+                  <span>
+                    {t('Last OK', 'آخرین موفق')}: {ago(s.last_ok, lang)}
+                  </span>
                 </div>
                 {s.status === 'error' && s.last_error && (
                   <Alert variant="destructive">
@@ -140,10 +167,17 @@ export function Sites({ state, reload }: { state: State; reload: () => Promise<v
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{t('Remove this site?', 'این سایت حذف شود؟')}</DialogTitle>
-            <DialogDescription>{t('Only the connection is removed. Nothing changes on the website; you can connect it again with a new pairing code.', 'فقط اتصال حذف می‌شود. روی خود وب‌سایت چیزی عوض نمی‌شود و با کد جفت‌سازی تازه می‌توانید دوباره وصلش کنید.')}</DialogDescription>
+            <DialogDescription>
+              {t(
+                'Only the connection is removed. Nothing changes on the website; you can connect it again with a new pairing code.',
+                'فقط اتصال حذف می‌شود. روی خود وب‌سایت چیزی عوض نمی‌شود و با کد جفت‌سازی تازه می‌توانید دوباره وصلش کنید.',
+              )}
+            </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setRemoving(null)}>{t('Cancel', 'انصراف')}</Button>
+            <Button variant="outline" onClick={() => setRemoving(null)}>
+              {t('Cancel', 'انصراف')}
+            </Button>
             <Button
               variant="destructive"
               onClick={async () => {
@@ -194,7 +228,10 @@ function AddSite({ open, onClose, state, reload }: { open: boolean; onClose: () 
         <DialogHeader>
           <DialogTitle>{t('Connect a site', 'اتصال سایت')}</DialogTitle>
           <DialogDescription>
-            {t('In WordPress open Tools → WP MCP Bridge and press "Create pairing code". The code works once for 15 minutes.', 'در وردپرس به ابزارها ← WP MCP Bridge بروید و «Create pairing code» را بزنید. کد ۱۵ دقیقه و فقط یک بار معتبر است.')}
+            {t(
+              'In WordPress open Tools → WP MCP Bridge and press "Create pairing code". The code works once for 15 minutes.',
+              'در وردپرس به ابزارها ← WP MCP Bridge بروید و «Create pairing code» را بزنید. کد ۱۵ دقیقه و فقط یک بار معتبر است.',
+            )}
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-3">
@@ -223,8 +260,12 @@ function AddSite({ open, onClose, state, reload }: { open: boolean; onClose: () 
           )}
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>{t('Cancel', 'انصراف')}</Button>
-          <Button disabled={busy || !url || !code} onClick={submit}>{busy ? t('Connecting…', 'در حال اتصال…') : t('Connect', 'اتصال')}</Button>
+          <Button variant="outline" onClick={onClose}>
+            {t('Cancel', 'انصراف')}
+          </Button>
+          <Button disabled={busy || !url || !code} onClick={submit}>
+            {busy ? t('Connecting…', 'در حال اتصال…') : t('Connect', 'اتصال')}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

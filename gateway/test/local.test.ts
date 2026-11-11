@@ -11,7 +11,11 @@ describe('local passwordless panel', () => {
   afterAll(() => env.stop());
 
   const api = (path: string, body?: unknown, headers: Record<string, string> = {}) =>
-    fetch(`${env.base}/admin/api/${path}`, { method: body === undefined ? 'GET' : 'POST', headers: { 'x-wpm-panel': '1', ...(body === undefined ? {} : { 'content-type': 'application/json' }), ...headers }, body: body === undefined ? undefined : JSON.stringify(body) });
+    fetch(`${env.base}/admin/api/${path}`, {
+      method: body === undefined ? 'GET' : 'POST',
+      headers: { 'x-wpm-panel': '1', ...(body === undefined ? {} : { 'content-type': 'application/json' }), ...headers },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
 
   it('needs no password or token', async () => {
     const res = await api('state');
@@ -33,10 +37,13 @@ describe('local passwordless panel', () => {
   it('refuses a foreign Host header (DNS rebinding)', async () => {
     const port = (env.server.address() as AddressInfo).port;
     const status = await new Promise<number>((resolve) => {
-      const req = http.request({ host: '127.0.0.1', port, path: '/admin/api/state', headers: { host: 'evil.example', 'x-wpm-panel': '1' } }, (res) => {
-        res.resume();
-        resolve(res.statusCode ?? 0);
-      });
+      const req = http.request(
+        { host: '127.0.0.1', port, path: '/admin/api/state', headers: { host: 'evil.example', 'x-wpm-panel': '1' } },
+        (res) => {
+          res.resume();
+          resolve(res.statusCode ?? 0);
+        },
+      );
       req.end();
     });
     expect(status).toBe(403);
@@ -46,16 +53,27 @@ describe('local passwordless panel', () => {
     const ok = (await (await api('run', { tool: 'content', action: 'list', site: 'alpha', level: 'read', args: {} })).json()) as any;
     expect(ok.ok).toBe(true);
     expect(ok.site).toBe('alpha');
-    const denied = (await (await api('run', { tool: 'content', action: 'trash', site: 'alpha', level: 'read', args: { id: 1 } })).json()) as any;
+    const denied = (await (
+      await api('run', { tool: 'content', action: 'trash', site: 'alpha', level: 'read', args: { id: 1 } })
+    ).json()) as any;
     expect(denied.error.code).toBe('level_too_low');
   });
 
   it('keeps the confirmation step', async () => {
     env.sites.alpha.answers['plugins.delete'] = (args, call) => (call.dry_run ? { will_delete: args.plugin } : { deleted: args.plugin });
-    const first = (await (await api('run', { tool: 'plugins', action: 'delete', site: 'alpha', level: 'admin', args: { plugin: 'a/a.php' } })).json()) as any;
+    const first = (await (
+      await api('run', { tool: 'plugins', action: 'delete', site: 'alpha', level: 'admin', args: { plugin: 'a/a.php' } })
+    ).json()) as any;
     expect(first.needs_confirmation).toBe(true);
     expect(env.sites.alpha.executed('plugins.delete')).toHaveLength(0);
-    await api('run', { tool: 'plugins', action: 'delete', site: 'alpha', level: 'admin', args: { plugin: 'a/a.php' }, confirm_token: first.confirm_token });
+    await api('run', {
+      tool: 'plugins',
+      action: 'delete',
+      site: 'alpha',
+      level: 'admin',
+      args: { plugin: 'a/a.php' },
+      confirm_token: first.confirm_token,
+    });
     expect(env.sites.alpha.executed('plugins.delete')).toHaveLength(1);
   });
 

@@ -14,7 +14,11 @@ const here = dirname(fileURLToPath(import.meta.url));
 
 /** The bridge plugin sources: next to the build (dist/plugin) or in the repository. */
 export function bridgeSourceDir(): string {
-  const found = [resolve(here, 'plugin'), resolve(here, '..', '..', 'plugin', 'wp-mcp-bridge'), resolve(here, '..', 'plugin', 'wp-mcp-bridge')].find((d) => existsSync(join(d, 'wp-mcp-bridge.php')));
+  const found = [
+    resolve(here, 'plugin'),
+    resolve(here, '..', '..', 'plugin', 'wp-mcp-bridge'),
+    resolve(here, '..', 'plugin', 'wp-mcp-bridge'),
+  ].find((d) => existsSync(join(d, 'wp-mcp-bridge.php')));
   if (!found) throw new Error('The WP MCP Bridge plugin sources were not found next to the Studio.');
 
   return found;
@@ -89,7 +93,8 @@ export async function createWordPress(app: App, input: WordPressInput): Promise<
   const adminPassword = input.adminPassword || randomBytes(15).toString('base64url');
   if (!/^[A-Za-z0-9_.@-]{3,60}$/.test(adminUser)) throw new AgentError('bad_admin', 'Administrator name: 3-60 letters, digits or . _ - @');
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(input.adminEmail)) throw new AgentError('bad_email', 'Enter a valid administrator email.');
-  if (adminPassword.length < 12) throw new AgentError('weak_password', 'The administrator password must be at least 12 characters (leave it empty to generate one).');
+  if (adminPassword.length < 12)
+    throw new AgentError('weak_password', 'The administrator password must be at least 12 characters (leave it empty to generate one).');
 
   // 1. the site slot on the host
   const created = await app.agents.call<{ site: { id: string } }>(host, 'sites.create', { name, kind: 'wordpress', folder, url });
@@ -102,36 +107,84 @@ export async function createWordPress(app: App, input: WordPressInput): Promise<
   let installed: { wp_version: string };
   try {
     const bridge = await app.agents.upload(host, buildBridgeZip());
-    installed = await app.agents.call<{ wp_version: string }>(host, 'wp.install', { site: siteId, db: input.db, bridge_upload: bridge }, { timeoutMs: 600000 });
+    installed = await app.agents.call<{ wp_version: string }>(
+      host,
+      'wp.install',
+      { site: siteId, db: input.db, bridge_upload: bridge },
+      { timeoutMs: 600000 },
+    );
   } catch (error) {
     await cleanup();
     throw error;
   }
 
   // 3. the standard WordPress installer, run from here over HTTP (the host often cannot call itself)
-  const policy = { allowPrivate: app.config.allowPrivateSites, allowHttp: app.config.allowInsecureSites, allowSelfSigned: app.config.allowSelfSignedSites };
-  const form = new URLSearchParams({ weblog_title: input.title, user_name: adminUser, admin_password: adminPassword, admin_password2: adminPassword, admin_email: input.adminEmail, blog_public: input.searchEngines === false ? '0' : '1', pw_weak: '1', Submit: 'Install WordPress', language: input.locale ?? '' }).toString();
+  const policy = {
+    allowPrivate: app.config.allowPrivateSites,
+    allowHttp: app.config.allowInsecureSites,
+    allowSelfSigned: app.config.allowSelfSignedSites,
+  };
+  const form = new URLSearchParams({
+    weblog_title: input.title,
+    user_name: adminUser,
+    admin_password: adminPassword,
+    admin_password2: adminPassword,
+    admin_email: input.adminEmail,
+    blog_public: input.searchEngines === false ? '0' : '1',
+    pw_weak: '1',
+    Submit: 'Install WordPress',
+    language: input.locale ?? '',
+  }).toString();
   let done = false;
   let lastStatus = 0;
   for (let attempt = 0; attempt < 5 && !done; attempt++) {
     if (attempt) await sleep(timing.retryMs * attempt);
     try {
-      const res = await safeRequest(`${url}wp-admin/install.php?step=2`, policy, { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded', 'content-length': String(Buffer.byteLength(form)) }, body: form, timeoutMs: 120000, maxBytes: 2 * 1024 * 1024 });
+      const res = await safeRequest(`${url}wp-admin/install.php?step=2`, policy, {
+        method: 'POST',
+        headers: { 'content-type': 'application/x-www-form-urlencoded', 'content-length': String(Buffer.byteLength(form)) },
+        body: form,
+        timeoutMs: 120000,
+        maxBytes: 2 * 1024 * 1024,
+      });
       lastStatus = res.status;
       const text = res.body.toString('utf8');
       if (res.status === 200 && /Success!|already installed|نصب شد|وردپرس قبلاً/i.test(text)) done = true;
-      else if (res.status >= 300 && res.status < 400) throw new AgentError('site_redirects', `The new site redirects (HTTP ${res.status}). Give the final address (https, www) in the URL field and try again.`);
+      else if (res.status >= 300 && res.status < 400)
+        throw new AgentError(
+          'site_redirects',
+          `The new site redirects (HTTP ${res.status}). Give the final address (https, www) in the URL field and try again.`,
+        );
     } catch (error) {
       if (error instanceof AgentError) throw error;
       lastStatus = 0;
     }
   }
-  if (!done) throw new AgentError('wp_install_failed', `WordPress files are on the host, but its installer did not answer correctly at ${url} (last HTTP status ${lastStatus || 'none'}). Open ${url}wp-admin/install.php in a browser to finish by hand; the files and database are ready.`);
+  if (!done)
+    throw new AgentError(
+      'wp_install_failed',
+      `WordPress files are on the host, but its installer did not answer correctly at ${url} (last HTTP status ${lastStatus || 'none'}). Open ${url}wp-admin/install.php in a browser to finish by hand; the files and database are ready.`,
+    );
 
   // 4. activate the bridge and let it hand over a pairing code, then pair like any other site
-  const finished = await app.agents.call<{ pairing_code: string }>(host, 'wp.finish', { site: siteId, admin_user: adminUser, ceiling: 'admin' });
+  const finished = await app.agents.call<{ pairing_code: string }>(host, 'wp.finish', {
+    site: siteId,
+    admin_user: adminUser,
+    ceiling: 'admin',
+  });
   const site = await addSite(app, { url: url.replace(/\/$/, ''), code: finished.pairing_code, name });
-  app.store.log({ principal: 'studio', principal_name: 'Studio', tool: 'wordpress', action: 'create', site: name, level: 'admin', status: 'ok', summary: `WordPress ${installed.wp_version} created on ${host.name}/${siteId}`, request_id: siteId, revision: 0 });
+  app.store.log({
+    principal: 'studio',
+    principal_name: 'Studio',
+    tool: 'wordpress',
+    action: 'create',
+    site: name,
+    level: 'admin',
+    status: 'ok',
+    summary: `WordPress ${installed.wp_version} created on ${host.name}/${siteId}`,
+    request_id: siteId,
+    revision: 0,
+  });
 
   return { site, url, admin_user: adminUser, admin_password: adminPassword, wp_version: installed.wp_version };
 }

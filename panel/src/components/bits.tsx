@@ -6,7 +6,19 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useI18n } from '@/lib/i18n';
 
-export function Pick({ value, onChange, options, className, size }: { value: string; onChange: (v: string) => void; options: { value: string; label: string }[]; className?: string; size?: 'sm' | 'default' }) {
+export function Pick({
+  value,
+  onChange,
+  options,
+  className,
+  size,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  options: { value: string; label: string }[];
+  className?: string;
+  size?: 'sm' | 'default';
+}) {
   const items = Object.fromEntries(options.map((o) => [o.value, o.label]));
 
   return (
@@ -41,7 +53,12 @@ export function Code({ children }: { children: string }) {
 
   return (
     <div className="relative">
-      <pre dir="ltr" className="overflow-x-auto rounded-lg border bg-muted/50 p-3 pe-12 text-start font-mono text-xs leading-relaxed whitespace-pre-wrap break-all">{children}</pre>
+      <pre
+        dir="ltr"
+        className="overflow-x-auto rounded-lg border bg-muted/50 p-3 pe-12 text-start font-mono text-xs leading-relaxed whitespace-pre-wrap break-all"
+      >
+        {children}
+      </pre>
       <Button variant="ghost" size="icon-sm" className="absolute end-1.5 top-1.5" onClick={copy} aria-label="copy">
         {done ? <CheckIcon /> : <CopyIcon />}
       </Button>
@@ -56,16 +73,36 @@ const LEVEL_STYLE: Record<string, string> = {
   admin: 'bg-rose-500/15 text-rose-700 dark:text-rose-300',
 };
 
-export const LevelBadge = ({ level }: { level: string }) => <Badge className={LEVEL_STYLE[level] ?? ''} variant="secondary">{level}</Badge>;
+export const LevelBadge = ({ level }: { level: string }) => (
+  <Badge className={LEVEL_STYLE[level] ?? ''} variant="secondary">
+    {level}
+  </Badge>
+);
 
 export function StatusBadge({ status }: { status: string }) {
   const { t } = useI18n();
   const ok = status === 'ok';
-  const map: Record<string, [string, string]> = { ok: ['Connected', 'متصل'], error: ['Problem', 'مشکل'], new: ['New', 'جدید'], denied: ['Denied', 'رد شد'], pending: ['Needs OK', 'منتظر تأیید'], dry_run: ['Preview', 'پیش‌نمایش'] };
+  const map: Record<string, [string, string]> = {
+    ok: ['Connected', 'متصل'],
+    error: ['Problem', 'مشکل'],
+    new: ['New', 'جدید'],
+    denied: ['Denied', 'رد شد'],
+    pending: ['Needs OK', 'منتظر تأیید'],
+    dry_run: ['Preview', 'پیش‌نمایش'],
+  };
   const [en, fa] = map[status] ?? [status, status];
 
   return (
-    <Badge variant="secondary" className={ok ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300' : status === 'error' || status === 'denied' ? 'bg-rose-500/15 text-rose-700 dark:text-rose-300' : ''}>
+    <Badge
+      variant="secondary"
+      className={
+        ok
+          ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300'
+          : status === 'error' || status === 'denied'
+            ? 'bg-rose-500/15 text-rose-700 dark:text-rose-300'
+            : ''
+      }
+    >
       {t(en, fa)}
     </Badge>
   );
@@ -83,4 +120,6 @@ export function PageTitle({ title, hint, children }: { title: string; hint?: str
   );
 }
 
-export const Empty = ({ children }: { children: ReactNode }) => <div className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">{children}</div>;
+export const Empty = ({ children }: { children: ReactNode }) => (
+  <div className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">{children}</div>
+);

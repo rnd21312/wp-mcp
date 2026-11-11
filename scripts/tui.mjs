@@ -35,7 +35,15 @@ export const olderThan = (a, b) => {
 };
 
 /** PIDs listening on a port from `netstat -ano` output (Windows). */
-export const parseNetstat = (text, port) => [...new Set(text.split(/\r?\n/).map((l) => /^\s*TCP\s+\S+:(\d+)\s+\S+\s+LISTENING\s+(\d+)/.exec(l)).filter((m) => m && Number(m[1]) === port).map((m) => Number(m[2])))];
+export const parseNetstat = (text, port) => [
+  ...new Set(
+    text
+      .split(/\r?\n/)
+      .map((l) => /^\s*TCP\s+\S+:(\d+)\s+\S+\s+LISTENING\s+(\d+)/.exec(l))
+      .filter((m) => m && Number(m[1]) === port)
+      .map((m) => Number(m[2])),
+  ),
+];
 
 export const pad = (s, n) => (String(s).length >= n ? String(s).slice(0, n - 1) + ' ' : String(s) + ' '.repeat(n - String(s).length));
 
@@ -46,14 +54,20 @@ const version = () => {
     return '?';
   }
 };
-const built = () => existsSync(join(ROOT, 'gateway', 'dist', 'index.js')) && existsSync(join(ROOT, 'gateway', 'dist', 'panel', 'index.html'));
+const built = () =>
+  existsSync(join(ROOT, 'gateway', 'dist', 'index.js')) && existsSync(join(ROOT, 'gateway', 'dist', 'panel', 'index.html'));
 const QUIET = { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] };
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 /* ------------------------------------------------------------------ panel process */
 
 async function call(path, body, timeout = 120000) {
-  const res = await fetch(`${BASE}/admin/api/${path}`, { method: body === undefined ? 'GET' : 'POST', headers: { 'x-wpm-panel': '1', ...(body === undefined ? {} : { 'content-type': 'application/json' }) }, body: body === undefined ? undefined : JSON.stringify(body), signal: AbortSignal.timeout(timeout) });
+  const res = await fetch(`${BASE}/admin/api/${path}`, {
+    method: body === undefined ? 'GET' : 'POST',
+    headers: { 'x-wpm-panel': '1', ...(body === undefined ? {} : { 'content-type': 'application/json' }) },
+    body: body === undefined ? undefined : JSON.stringify(body),
+    signal: AbortSignal.timeout(timeout),
+  });
 
   return await res.json();
 }
@@ -72,7 +86,10 @@ function pidsOn(port) {
   try {
     if (WIN) return parseNetstat(execFileSync('netstat', ['-ano', '-p', 'tcp'], QUIET), port);
 
-    return execFileSync('lsof', ['-ti', `tcp:${port}`, '-sTCP:LISTEN'], QUIET).split(/\s+/).filter(Boolean).map(Number);
+    return execFileSync('lsof', ['-ti', `tcp:${port}`, '-sTCP:LISTEN'], QUIET)
+      .split(/\s+/)
+      .filter(Boolean)
+      .map(Number);
   } catch {
     return [];
   }
@@ -80,7 +97,9 @@ function pidsOn(port) {
 
 function isNodePid(pid) {
   try {
-    const out = WIN ? execFileSync('tasklist', ['/FI', `PID eq ${pid}`, '/FO', 'CSV', '/NH'], QUIET) : execFileSync('ps', ['-p', String(pid), '-o', 'comm='], QUIET);
+    const out = WIN
+      ? execFileSync('tasklist', ['/FI', `PID eq ${pid}`, '/FO', 'CSV', '/NH'], QUIET)
+      : execFileSync('ps', ['-p', String(pid), '-o', 'comm='], QUIET);
 
     return /node/i.test(out);
   } catch {
@@ -95,7 +114,13 @@ export async function startPanel(extraEnv = {}) {
   if (busy.length) return { ok: false, note: `Port ${busy.join(' and ')} is used by another program. Stop it first.` };
   mkdirSync(RUN_DIR, { recursive: true });
   const fd = openSync(LOG, 'a');
-  const child = spawn(process.execPath, [join(ROOT, 'gateway', 'dist', 'index.js'), 'local'], { cwd: ROOT, detached: true, windowsHide: true, stdio: ['ignore', fd, fd], env: { ...process.env, WPMCP_PUBLIC_URL: BASE, ...extraEnv } });
+  const child = spawn(process.execPath, [join(ROOT, 'gateway', 'dist', 'index.js'), 'local'], {
+    cwd: ROOT,
+    detached: true,
+    windowsHide: true,
+    stdio: ['ignore', fd, fd],
+    env: { ...process.env, WPMCP_PUBLIC_URL: BASE, ...extraEnv },
+  });
   child.unref();
   for (let i = 0; i < 40; i++) {
     await sleep(500);
@@ -124,7 +149,9 @@ export async function stopPanel() {
   }
   for (let i = 0; i < 20 && pidsOn(PORT).length; i++) await sleep(250);
 
-  return left.length ? { ok: false, note: `Port in use by a program that is not Node (PID ${left.join(', ')}); left alone.` } : { ok: true, note: 'Stopped.' };
+  return left.length
+    ? { ok: false, note: `Port in use by a program that is not Node (PID ${left.join(', ')}); left alone.` }
+    : { ok: true, note: 'Stopped.' };
 }
 
 function openBrowser(url) {
@@ -144,7 +171,15 @@ const TUNNEL_LOG = join(RUN_DIR, 'tunnel.log');
 export const parseTunnelUrl = (text) => /https:\/\/[a-z0-9-]+\.trycloudflare\.com/i.exec(text)?.[0] ?? null;
 
 const findCloudflared = () => {
-  const candidates = ['cloudflared', ...(WIN ? [join(process.env['ProgramFiles(x86)'] || 'C:/Program Files (x86)', 'cloudflared', 'cloudflared.exe'), join(process.env.ProgramFiles || 'C:/Program Files', 'cloudflared', 'cloudflared.exe')] : [])];
+  const candidates = [
+    'cloudflared',
+    ...(WIN
+      ? [
+          join(process.env['ProgramFiles(x86)'] || 'C:/Program Files (x86)', 'cloudflared', 'cloudflared.exe'),
+          join(process.env.ProgramFiles || 'C:/Program Files', 'cloudflared', 'cloudflared.exe'),
+        ]
+      : []),
+  ];
   for (const c of candidates) {
     if (c !== 'cloudflared' && !existsSync(c)) continue;
     try {
@@ -180,12 +215,20 @@ export function stopTunnel() {
 export async function startConnector(level = 'live') {
   if (!built()) return { ok: false, note: 'Not built yet. Choose "Rebuild" first.' };
   const bin = findCloudflared();
-  if (!bin) return { ok: false, note: 'cloudflared is not installed. Install it once (winget install Cloudflare.cloudflared), reopen the terminal, and try again.' };
+  if (!bin)
+    return {
+      ok: false,
+      note: 'cloudflared is not installed. Install it once (winget install Cloudflare.cloudflared), reopen the terminal, and try again.',
+    };
   await stopPanel();
   mkdirSync(RUN_DIR, { recursive: true });
   writeFileSync(TUNNEL_LOG, '');
   const fd = openSync(TUNNEL_LOG, 'a');
-  const tunnel = spawn(bin, ['tunnel', '--no-autoupdate', '--protocol', 'http2', '--url', BASE], { detached: true, windowsHide: true, stdio: ['ignore', fd, fd] });
+  const tunnel = spawn(bin, ['tunnel', '--no-autoupdate', '--protocol', 'http2', '--url', BASE], {
+    detached: true,
+    windowsHide: true,
+    stdio: ['ignore', fd, fd],
+  });
   tunnel.unref();
   writeFileSync(TUNNEL_PID, String(tunnel.pid));
   let url = null;
@@ -210,12 +253,33 @@ export async function startConnector(level = 'live') {
 }
 
 async function connectorScreen() {
-  const pick = await menu('Claude.ai connector', [{ label: 'Start with level live', hint: 'recommended' }, { label: 'Start with level admin' }, { label: 'Start with level draft' }, { label: 'Stop the connector', hint: 'stops the tunnel and the panel' }, { label: dim('Back') }], [dim('Opens a temporary public https address for this computer. The address changes each time.'), dim('No login: anyone who knows the address can use your sites. Do not share it. Stop it when done.')]);
+  const pick = await menu(
+    'Claude.ai connector',
+    [
+      { label: 'Start with level live', hint: 'recommended' },
+      { label: 'Start with level admin' },
+      { label: 'Start with level draft' },
+      { label: 'Stop the connector', hint: 'stops the tunnel and the panel' },
+      { label: dim('Back') },
+    ],
+    [
+      dim('Opens a temporary public https address for this computer. The address changes each time.'),
+      dim('No login: anyone who knows the address can use your sites. Do not share it. Stop it when done.'),
+    ],
+  );
   if (pick === -1 || pick === 4) return;
   if (pick === 3) return show([green((await stopPanel()).note)]);
   const r = await startConnector(pick === 0 ? 'live' : pick === 1 ? 'admin' : 'draft');
   if (!r.ok) return show([red(r.note)]);
-  await show([green('Connector is on.'), '', `In Claude.ai: Settings → Connectors → Add custom connector, then paste:`, '', bold(r.url), '', dim(`Keep the panel running; Stop the connector when you finish.`)]);
+  await show([
+    green('Connector is on.'),
+    '',
+    `In Claude.ai: Settings → Connectors → Add custom connector, then paste:`,
+    '',
+    bold(r.url),
+    '',
+    dim(`Keep the panel running; Stop the connector when you finish.`),
+  ]);
 }
 
 /* ------------------------------------------------------------------ sites */
@@ -290,7 +354,9 @@ async function menu(title, items, header = []) {
     out(bold(cyan(title)));
     for (const h of header) out(h);
     out();
-    items.forEach((it, n) => out(`${n === i ? cyan('›') : ' '} ${n === i ? bold(it.label) : it.label}${it.hint ? '  ' + dim(it.hint) : ''}`));
+    items.forEach((it, n) =>
+      out(`${n === i ? cyan('›') : ' '} ${n === i ? bold(it.label) : it.label}${it.hint ? '  ' + dim(it.hint) : ''}`),
+    );
     out();
     out(dim('↑/↓ move · Enter choose · 1-9 jump · q back'));
     const k = await nextKey();
@@ -360,7 +426,16 @@ async function sitesScreen() {
   for (;;) {
     const sites = state.sites;
     const header = [dim(`Latest bridge: ${state.version}`), '', dim(pad('SITE', 18) + pad('STATUS', 8) + pad('WORDPRESS', 11) + 'BRIDGE')];
-    const items = sites.map((s) => ({ label: pad(s.name, 18) + (s.status === 'ok' ? green(pad('ok', 8)) : red(pad(s.status, 8))) + pad(s.wp_version || '?', 11) + (olderThan(s.plugin_version || '0.0.0', state.version) ? yellow(`${s.plugin_version || '?'} → ${state.version}`) : green(s.plugin_version || '?')), hint: '' }));
+    const items = sites.map((s) => ({
+      label:
+        pad(s.name, 18) +
+        (s.status === 'ok' ? green(pad('ok', 8)) : red(pad(s.status, 8))) +
+        pad(s.wp_version || '?', 11) +
+        (olderThan(s.plugin_version || '0.0.0', state.version)
+          ? yellow(`${s.plugin_version || '?'} → ${state.version}`)
+          : green(s.plugin_version || '?')),
+      hint: '',
+    }));
     items.push({ label: dim('Refresh now') }, { label: dim('Back') });
     const pick = await menu('Sites', items, header);
     if (pick === -1 || pick === items.length - 1) return;
@@ -385,7 +460,9 @@ async function siteScreen(site, state) {
       { label: red('Remove from WP MCP'), hint: 'the plugin stays on the site' },
       { label: dim('Back') },
     ];
-    const pick = await menu(`${site.name}  ${dim(site.url)}`, items, [dim(`WordPress ${site.wp_version || '?'} · bridge ${site.plugin_version || '?'} · ${site.status}`)]);
+    const pick = await menu(`${site.name}  ${dim(site.url)}`, items, [
+      dim(`WordPress ${site.wp_version || '?'} · bridge ${site.plugin_version || '?'} · ${site.status}`),
+    ]);
     if (pick === -1 || pick === 5) return;
     if (pick === 0) {
       const r = await call('sites/test', { name: site.name });
@@ -398,13 +475,23 @@ async function siteScreen(site, state) {
         return confirm('Update the bridge on this live site now?');
       });
       if (r.cancelled) continue;
-      await show([r.ok ? green(`Updated ${r.data.from} → ${r.data.to}`) : red(r.error?.message || 'Failed'), r.ok ? '' : dim('Bridges older than 2.3 cannot update themselves: upload the zip once in WordPress (Plugins → Add New → Upload → replace).')]);
+      await show([
+        r.ok ? green(`Updated ${r.data.from} → ${r.data.to}`) : red(r.error?.message || 'Failed'),
+        r.ok
+          ? ''
+          : dim(
+              'Bridges older than 2.3 cannot update themselves: upload the zip once in WordPress (Plugins → Add New → Upload → replace).',
+            ),
+      ]);
       await call('sites/test', { name: site.name }).catch(() => null);
       site = (await call('state')).sites.find((s) => s.name === site.name) || site;
     } else if (pick === 2) openBrowser(site.url);
     else if (pick === 3) {
       const levels = state.levels;
-      const l = await menu(`Highest level on ${site.name}`, levels.map((x) => ({ label: x, hint: x === site.max_level ? 'current' : '' })));
+      const l = await menu(
+        `Highest level on ${site.name}`,
+        levels.map((x) => ({ label: x, hint: x === site.max_level ? 'current' : '' })),
+      );
       if (l >= 0) {
         await call('sites/level', { name: site.name, level: levels[l] });
         site = (await call('state')).sites.find((s) => s.name === site.name) || site;
@@ -431,7 +518,9 @@ async function connectScreen() {
   if (!code) return;
   const name = await ask('Name (optional)');
   const r = await call('sites/add', { url, code, name: name || undefined, maxLevel: 'admin' }, 60000);
-  await show([r.ok ? green(`Connected ${r.site.name} (bridge ${r.site.plugin_version}).`) : red(r.error?.message || r.message || 'Failed')]);
+  await show([
+    r.ok ? green(`Connected ${r.site.name} (bridge ${r.site.plugin_version}).`) : red(r.error?.message || r.message || 'Failed'),
+  ]);
 }
 
 async function logScreen() {
@@ -446,7 +535,11 @@ function runInherit(cmd, args, cwd = ROOT, env = {}) {
 }
 
 export async function rebuild() {
-  const steps = [['npm', ['--prefix', 'gateway', 'ci']], ['npm', ['--prefix', 'panel', 'ci']], ['npm', ['--prefix', 'gateway', 'run', 'build']]];
+  const steps = [
+    ['npm', ['--prefix', 'gateway', 'ci']],
+    ['npm', ['--prefix', 'panel', 'ci']],
+    ['npm', ['--prefix', 'gateway', 'run', 'build']],
+  ];
   for (const [cmd, args] of steps) {
     out(bold(`\n> ${cmd} ${args.join(' ')}`));
     if (!runInherit(cmd, args)) return false;
@@ -487,17 +580,30 @@ export async function doctor() {
     add(state.sites.length > 0 ? true : null, `${state.sites.length} site(s) connected · data in ${state.dataDir}`);
     for (const s of state.sites) {
       const old = olderThan(s.plugin_version || '0.0.0', state.version);
-      add(s.status === 'ok' && !old ? true : s.status === 'ok' ? null : false, `${s.name}: ${s.status}, bridge ${s.plugin_version || '?'}${old ? ` (latest ${state.version}: update it)` : ''}`);
+      add(
+        s.status === 'ok' && !old ? true : s.status === 'ok' ? null : false,
+        `${s.name}: ${s.status}, bridge ${s.plugin_version || '?'}${old ? ` (latest ${state.version}: update it)` : ''}`,
+      );
     }
   }
   const key = process.env.WPM_RELEASE_KEY || join(homedir(), 'wpm-release-key', 'wpm-release-private.pem');
-  add(existsSync(key) ? true : null, existsSync(key) ? `Release key found (${key}). Keep a backup of it.` : 'No release key on this computer (only needed to publish releases)');
+  add(
+    existsSync(key) ? true : null,
+    existsSync(key)
+      ? `Release key found (${key}). Keep a backup of it.`
+      : 'No release key on this computer (only needed to publish releases)',
+  );
 
   return lines;
 }
 
 async function releaseScreen() {
-  const items = [{ label: 'Build signed release files', hint: 'npm run release → dist/' }, { label: 'Publish the release on GitHub', hint: 'gh release create' }, { label: 'Open the dist folder' }, { label: dim('Back') }];
+  const items = [
+    { label: 'Build signed release files', hint: 'npm run release → dist/' },
+    { label: 'Publish the release on GitHub', hint: 'gh release create' },
+    { label: 'Open the dist folder' },
+    { label: dim('Back') },
+  ];
   for (;;) {
     const pick = await menu('Release tools (maintainers)', items, [dim('Signs with your release key; updates reach sites that trust it.')]);
     if (pick === -1 || pick === 3) return;
@@ -511,7 +617,9 @@ async function releaseScreen() {
       await pause();
     } else if (pick === 1) {
       const dist = join(ROOT, 'dist');
-      const files = ['wp-mcp-bridge.zip', 'bridge-latest.json', 'wpm-agent.zip', 'wpm-agent.zip.sig', 'SHA256SUMS'].filter((f) => existsSync(join(dist, f)));
+      const files = ['wp-mcp-bridge.zip', 'bridge-latest.json', 'wpm-agent.zip', 'wpm-agent.zip.sig', 'SHA256SUMS'].filter((f) =>
+        existsSync(join(dist, f)),
+      );
       if (!files.includes('bridge-latest.json')) {
         await show([red('Build the signed release files first.')]);
         continue;
@@ -519,7 +627,18 @@ async function releaseScreen() {
       const ver = JSON.parse(readFileSync(join(dist, 'bridge-latest.json'), 'utf8')).version;
       out(`\nThis publishes v${ver} publicly with: ${files.join(', ')}`);
       if (!(await confirm(`Publish v${ver} on GitHub now?`))) continue;
-      const ok = runInherit('gh', ['release', 'create', `v${ver}`, ...files.map((f) => join(dist, f)), '--target', 'master', '--title', `WP MCP ${ver}`, '--notes', `WP MCP ${ver}. See CHANGELOG.md.`]);
+      const ok = runInherit('gh', [
+        'release',
+        'create',
+        `v${ver}`,
+        ...files.map((f) => join(dist, f)),
+        '--target',
+        'master',
+        '--title',
+        `WP MCP ${ver}`,
+        '--notes',
+        `WP MCP ${ver}. See CHANGELOG.md.`,
+      ]);
       out(ok ? green('\nPublished.') : red('\nFailed (is gh installed and logged in?).'));
       await pause();
     } else if (pick === 2) openBrowser(join(ROOT, 'dist'));
@@ -542,7 +661,10 @@ async function main() {
   }
   for (;;) {
     const up = await isUp();
-    const header = [up ? green(`● running  ${BASE}/admin`) : yellow('○ stopped'), dim(`version ${version()}${built() ? '' : ' · not built yet'}`)];
+    const header = [
+      up ? green(`● running  ${BASE}/admin`) : yellow('○ stopped'),
+      dim(`version ${version()}${built() ? '' : ' · not built yet'}`),
+    ];
     const items = [
       { label: up ? 'Stop the panel' : 'Start the panel' },
       { label: 'Open the panel in the browser' },
@@ -606,7 +728,10 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     if (!(await isUp())) out('The panel is not running. Start it from the menu: wpmcp');
     else {
       const s = await loadSites(true);
-      for (const x of s.sites) out(`${pad(x.name, 18)}${pad(x.status, 8)}${pad(x.wp_version || '?', 11)}${x.plugin_version || '?'}${olderThan(x.plugin_version || '0.0.0', s.version) ? ` (latest ${s.version})` : ''}`);
+      for (const x of s.sites)
+        out(
+          `${pad(x.name, 18)}${pad(x.status, 8)}${pad(x.wp_version || '?', 11)}${x.plugin_version || '?'}${olderThan(x.plugin_version || '0.0.0', s.version) ? ` (latest ${s.version})` : ''}`,
+        );
     }
   } else out('Usage: tui.mjs [status|start|stop|restart|connector [level]|sites|doctor|rebuild]');
   if (cli) process.exit(0);

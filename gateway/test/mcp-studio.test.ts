@@ -10,13 +10,25 @@ import { callTool, listTools } from '../src/mcp/tools.ts';
 import { createProject } from '../src/projects.ts';
 import { createEnv, type Env } from './helpers.ts';
 
-const who = (level: Level, sites: Principal['sites'] = '*'): Principal => ({ id: `t-${level}`, kind: 'api_key', name: `test ${level}`, level, sites });
+const who = (level: Level, sites: Principal['sites'] = '*'): Principal => ({
+  id: `t-${level}`,
+  kind: 'api_key',
+  name: `test ${level}`,
+  level,
+  sites,
+});
 
 describe('studio MCP tool', () => {
   let env: Env;
   const agentCalls: { op: string; args: Record<string, any> }[] = [];
   let deployed = 0;
-  const run = async (level: Level, action: string, args: Record<string, unknown> = {}, confirm?: string, sites: Principal['sites'] = '*') => {
+  const run = async (
+    level: Level,
+    action: string,
+    args: Record<string, unknown> = {},
+    confirm?: string,
+    sites: Principal['sites'] = '*',
+  ) => {
     const r = await callTool(env.app, who(level, sites), 'studio', { action, args, confirm_token: confirm });
     return { ...JSON.parse(r.content[0].text), isError: !!r.isError };
   };
@@ -31,14 +43,31 @@ describe('studio MCP tool', () => {
         if (op === 'rollback') return { current: 'r1', previous: 'r2' };
         return {};
       },
-      deploy: async () => ({ id: `rel${++deployed}`, previous: null, mode: 'sync', created: 0, files: 0, bytes: 0, sha256: '', note: '', by: '' }),
+      deploy: async () => ({
+        id: `rel${++deployed}`,
+        previous: null,
+        mode: 'sync',
+        created: 0,
+        files: 0,
+        bytes: 0,
+        sha256: '',
+        note: '',
+        by: '',
+      }),
     } as unknown as AgentClient;
-    env.app.store.addHost({ name: 'h', url: 'https://h.test/wpm-agent/', key_id: 'k', secret_enc: encrypt(env.config.masterKey, 'x'), level: 'admin' });
+    env.app.store.addHost({
+      name: 'h',
+      url: 'https://h.test/wpm-agent/',
+      key_id: 'k',
+      secret_enc: encrypt(env.config.masterKey, 'x'),
+      level: 'admin',
+    });
     env.app.store.hostHealth('h', true, '', { version: '2.0.0', caps: { php: { version: '8.3.0' } } });
   });
   afterAll(() => env.stop());
 
-  const actionsOf = (level: Level): string[] => (listTools(who(level)).find((t) => t.name === 'studio')!.inputSchema as any).properties.action.enum;
+  const actionsOf = (level: Level): string[] =>
+    (listTools(who(level)).find((t) => t.name === 'studio')!.inputSchema as any).properties.action.enum;
 
   it('is offered only to connections that are not limited to some WordPress sites, with actions by level', () => {
     expect(actionsOf('read')).toEqual(['hosts', 'projects', 'files', 'read_file', 'releases']);
@@ -50,7 +79,8 @@ describe('studio MCP tool', () => {
 
   it('does not offer builds, Node apps, WordPress creation or secrets', () => {
     const all = Object.keys(actionsOf('admin').reduce((o, a) => ({ ...o, [a]: 1 }), {}));
-    for (const forbidden of ['build', 'env', 'wordpress', 'node_script', 'update_agent', 'pair', 'db']) expect(all).not.toContain(forbidden);
+    for (const forbidden of ['build', 'env', 'wordpress', 'node_script', 'update_agent', 'pair', 'db'])
+      expect(all).not.toContain(forbidden);
   });
 
   it('refuses what the level does not allow', async () => {
@@ -94,7 +124,11 @@ describe('studio MCP tool', () => {
     // different arguments, another connection or another action: the token does not carry over
     expect((await run('live', 'deploy', { ...args, folder: 'elsewhere' }, first.confirm_token)).error.code).toBe('bad_confirm_token');
     expect((await run('live', 'rollback', { host: 'h', site: 'ai-site' }, first.confirm_token)).error.code).toBe('bad_confirm_token');
-    const other = await callTool(env.app, { ...who('live'), id: 'someone-else' }, 'studio', { action: 'deploy', args, confirm_token: first.confirm_token });
+    const other = await callTool(env.app, { ...who('live'), id: 'someone-else' }, 'studio', {
+      action: 'deploy',
+      args,
+      confirm_token: first.confirm_token,
+    });
     expect(JSON.parse(other.content[0].text).error.code).toBe('bad_confirm_token');
     expect(deployed).toBe(0);
 
@@ -114,7 +148,9 @@ describe('studio MCP tool', () => {
     const done = await run('live', 'rollback', args, first.confirm_token);
     expect(done).toMatchObject({ ok: true, current: 'r1' });
     const log = env.app.store.activity({ limit: 50 }).filter((r) => r.tool === 'studio');
-    expect(log.map((r) => `${r.action}:${r.status}`)).toEqual(expect.arrayContaining(['create_project:ok', 'write_file:ok', 'deploy:pending', 'deploy:ok', 'rollback:ok']));
+    expect(log.map((r) => `${r.action}:${r.status}`)).toEqual(
+      expect.arrayContaining(['create_project:ok', 'write_file:ok', 'deploy:pending', 'deploy:ok', 'rollback:ok']),
+    );
   });
 
   it('lists hosts without any secret', async () => {

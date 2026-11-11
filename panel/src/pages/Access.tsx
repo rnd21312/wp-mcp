@@ -36,8 +36,19 @@ export function Access({ state, reload }: { state: State; reload: () => Promise<
 
   return (
     <>
-      <PageTitle title={t('Access', 'دسترسی‌ها')} hint={t('API keys and OAuth apps for connecting AI over the network. Local stdio connections need neither.', 'کلیدهای API و برنامه‌های OAuth برای اتصال هوش مصنوعی از راه شبکه. اتصال محلی stdio به هیچ‌کدام نیاز ندارد.')}>
-        <Button onClick={() => { setToken(''); setOpen(true); }}>
+      <PageTitle
+        title={t('Access', 'دسترسی‌ها')}
+        hint={t(
+          'API keys and OAuth apps for connecting AI over the network. Local stdio connections need neither.',
+          'کلیدهای API و برنامه‌های OAuth برای اتصال هوش مصنوعی از راه شبکه. اتصال محلی stdio به هیچ‌کدام نیاز ندارد.',
+        )}
+      >
+        <Button
+          onClick={() => {
+            setToken('');
+            setOpen(true);
+          }}
+        >
           <PlusIcon /> {t('New API key', 'کلید API جدید')}
         </Button>
       </PageTitle>
@@ -45,24 +56,62 @@ export function Access({ state, reload }: { state: State; reload: () => Promise<
       <Card className="mb-6">
         <CardHeader>
           <CardTitle>{t('AI apps on this computer (stdio)', 'برنامه‌های هوش مصنوعی روی همین کامپیوتر (stdio)')}</CardTitle>
-          <CardDescription>{t('Claude Code, Claude Desktop, Cursor and other apps that start the gateway themselves. The level applies on the next call, no restart needed.', 'Claude Code، Claude Desktop، Cursor و برنامه‌هایی که خودشان gateway را اجرا می‌کنند. سطح از فراخوانی بعدی اعمال می‌شود؛ ری‌استارت لازم نیست.')}</CardDescription>
+          <CardDescription>
+            {t(
+              'Claude Code, Claude Desktop, Cursor and other apps that start the gateway themselves. The level applies on the next call, no restart needed.',
+              'Claude Code، Claude Desktop، Cursor و برنامه‌هایی که خودشان gateway را اجرا می‌کنند. سطح از فراخوانی بعدی اعمال می‌شود؛ ری‌استارت لازم نیست.',
+            )}
+          </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-wrap items-center gap-3">
-          <div className="w-40"><Pick value={state.stdio.level} options={levels} onChange={async (v) => { await api.post('stdio/level', { level: v }); toast.success(t('Level changed', 'سطح تغییر کرد')); await reload(); }} /></div>
+          <div className="w-40">
+            <Pick
+              value={state.stdio.level}
+              options={levels}
+              onChange={async (v) => {
+                await api.post('stdio/level', { level: v });
+                toast.success(t('Level changed', 'سطح تغییر کرد'));
+                await reload();
+              }}
+            />
+          </div>
           <LevelBadge level={state.stdio.level} />
-          <span className="text-xs text-muted-foreground">{state.stdio.from === 'panel' ? t('Set here.', 'از همین‌جا تنظیم شده.') : t('Default (from WPMCP_STDIO_LEVEL or live).', 'پیش‌فرض (از WPMCP_STDIO_LEVEL یا live).')}</span>
-          {state.stdio.from === 'panel' && <Button size="sm" variant="ghost" onClick={async () => { await api.post('stdio/level', { level: 'default' }); await reload(); }}>{t('Back to default', 'بازگشت به پیش‌فرض')}</Button>}
+          <span className="text-xs text-muted-foreground">
+            {state.stdio.from === 'panel'
+              ? t('Set here.', 'از همین‌جا تنظیم شده.')
+              : t('Default (from WPMCP_STDIO_LEVEL or live).', 'پیش‌فرض (از WPMCP_STDIO_LEVEL یا live).')}
+          </span>
+          {state.stdio.from === 'panel' && (
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={async () => {
+                await api.post('stdio/level', { level: 'default' });
+                await reload();
+              }}
+            >
+              {t('Back to default', 'بازگشت به پیش‌فرض')}
+            </Button>
+          )}
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader>
           <CardTitle>{t('API keys', 'کلیدهای API')}</CardTitle>
-          <CardDescription>{t('A key is shown once when created. Revoke it any time.', 'کلید فقط یک بار هنگام ساخت نمایش داده می‌شود. هر زمان می‌توانید ابطالش کنید.')}</CardDescription>
+          <CardDescription>
+            {t(
+              'A key is shown once when created. Revoke it any time.',
+              'کلید فقط یک بار هنگام ساخت نمایش داده می‌شود. هر زمان می‌توانید ابطالش کنید.',
+            )}
+          </CardDescription>
         </CardHeader>
         <CardContent>
           {state.keys.length === 0 ? (
-            <Empty><KeyRoundIcon className="mx-auto mb-2 size-6 opacity-50" />{t('No keys yet.', 'هنوز کلیدی نیست.')}</Empty>
+            <Empty>
+              <KeyRoundIcon className="mx-auto mb-2 size-6 opacity-50" />
+              {t('No keys yet.', 'هنوز کلیدی نیست.')}
+            </Empty>
           ) : (
             <Table>
               <TableHeader>
@@ -79,13 +128,26 @@ export function Access({ state, reload }: { state: State; reload: () => Promise<
                   <TableRow key={k.id}>
                     <TableCell>
                       {k.name}
-                      <div dir="ltr" className="text-start font-mono text-xs text-muted-foreground">{k.prefix}…</div>
+                      <div dir="ltr" className="text-start font-mono text-xs text-muted-foreground">
+                        {k.prefix}…
+                      </div>
                     </TableCell>
-                    <TableCell><LevelBadge level={k.level} /></TableCell>
+                    <TableCell>
+                      <LevelBadge level={k.level} />
+                    </TableCell>
                     <TableCell>{scope(k.sites, all)}</TableCell>
                     <TableCell>{ago(k.last_used, lang)}</TableCell>
                     <TableCell className="text-end">
-                      <Button variant="ghost" size="sm" className="text-destructive" onClick={async () => { await api.post('keys/revoke', { id: k.id }); toast.success(t('Revoked', 'ابطال شد')); await reload(); }}>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-destructive"
+                        onClick={async () => {
+                          await api.post('keys/revoke', { id: k.id });
+                          toast.success(t('Revoked', 'ابطال شد'));
+                          await reload();
+                        }}
+                      >
                         {t('Revoke', 'ابطال')}
                       </Button>
                     </TableCell>
@@ -100,7 +162,12 @@ export function Access({ state, reload }: { state: State; reload: () => Promise<
       <Card className="mt-6">
         <CardHeader>
           <CardTitle>{t('Connected apps (OAuth)', 'برنامه‌های متصل (OAuth)')}</CardTitle>
-          <CardDescription>{t('Apps such as Claude.ai that you approved. Lower a level or disconnect and it applies on the next call.', 'برنامه‌هایی مثل Claude.ai که تأیید کرده‌اید. سطح را پایین بیاورید یا قطع کنید؛ از فراخوانی بعدی اعمال می‌شود.')}</CardDescription>
+          <CardDescription>
+            {t(
+              'Apps such as Claude.ai that you approved. Lower a level or disconnect and it applies on the next call.',
+              'برنامه‌هایی مثل Claude.ai که تأیید کرده‌اید. سطح را پایین بیاورید یا قطع کنید؛ از فراخوانی بعدی اعمال می‌شود.',
+            )}
+          </CardDescription>
         </CardHeader>
         <CardContent>
           {state.clients.length === 0 ? (
@@ -112,13 +179,31 @@ export function Access({ state, reload }: { state: State; reload: () => Promise<
                   <TableRow key={c.id}>
                     <TableCell>
                       {c.name}
-                      <div className="text-xs text-muted-foreground">{scope(c.sites, all)} · {ago(c.last_used, lang)}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {scope(c.sites, all)} · {ago(c.last_used, lang)}
+                      </div>
                     </TableCell>
                     <TableCell className="w-36">
-                      <Pick size="sm" value={c.level} options={levels} onChange={async (v) => { await api.post('clients/level', { id: c.id, level: v }); await reload(); }} />
+                      <Pick
+                        size="sm"
+                        value={c.level}
+                        options={levels}
+                        onChange={async (v) => {
+                          await api.post('clients/level', { id: c.id, level: v });
+                          await reload();
+                        }}
+                      />
                     </TableCell>
                     <TableCell className="text-end">
-                      <Button variant="ghost" size="sm" className="text-destructive" onClick={async () => { await api.post('clients/revoke', { id: c.id }); await reload(); }}>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-destructive"
+                        onClick={async () => {
+                          await api.post('clients/revoke', { id: c.id });
+                          await reload();
+                        }}
+                      >
                         {t('Disconnect', 'قطع اتصال')}
                       </Button>
                     </TableCell>
@@ -134,7 +219,9 @@ export function Access({ state, reload }: { state: State; reload: () => Promise<
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{t('New API key', 'کلید API جدید')}</DialogTitle>
-            <DialogDescription>{t('Pick the lowest level that does the job.', 'کمترین سطحی را که کار را انجام می‌دهد انتخاب کنید.')}</DialogDescription>
+            <DialogDescription>
+              {t('Pick the lowest level that does the job.', 'کمترین سطحی را که کار را انجام می‌دهد انتخاب کنید.')}
+            </DialogDescription>
           </DialogHeader>
           {token ? (
             <div className="space-y-3">
@@ -146,24 +233,51 @@ export function Access({ state, reload }: { state: State; reload: () => Promise<
             </div>
           ) : (
             <div className="space-y-3">
-              <div className="space-y-1.5"><Label>{t('Name', 'نام')}</Label><Input value={name} onChange={(e) => setName(e.target.value)} placeholder={t('Claude Code on laptop', 'Claude Code روی لپ‌تاپ')} /></div>
+              <div className="space-y-1.5">
+                <Label>{t('Name', 'نام')}</Label>
+                <Input
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder={t('Claude Code on laptop', 'Claude Code روی لپ‌تاپ')}
+                />
+              </div>
               <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5"><Label>{t('Level', 'سطح')}</Label><Pick value={level} onChange={setLevel} options={levels} /></div>
-                <div className="space-y-1.5"><Label>{t('Expires after days (0 = never)', 'انقضا (روز، ۰ = هرگز)')}</Label><Input type="number" min={0} value={days} onChange={(e) => setDays(e.target.value)} /></div>
+                <div className="space-y-1.5">
+                  <Label>{t('Level', 'سطح')}</Label>
+                  <Pick value={level} onChange={setLevel} options={levels} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>{t('Expires after days (0 = never)', 'انقضا (روز، ۰ = هرگز)')}</Label>
+                  <Input type="number" min={0} value={days} onChange={(e) => setDays(e.target.value)} />
+                </div>
               </div>
               <div className="space-y-1.5">
                 <Label>{t('Sites (none ticked = all)', 'سایت‌ها (هیچ‌کدام = همه)')}</Label>
                 <div className="flex flex-wrap gap-2">
                   {state.sites.map((s) => (
-                    <Button key={s.name} type="button" size="sm" variant={picked.includes(s.name) ? 'default' : 'outline'} onClick={() => setPicked(picked.includes(s.name) ? picked.filter((x) => x !== s.name) : [...picked, s.name])}>{s.name}</Button>
+                    <Button
+                      key={s.name}
+                      type="button"
+                      size="sm"
+                      variant={picked.includes(s.name) ? 'default' : 'outline'}
+                      onClick={() => setPicked(picked.includes(s.name) ? picked.filter((x) => x !== s.name) : [...picked, s.name])}
+                    >
+                      {s.name}
+                    </Button>
                   ))}
                 </div>
               </div>
             </div>
           )}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)}>{token ? t('Close', 'بستن') : t('Cancel', 'انصراف')}</Button>
-            {!token && <Button disabled={!name} onClick={create}>{t('Create key', 'ساخت کلید')}</Button>}
+            <Button variant="outline" onClick={() => setOpen(false)}>
+              {token ? t('Close', 'بستن') : t('Cancel', 'انصراف')}
+            </Button>
+            {!token && (
+              <Button disabled={!name} onClick={create}>
+                {t('Create key', 'ساخت کلید')}
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>

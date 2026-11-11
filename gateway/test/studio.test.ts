@@ -6,7 +6,17 @@ import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { agentEndpoint, normalizeAgentUrl, signAgentRequest } from '../src/agentclient.ts';
 import { buildAgentZip, newSetupCode } from '../src/hosts.ts';
-import { createProject, deleteFile, listFiles, ProjectError, publishDir, readFile, removeProject, safePath, writeFile } from '../src/projects.ts';
+import {
+  createProject,
+  deleteFile,
+  listFiles,
+  ProjectError,
+  publishDir,
+  readFile,
+  removeProject,
+  safePath,
+  writeFile,
+} from '../src/projects.ts';
 import { zipDirectory } from '../src/zip.ts';
 import { createEnv, type Env } from './helpers.ts';
 
@@ -35,7 +45,11 @@ describe('agent client helpers', () => {
 
   it('signs exactly like the agent does (layout shared with the WordPress bridge)', () => {
     const body = '{"a":1}';
-    const expected = createHmac('sha256', 's3').update(['1700000000', 'abcdef0123456789', 'kid', 'POST', '/api/v1/hello', createHash('sha256').update(body).digest('hex')].join('\n')).digest('hex');
+    const expected = createHmac('sha256', 's3')
+      .update(
+        ['1700000000', 'abcdef0123456789', 'kid', 'POST', '/api/v1/hello', createHash('sha256').update(body).digest('hex')].join('\n'),
+      )
+      .digest('hex');
     expect(signAgentRequest('s3', 'kid', 1700000000, 'abcdef0123456789', '/api/v1/hello', body)).toBe(expected);
     expect(signAgentRequest('s3', 'kid', 1700000000, 'abcdef0123456789', '/api/v1/hello', Buffer.from(body))).toBe(expected);
   });
@@ -111,7 +125,8 @@ describe('projects', () => {
   });
 
   it('validates names, kinds and duplicates', () => {
-    for (const bad of ['', 'A', 'x', '../up', 'has space', 'UPPER_case']) expect(() => createProject(env.app, { name: bad })).toThrow(ProjectError);
+    for (const bad of ['', 'A', 'x', '../up', 'has space', 'UPPER_case'])
+      expect(() => createProject(env.app, { name: bad })).toThrow(ProjectError);
     expect(() => createProject(env.app, { name: 'shop-site' })).toThrow(/already exists/);
     expect(() => createProject(env.app, { name: 'weird', kind: 'php' })).toThrow(/type must be/);
     expect(() => createProject(env.app, { name: 'weird', template: 'nope' })).toThrow(/template/);

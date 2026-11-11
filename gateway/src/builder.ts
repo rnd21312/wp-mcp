@@ -4,7 +4,22 @@ import { auditSite, type AuditReport } from './audit.ts';
 import type { App } from './context.ts';
 import { askJson, LlmError, llm, stripFences } from './llm.ts';
 import { createProject, deployProject, projectDir, removeProject, type DeployInput } from './projects.ts';
-import { assemblePage, buildCss, checkMain, contrast, CSS_CLASSES, esc, FONT_CHOICES, HEX, pageFile, placeholderSvg, robotsTxt, sitemapXml, type Plan, type Tokens } from './sitekit.ts';
+import {
+  assemblePage,
+  buildCss,
+  checkMain,
+  contrast,
+  CSS_CLASSES,
+  esc,
+  FONT_CHOICES,
+  HEX,
+  pageFile,
+  placeholderSvg,
+  robotsTxt,
+  sitemapXml,
+  type Plan,
+  type Tokens,
+} from './sitekit.ts';
 
 /**
  * The AI site builder: brief → sitemap → design system → pages → images → SEO → audit → publish.
@@ -72,7 +87,8 @@ const readMain = (app: App, project: string, slug: string): string | null => {
 // ---- validation of what the model returns -----------------------------------------------------------------------
 
 const str = (v: unknown, name: string, min: number, max: number): string => {
-  if (typeof v !== 'string' || v.trim().length < min || v.trim().length > max) throw new Error(`"${name}" must be text of ${min}-${max} characters`);
+  if (typeof v !== 'string' || v.trim().length < min || v.trim().length > max)
+    throw new Error(`"${name}" must be text of ${min}-${max} characters`);
   return v.trim();
 };
 
@@ -92,12 +108,28 @@ export function validatePlan(raw: unknown, fallbackLang = 'en'): Plan {
     seen.add(slug);
     const sections = Array.isArray(p?.sections) ? p.sections.map((x: unknown) => str(x, 'section', 2, 120)) : [];
     if (sections.length < 1 || sections.length > 10) throw new Error(`pages[${i}].sections must list 1-10 section ideas`);
-    return { slug, title: str(p?.title, `pages[${i}].title`, 1, 40), purpose: str(p?.purpose, `pages[${i}].purpose`, 5, 300), sections, seo_title: str(p?.seo_title, `pages[${i}].seo_title`, 10, 70), seo_description: str(p?.seo_description, `pages[${i}].seo_description`, 50, 165) };
+    return {
+      slug,
+      title: str(p?.title, `pages[${i}].title`, 1, 40),
+      purpose: str(p?.purpose, `pages[${i}].purpose`, 5, 300),
+      sections,
+      seo_title: str(p?.seo_title, `pages[${i}].seo_title`, 10, 70),
+      seo_description: str(p?.seo_description, `pages[${i}].seo_description`, 50, 165),
+    };
   });
   if (pages[0].slug !== 'index') throw new Error('the first page must have slug "index" (the home page)');
   const language = typeof o.language === 'string' && /^[a-z]{2,3}(-[A-Za-z]{2,4})?$/.test(o.language) ? o.language : fallbackLang;
 
-  return { site_name: str(o.site_name, 'site_name', 1, 60), tagline: str(o.tagline ?? '', 'tagline', 0, 160), language, rtl: typeof o.rtl === 'boolean' ? o.rtl : /^(fa|ar|he|ur)/.test(language), tone: str(o.tone ?? 'clear and friendly', 'tone', 0, 120), audience: str(o.audience ?? '', 'audience', 0, 200), pages, footer_note: str(o.footer_note ?? `© ${new Date().getFullYear()}`, 'footer_note', 1, 200) };
+  return {
+    site_name: str(o.site_name, 'site_name', 1, 60),
+    tagline: str(o.tagline ?? '', 'tagline', 0, 160),
+    language,
+    rtl: typeof o.rtl === 'boolean' ? o.rtl : /^(fa|ar|he|ur)/.test(language),
+    tone: str(o.tone ?? 'clear and friendly', 'tone', 0, 120),
+    audience: str(o.audience ?? '', 'audience', 0, 200),
+    pages,
+    footer_note: str(o.footer_note ?? `© ${new Date().getFullYear()}`, 'footer_note', 1, 200),
+  };
 }
 
 export function validateTokens(raw: unknown): Tokens {
@@ -111,12 +143,16 @@ export function validateTokens(raw: unknown): Tokens {
     palette[k] = v.toLowerCase();
   }
   const fonts = { heading: String(o.fonts?.heading ?? 'system'), body: String(o.fonts?.body ?? 'system') };
-  for (const f of [fonts.heading, fonts.body]) if (!FONT_CHOICES.includes(f)) throw new Error(`fonts must be one of: ${FONT_CHOICES.join(', ')}`);
+  for (const f of [fonts.heading, fonts.body])
+    if (!FONT_CHOICES.includes(f)) throw new Error(`fonts must be one of: ${FONT_CHOICES.join(', ')}`);
   const radius = Number(o.radius ?? 8);
   const maxWidth = Number(o.maxWidth ?? 1100);
   if (!(radius >= 0 && radius <= 32)) throw new Error('radius must be 0-32');
   if (!(maxWidth >= 640 && maxWidth <= 1440)) throw new Error('maxWidth must be 640-1440');
-  for (const [fg, bg, label] of [[palette.text, palette.background, 'text on background'], [palette.text, palette.surface, 'text on surface']] as const) {
+  for (const [fg, bg, label] of [
+    [palette.text, palette.background, 'text on background'],
+    [palette.text, palette.surface, 'text on surface'],
+  ] as const) {
     const c = contrast(fg, bg);
     if (c < 4.5) throw new Error(`${label} has contrast ${c.toFixed(1)}:1; it must be at least 4.5:1 (darker text or lighter background)`);
   }
@@ -134,11 +170,13 @@ function validatePageMain(html: string, plan: Plan, slug: string): string {
     const href = m[1];
     if (!href || /^(https?:|mailto:|tel:|#)/i.test(href)) continue;
     const target = href.split('#')[0];
-    if (target && !files.has(target)) throw new Error(`the link "${href}" goes to a page that does not exist; pages are: ${[...files].join(', ')}`);
+    if (target && !files.has(target))
+      throw new Error(`the link "${href}" goes to a page that does not exist; pages are: ${[...files].join(', ')}`);
   }
   for (const m of body.matchAll(/<img\b[^>]*>/gi)) {
     const src = /\ssrc\s*=\s*"([^"]*)"/i.exec(m[0])?.[1] ?? '';
-    if (!new RegExp(`^images/${slug}-\\d{1,2}\\.svg$`).test(src)) throw new Error(`every <img> must use src="images/${slug}-1.svg", "images/${slug}-2.svg" and so on (found "${src}")`);
+    if (!new RegExp(`^images/${slug}-\\d{1,2}\\.svg$`).test(src))
+      throw new Error(`every <img> must use src="images/${slug}-1.svg", "images/${slug}-2.svg" and so on (found "${src}")`);
     if (!/\salt\s*=\s*"[^"]+"/i.test(m[0])) throw new Error('every <img> needs a descriptive alt attribute');
   }
   return body;
@@ -154,7 +192,11 @@ export function writeSite(app: App, s: BuilderState): void {
   const base = s.brief.base_url ? s.brief.base_url.replace(/\/+$/, '') : undefined;
   for (const page of s.plan.pages) {
     const main = readMain(app, s.project, page.slug);
-    if (main !== null) writeFileSync(join(dir, pageFile(page.slug)), assemblePage({ plan: s.plan, page, main, baseUrl: s.stages.seo !== 'pending' ? base : undefined }));
+    if (main !== null)
+      writeFileSync(
+        join(dir, pageFile(page.slug)),
+        assemblePage({ plan: s.plan, page, main, baseUrl: s.stages.seo !== 'pending' ? base : undefined }),
+      );
   }
   if (s.stages.seo !== 'pending') {
     writeFileSync(join(dir, 'robots.txt'), robotsTxt(base));
@@ -188,9 +230,11 @@ export interface StartInput {
 }
 
 export function startBuilder(app: App, input: StartInput): BuilderState {
-  if (!app.store.aiProvider(input.provider)) throw new BuilderError('no_provider', 'Choose an AI provider first (AI assistant page → add a key).');
+  if (!app.store.aiProvider(input.provider))
+    throw new BuilderError('no_provider', 'Choose an AI provider first (AI assistant page → add a key).');
   const brief = input.brief.trim();
-  if (brief.length < 20) throw new BuilderError('short_brief', 'Describe the site in a few sentences: what it is for, who it is for, what visitors should do.');
+  if (brief.length < 20)
+    throw new BuilderError('short_brief', 'Describe the site in a few sentences: what it is for, who it is for, what visitors should do.');
   if (brief.length > 6000) throw new BuilderError('long_brief', 'Keep the brief under 6000 characters.');
   let baseUrl = '';
   if (input.baseUrl?.trim()) {
@@ -209,7 +253,13 @@ export function startBuilder(app: App, input: StartInput): BuilderState {
     version: 1,
     project: input.name.trim().toLowerCase(),
     provider: input.provider,
-    brief: { text: brief, language: (input.language || 'en').trim(), tone: (input.tone || '').trim(), pages_hint: (input.pagesHint || '').trim(), base_url: baseUrl },
+    brief: {
+      text: brief,
+      language: (input.language || 'en').trim(),
+      tone: (input.tone || '').trim(),
+      pages_hint: (input.pagesHint || '').trim(),
+      base_url: baseUrl,
+    },
     stages: { plan: 'pending', design: 'pending', pages: 'pending', images: 'pending', seo: 'pending', audit: 'pending' },
     pages: {},
     updated: Date.now(),
@@ -231,8 +281,10 @@ const DESIGN_SYSTEM = `You are a brand and UI designer. Choose a design system f
 Reply with ONLY a JSON object: {"palette":{"primary":"#rrggbb","secondary":"#rrggbb","accent":"#rrggbb","background":"#rrggbb","surface":"#rrggbb","text":"#rrggbb","muted":"#rrggbb"},"fonts":{"heading":"system|system-fa|serif|mono","body":"system|system-fa|serif|mono"},"radius":8,"maxWidth":1100,"rationale":"one sentence"}
 Rules: text on background and on surface must have at least 4.5:1 contrast (WCAG AA); primary must be visible on the background (3:1 or more); fonts are system stacks only (use "system-fa" for Persian or Arabic sites); the palette must fit the brand and audience.`;
 
-const briefBlock = (s: BuilderState): string => `Brief:\n${s.brief.text}\n\nLanguage: ${s.brief.language}\nTone: ${s.brief.tone || 'your choice'}\nPages the owner expects: ${s.brief.pages_hint || 'your choice'}`;
-const feedbackBlock = (fb?: string): string => (fb?.trim() ? `\n\nThe owner reviewed the previous version and asks for these changes. Apply them:\n${fb.trim().slice(0, 2000)}` : '');
+const briefBlock = (s: BuilderState): string =>
+  `Brief:\n${s.brief.text}\n\nLanguage: ${s.brief.language}\nTone: ${s.brief.tone || 'your choice'}\nPages the owner expects: ${s.brief.pages_hint || 'your choice'}`;
+const feedbackBlock = (fb?: string): string =>
+  fb?.trim() ? `\n\nThe owner reviewed the previous version and asks for these changes. Apply them:\n${fb.trim().slice(0, 2000)}` : '';
 
 export interface RunInput {
   stage: Stage;
@@ -250,7 +302,9 @@ export async function runStage(app: App, project: string, input: RunInput): Prom
     need(s, stage);
     if (stage === 'plan') {
       const prev = s.plan ? `\n\nPrevious plan (revise it, keep what works):\n${JSON.stringify(s.plan)}` : '';
-      s.plan = await askJson(app, s.provider, PLAN_SYSTEM, `${briefBlock(s)}${prev}${feedbackBlock(input.feedback)}`, (raw) => validatePlan(raw, s.brief.language));
+      s.plan = await askJson(app, s.provider, PLAN_SYSTEM, `${briefBlock(s)}${prev}${feedbackBlock(input.feedback)}`, (raw) =>
+        validatePlan(raw, s.brief.language),
+      );
       s.pages = {};
       rmSync(join(projectDir(app, project), DIR, 'pages'), { recursive: true, force: true });
       for (const f of readdirSync(projectDir(app, project))) if (/\.html$/.test(f)) rmSync(join(projectDir(app, project), f));
@@ -260,7 +314,13 @@ export async function runStage(app: App, project: string, input: RunInput): Prom
     } else if (stage === 'design') {
       const plan = s.plan!;
       const prev = s.tokens ? `\n\nPrevious design (revise it):\n${JSON.stringify(s.tokens)}` : '';
-      s.tokens = await askJson(app, s.provider, DESIGN_SYSTEM, `${briefBlock(s)}\nSite: ${plan.site_name} - ${plan.tagline}\nAudience: ${plan.audience}\nTone: ${plan.tone}\nDirection: ${plan.rtl ? 'right-to-left' : 'left-to-right'}${prev}${feedbackBlock(input.feedback)}`, validateTokens);
+      s.tokens = await askJson(
+        app,
+        s.provider,
+        DESIGN_SYSTEM,
+        `${briefBlock(s)}\nSite: ${plan.site_name} - ${plan.tagline}\nAudience: ${plan.audience}\nTone: ${plan.tone}\nDirection: ${plan.rtl ? 'right-to-left' : 'left-to-right'}${prev}${feedbackBlock(input.feedback)}`,
+        validateTokens,
+      );
       s.stages.design = 'review';
       resetAfter(s, 'design');
     } else if (stage === 'pages') {
@@ -292,7 +352,9 @@ export async function runStage(app: App, project: string, input: RunInput): Prom
 
 async function runPages(app: App, s: BuilderState, input: RunInput): Promise<void> {
   const plan = s.plan!;
-  const todo = input.slug ? plan.pages.filter((p) => p.slug === input.slug) : plan.pages.filter((p) => readMain(app, s.project, p.slug) === null);
+  const todo = input.slug
+    ? plan.pages.filter((p) => p.slug === input.slug)
+    : plan.pages.filter((p) => readMain(app, s.project, p.slug) === null);
   if (input.slug && !todo.length) throw new BuilderError('no_page', `There is no page "${input.slug}" in the plan.`);
   const files = plan.pages.map((p) => pageFile(p.slug)).join(', ');
   for (const page of todo) {
@@ -309,20 +371,35 @@ Rules:
     let note = '';
     let html = '';
     for (let attempt = 0; attempt < 2; attempt++) {
-      const text = stripFences(await llm.complete(app, s.provider, system, note ? `${user}\n\nYour previous answer was rejected: ${note}\nAnswer again with only the corrected HTML.` : user));
+      const text = stripFences(
+        await llm.complete(
+          app,
+          s.provider,
+          system,
+          note ? `${user}\n\nYour previous answer was rejected: ${note}\nAnswer again with only the corrected HTML.` : user,
+        ),
+      );
       try {
         html = validatePageMain(text, plan, page.slug);
         break;
       } catch (error) {
         note = error instanceof Error ? error.message : 'invalid';
-        if (attempt === 1) throw new BuilderError('bad_answer', `The AI page for "${page.title}" was not usable (${note}). Try again, or pick a stronger model.`);
+        if (attempt === 1)
+          throw new BuilderError(
+            'bad_answer',
+            `The AI page for "${page.title}" was not usable (${note}). Try again, or pick a stronger model.`,
+          );
       }
     }
     mkdirSync(join(projectDir(app, s.project), DIR, 'pages'), { recursive: true });
     writeFileSync(mainFile(app, s.project, page.slug), html);
     s.pages[page.slug] = { status: 'review', revision: (s.pages[page.slug]?.revision ?? 0) + 1, feedback: input.feedback ?? '' };
   }
-  s.stages.pages = plan.pages.every((p) => s.pages[p.slug]) ? (plan.pages.every((p) => s.pages[p.slug].status === 'approved') ? 'approved' : 'review') : 'pending';
+  s.stages.pages = plan.pages.every((p) => s.pages[p.slug])
+    ? plan.pages.every((p) => s.pages[p.slug].status === 'approved')
+      ? 'approved'
+      : 'review'
+    : 'pending';
   for (const later of ['images', 'seo', 'audit'] as Stage[]) s.stages[later] = 'pending';
   delete s.audit;
 }
@@ -363,7 +440,13 @@ function runAudit(app: App, s: BuilderState): AuditReport {
   const report = auditSite(s.plan!, s.tokens!, html, others);
   for (const p of s.plan!.pages) {
     const body = readMain(app, s.project, p.slug) ?? '';
-    if (/\[[^\]\n<>]{3,40}\]/.test(body.replace(/<[^>]+>/g, ' '))) report.issues.push({ level: 'warn', page: pageFile(p.slug), rule: 'placeholder-text', message: 'The page has [bracketed placeholders] to fill in with real facts before launch.' });
+    if (/\[[^\]\n<>]{3,40}\]/.test(body.replace(/<[^>]+>/g, ' ')))
+      report.issues.push({
+        level: 'warn',
+        page: pageFile(p.slug),
+        rule: 'placeholder-text',
+        message: 'The page has [bracketed placeholders] to fill in with real facts before launch.',
+      });
   }
   report.warnings = report.issues.filter((i) => i.level === 'warn').length;
   report.score = Math.max(0, Math.round(100 - report.errors * 12 - report.warnings * 3));
@@ -404,7 +487,11 @@ export function approve(app: App, project: string, input: ApproveInput): Builder
     s.pages[input.slug!].status = 'approved';
     s.stages.pages = s.plan!.pages.every((p) => s.pages[p.slug]?.status === 'approved') ? 'approved' : 'review';
   } else {
-    if (stage === 'audit' && (s.audit?.errors ?? 1) > 0) throw new BuilderError('audit_errors', 'The audit found errors. Fix them (regenerate the affected pages with feedback) and run the audit again.');
+    if (stage === 'audit' && (s.audit?.errors ?? 1) > 0)
+      throw new BuilderError(
+        'audit_errors',
+        'The audit found errors. Fix them (regenerate the affected pages with feedback) and run the audit again.',
+      );
     s.stages[stage] = 'approved';
   }
   if (input.edit !== undefined && stage !== 'pages') resetAfter(s, stage);
@@ -417,7 +504,8 @@ export function approve(app: App, project: string, input: ApproveInput): Builder
 /** Sends the approved site to a host. Refuses unless every step was approved by a person. */
 export async function publish(app: App, project: string, input: Omit<DeployInput, 'project'>) {
   const s = loadState(app, project);
-  for (const stage of STAGES) if (s.stages[stage] !== 'approved') throw new BuilderError('not_approved', `Approve the "${stage}" step before publishing.`);
+  for (const stage of STAGES)
+    if (s.stages[stage] !== 'approved') throw new BuilderError('not_approved', `Approve the "${stage}" step before publishing.`);
   if ((s.audit?.errors ?? 1) > 0) throw new BuilderError('audit_errors', 'The audit still has errors.');
 
   return deployProject(app, { ...input, project, url: input.url ?? s.brief.base_url, note: input.note ?? 'AI builder' });
@@ -429,10 +517,21 @@ export function removeBuilderProject(app: App, project: string): void {
 
 // ---- reading ----------------------------------------------------------------------------------------------------
 
-export function stateView(app: App, project: string): BuilderState & { pages_detail: { slug: string; title: string; status: PageStatus | 'missing'; revision: number }[] } {
+export function stateView(
+  app: App,
+  project: string,
+): BuilderState & { pages_detail: { slug: string; title: string; status: PageStatus | 'missing'; revision: number }[] } {
   const s = loadState(app, project);
 
-  return { ...s, pages_detail: (s.plan?.pages ?? []).map((p) => ({ slug: p.slug, title: p.title, status: s.pages[p.slug]?.status ?? 'missing', revision: s.pages[p.slug]?.revision ?? 0 })) };
+  return {
+    ...s,
+    pages_detail: (s.plan?.pages ?? []).map((p) => ({
+      slug: p.slug,
+      title: p.title,
+      status: s.pages[p.slug]?.status ?? 'missing',
+      revision: s.pages[p.slug]?.revision ?? 0,
+    })),
+  };
 }
 
 export function pageMain(app: App, project: string, slug: string): string {
@@ -458,7 +557,10 @@ export function preview(app: App, project: string, slug: string): string {
     return existsSync(f) ? `${a}data:image/svg+xml;base64,${readFileSync(f).toString('base64')}${b}` : all;
   });
   // keep the preview inside the frame: links to other pages do nothing there
-  html = html.replace(/<a\b([^>]*)\shref="([^"#][^"]*\.html)"/gi, (_m, pre: string, href: string) => `<a${pre} href="#" data-page="${esc(href)}"`);
+  html = html.replace(
+    /<a\b([^>]*)\shref="([^"#][^"]*\.html)"/gi,
+    (_m, pre: string, href: string) => `<a${pre} href="#" data-page="${esc(href)}"`,
+  );
 
   return s.plan ? html : '';
 }

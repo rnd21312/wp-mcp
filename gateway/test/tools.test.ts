@@ -20,7 +20,14 @@ describe('levels and the site ceiling', () => {
   it('read: writes and sensitive areas are refused before reaching the site', async () => {
     const k = key(env, 'read');
     const before = env.sites.alpha.calls.length;
-    for (const [name, args] of [['content', { action: 'save', args: { title: 'x' } }], ['users', { action: 'list' }], ['shop', { action: 'orders_list' }], ['options', { action: 'delete', args: { key: 'x' } }], ['plugins', { action: 'list' }], ['maintain', { action: 'logs' }]] as const) {
+    for (const [name, args] of [
+      ['content', { action: 'save', args: { title: 'x' } }],
+      ['users', { action: 'list' }],
+      ['shop', { action: 'orders_list' }],
+      ['options', { action: 'delete', args: { key: 'x' } }],
+      ['plugins', { action: 'list' }],
+      ['maintain', { action: 'logs' }],
+    ] as const) {
       const r = await tool(env, k, name, args as Record<string, unknown>);
       expect(r.isError, `${name}.${args.action}`).toBe(true);
       expect(r.data.error.code).toBe('level_too_low');
@@ -32,7 +39,9 @@ describe('levels and the site ceiling', () => {
     const k = key(env, 'draft');
     expect((await tool(env, k, 'content', { action: 'save', args: { title: 'Hello', status: 'draft' } })).isError).toBe(false);
     expect((await tool(env, k, 'media', { action: 'upload', args: { filename: 'a.png', data_base64: 'AAAA' } })).isError).toBe(false);
-    expect((await tool(env, k, 'seo', { action: 'redirect_save', args: { from: '/a/', to: '/b/' } })).data.error.code).toBe('level_too_low');
+    expect((await tool(env, k, 'seo', { action: 'redirect_save', args: { from: '/a/', to: '/b/' } })).data.error.code).toBe(
+      'level_too_low',
+    );
     expect((await tool(env, k, 'design', { action: 'css_set', args: { css: 'a{}' } })).data.error.code).toBe('level_too_low');
   });
 
@@ -114,9 +123,13 @@ describe('two-step confirmation', () => {
     const k2 = key(env, 'admin');
     const t = (await tool(env, k1, 'plugins', { action: 'delete', args })).data.confirm_token;
     const before = env.sites.alpha.executed('plugins.delete').length;
-    expect((await tool(env, k1, 'plugins', { action: 'delete', args: { plugin: 'other/other.php' }, confirm_token: t })).data.error.code).toBe('bad_confirm_token');
+    expect(
+      (await tool(env, k1, 'plugins', { action: 'delete', args: { plugin: 'other/other.php' }, confirm_token: t })).data.error.code,
+    ).toBe('bad_confirm_token');
     expect((await tool(env, k2, 'plugins', { action: 'delete', args, confirm_token: t })).data.error.code).toBe('bad_confirm_token');
-    expect((await tool(env, k1, 'plugins', { action: 'delete', args, confirm_token: 'nonsense' })).data.error.code).toBe('bad_confirm_token');
+    expect((await tool(env, k1, 'plugins', { action: 'delete', args, confirm_token: 'nonsense' })).data.error.code).toBe(
+      'bad_confirm_token',
+    );
     expect(env.sites.alpha.executed('plugins.delete')).toHaveLength(before);
   });
 
@@ -129,7 +142,8 @@ describe('two-step confirmation', () => {
 
   it('"maybe" actions ask the site: GET runs, risky calls need a token, safe ones run', async () => {
     const k = key(env, 'admin');
-    env.sites.alpha.answers['rest.call'] = (args, call) => (call.dry_run ? { needs_confirmation: args.method === 'DELETE' } : { status: 200 });
+    env.sites.alpha.answers['rest.call'] = (args, call) =>
+      call.dry_run ? { needs_confirmation: args.method === 'DELETE' } : { status: 200 };
     const get = await tool(env, k, 'rest', { action: 'call', args: { method: 'GET', path: '/wp/v2/posts' } });
     expect(get.data.needs_confirmation).toBeUndefined();
     const del = await tool(env, k, 'rest', { action: 'call', args: { method: 'DELETE', path: '/wp/v2/posts/1' } });
@@ -261,7 +275,9 @@ describe('retries, idempotency and bad sites', () => {
 
 describe('fair rate limits', () => {
   it('limits each connection separately', async () => {
-    const env = await createEnv(['alpha'], { limits: { clientPerMin: 3, writePerMin: 2, sitePerMin: 400, tokenPerMin: 30, registerPerHour: 10, loginPer10Min: 10 } });
+    const env = await createEnv(['alpha'], {
+      limits: { clientPerMin: 3, writePerMin: 2, sitePerMin: 400, tokenPerMin: 30, registerPerHour: 10, loginPer10Min: 10 },
+    });
     const a = key(env, 'live');
     const b = key(env, 'live');
     for (let i = 0; i < 3; i++) expect((await tool(env, a, 'content', { action: 'list' })).isError).toBe(false);
@@ -273,7 +289,9 @@ describe('fair rate limits', () => {
   });
 
   it('has a separate, smaller bucket for writes', async () => {
-    const env = await createEnv(['alpha'], { limits: { clientPerMin: 100, writePerMin: 2, sitePerMin: 400, tokenPerMin: 30, registerPerHour: 10, loginPer10Min: 10 } });
+    const env = await createEnv(['alpha'], {
+      limits: { clientPerMin: 100, writePerMin: 2, sitePerMin: 400, tokenPerMin: 30, registerPerHour: 10, loginPer10Min: 10 },
+    });
     const a = key(env, 'live');
     expect((await tool(env, a, 'content', { action: 'trash', args: { id: 1 } })).isError).toBe(false);
     expect((await tool(env, a, 'content', { action: 'trash', args: { id: 2 } })).isError).toBe(false);
@@ -283,10 +301,13 @@ describe('fair rate limits', () => {
   });
 
   it('protects the site as a whole from many clients', async () => {
-    const env = await createEnv(['alpha'], { limits: { clientPerMin: 100, writePerMin: 100, sitePerMin: 3, tokenPerMin: 30, registerPerHour: 10, loginPer10Min: 10 } });
+    const env = await createEnv(['alpha'], {
+      limits: { clientPerMin: 100, writePerMin: 100, sitePerMin: 3, tokenPerMin: 30, registerPerHour: 10, loginPer10Min: 10 },
+    });
     const keys = [key(env, 'read'), key(env, 'read'), key(env, 'read')];
     const results = [];
-    for (const k of keys) results.push(await tool(env, k, 'content', { action: 'list' }), await tool(env, k, 'content', { action: 'list' }));
+    for (const k of keys)
+      results.push(await tool(env, k, 'content', { action: 'list' }), await tool(env, k, 'content', { action: 'list' }));
     expect(results.filter((r) => r.isError)).toHaveLength(3);
     await env.stop();
   });
@@ -299,12 +320,38 @@ describe('moving content and files between sites', () => {
     env = await createEnv(['src', 'dst']);
     env.sites.src.answers['transfer.export'] = (args) => {
       const p = Number(args.page ?? 1);
-      if (args.kind === 'posts') return { kind: 'posts', home_url: env.sites.src.url, page: p, total: 25, pages: 3, items: [page(p * 10), page(p * 10 + 1)] };
-      return { kind: args.kind, home_url: env.sites.src.url, page: 1, total: 4, pages: 1, items: [{ taxonomy: 'category', name: 'News', slug: 'news' }] };
+      if (args.kind === 'posts')
+        return { kind: 'posts', home_url: env.sites.src.url, page: p, total: 25, pages: 3, items: [page(p * 10), page(p * 10 + 1)] };
+      return {
+        kind: args.kind,
+        home_url: env.sites.src.url,
+        page: 1,
+        total: 4,
+        pages: 1,
+        items: [{ taxonomy: 'category', name: 'News', slug: 'news' }],
+      };
     };
-    env.sites.dst.answers['transfer.import'] = (args) => ({ kind: args.kind, created: (args.items as any[]).map((i) => ({ old_id: i.old_id, id: 1000 + (i.old_id ?? 0) })), skipped: [], failed: [], id_map: { posts: Object.fromEntries((args.items as any[]).map((i) => [String(i.old_id), 1000 + (i.old_id ?? 0)])), media: {}, urls: {} } });
-    env.sites.src.answers['files.list'] = () => ({ files: [{ path: 'style.css', bytes: 10 }, { path: 'functions.php', bytes: 20 }] });
-    env.sites.src.answers['files.read'] = (args) => (args.path === 'style.css' ? { encoding: 'utf8', content: 'body{}', truncated: false } : { encoding: 'utf8', content: '<?php // ok', truncated: false });
+    env.sites.dst.answers['transfer.import'] = (args) => ({
+      kind: args.kind,
+      created: (args.items as any[]).map((i) => ({ old_id: i.old_id, id: 1000 + (i.old_id ?? 0) })),
+      skipped: [],
+      failed: [],
+      id_map: {
+        posts: Object.fromEntries((args.items as any[]).map((i) => [String(i.old_id), 1000 + (i.old_id ?? 0)])),
+        media: {},
+        urls: {},
+      },
+    });
+    env.sites.src.answers['files.list'] = () => ({
+      files: [
+        { path: 'style.css', bytes: 10 },
+        { path: 'functions.php', bytes: 20 },
+      ],
+    });
+    env.sites.src.answers['files.read'] = (args) =>
+      args.path === 'style.css'
+        ? { encoding: 'utf8', content: 'body{}', truncated: false }
+        : { encoding: 'utf8', content: '<?php // ok', truncated: false };
   });
   afterAll(() => env.stop());
 
@@ -319,20 +366,30 @@ describe('moving content and files between sites', () => {
     const imports = env.sites.dst.executed('transfer.import');
     expect(imports.every((c) => c.args.overwrite === false && c.args.publish === false)).toBe(true);
     expect(imports[1].args.source_url).toBe(env.sites.src.url);
-    const rest = await tool(env, k, 'site', { action: 'transfer', args: { from: 'src', to: 'dst', kinds: ['posts'], page: 3, pages: 2, id_map: r.data.id_map } });
+    const rest = await tool(env, k, 'site', {
+      action: 'transfer',
+      args: { from: 'src', to: 'dst', kinds: ['posts'], page: 3, pages: 2, id_map: r.data.id_map },
+    });
     expect(rest.data.done).toBe(true);
     expect(rest.data.report.posts.created).toBe(2);
     expect(env.sites.dst.executed('transfer.import').at(-1)!.args.id_map).toMatchObject({ posts: { '10': 1010 } });
   });
 
   it('never sends imported content through the AI', async () => {
-    const r = await tool(env, key(env, 'draft'), 'site', { action: 'transfer', args: { from: 'src', to: 'dst', kinds: ['posts'], pages: 1 } });
+    const r = await tool(env, key(env, 'draft'), 'site', {
+      action: 'transfer',
+      args: { from: 'src', to: 'dst', kinds: ['posts'], pages: 1 },
+    });
     expect(JSON.stringify(r.data)).not.toContain('<p>x</p>');
   });
 
   it('dry run only counts', async () => {
     const before = env.sites.dst.executed('transfer.import').length;
-    const r = await tool(env, key(env, 'draft'), 'site', { action: 'transfer', args: { from: 'src', to: 'dst', kinds: ['posts', 'terms'] }, dry_run: true });
+    const r = await tool(env, key(env, 'draft'), 'site', {
+      action: 'transfer',
+      args: { from: 'src', to: 'dst', kinds: ['posts', 'terms'] },
+      dry_run: true,
+    });
     expect(r.data.would_copy).toEqual({ posts: 25, terms: 4 });
     expect(env.sites.dst.executed('transfer.import')).toHaveLength(before);
   });
@@ -341,7 +398,9 @@ describe('moving content and files between sites', () => {
     const r = await tool(env, key(env, 'read'), 'site', { action: 'transfer', args: { from: 'src', to: 'dst' } });
     expect(r.data.error.code).toBe('level_too_low');
     const live = key(env, 'draft');
-    expect((await tool(env, live, 'site', { action: 'transfer', args: { from: 'src', to: 'dst', kinds: ['menus'] } })).data.error.code).toBe('level_too_low');
+    expect(
+      (await tool(env, live, 'site', { action: 'transfer', args: { from: 'src', to: 'dst', kinds: ['menus'] } })).data.error.code,
+    ).toBe('level_too_low');
     expect((await tool(env, live, 'site', { action: 'transfer', args: { from: 'src', to: 'src' } })).data.error.code).toBe('same_site');
     expect((await tool(env, live, 'site', { action: 'transfer', args: { from: 'src', to: 'nope' } })).data.error.code).toBe('unknown_site');
   });
@@ -354,7 +413,10 @@ describe('moving content and files between sites', () => {
     expect(first.data.needs_confirmation).toBe(true);
     expect(first.data.preview.effect).toMatch(/REPLACED/);
     expect(env.sites.dst.executed('transfer.import')).toHaveLength(before);
-    expect((await tool(env, k, 'site', { action: 'transfer', args: { ...args, publish: true }, confirm_token: first.data.confirm_token })).data.error.code).toBe('bad_confirm_token');
+    expect(
+      (await tool(env, k, 'site', { action: 'transfer', args: { ...args, publish: true }, confirm_token: first.data.confirm_token })).data
+        .error.code,
+    ).toBe('bad_confirm_token');
     const done = await tool(env, k, 'site', { action: 'transfer', args, confirm_token: first.data.confirm_token });
     expect(done.data.report.posts.created).toBe(2);
     expect(env.sites.dst.executed('transfer.import').at(-1)!.args.overwrite).toBe(true);
@@ -362,7 +424,9 @@ describe('moving content and files between sites', () => {
 
   it('copies files only with admin on both sites and a confirmation', async () => {
     const live = key(env, 'live');
-    expect((await tool(env, live, 'site', { action: 'transfer_files', args: { from: 'src', to: 'dst', root: 'themes/kid' } })).data.error.code).toBe('level_too_low');
+    expect(
+      (await tool(env, live, 'site', { action: 'transfer_files', args: { from: 'src', to: 'dst', root: 'themes/kid' } })).data.error.code,
+    ).toBe('level_too_low');
     const k = key(env, 'admin');
     const args = { from: 'src', to: 'dst', root: 'themes/kid' };
     const first = await tool(env, k, 'site', { action: 'transfer_files', args });
@@ -371,6 +435,11 @@ describe('moving content and files between sites', () => {
     expect(env.sites.dst.executed('files.write')).toHaveLength(0);
     const done = await tool(env, k, 'site', { action: 'transfer_files', args, confirm_token: first.data.confirm_token });
     expect(done.data.copied).toBe(2);
-    expect(env.sites.dst.executed('files.write').map((c) => c.args.path).sort()).toEqual(['functions.php', 'style.css']);
+    expect(
+      env.sites.dst
+        .executed('files.write')
+        .map((c) => c.args.path)
+        .sort(),
+    ).toEqual(['functions.php', 'style.css']);
   });
 });

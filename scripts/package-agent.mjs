@@ -29,7 +29,10 @@ const walkBridge = (dir) => {
   }
 };
 walkBridge(bridgeRoot);
-const all = [...files.map((file) => ({ file, name: 'wpm-agent/' + relative(src, file).split(sep).join('/') })), ...bridgeFiles.map((file) => ({ file, name: 'wpm-agent/bridge/wp-mcp-bridge/' + relative(bridgeRoot, file).split(sep).join('/') }))];
+const all = [
+  ...files.map((file) => ({ file, name: 'wpm-agent/' + relative(src, file).split(sep).join('/') })),
+  ...bridgeFiles.map((file) => ({ file, name: 'wpm-agent/bridge/wp-mcp-bridge/' + relative(bridgeRoot, file).split(sep).join('/') })),
+];
 
 const parts = [];
 const central = [];

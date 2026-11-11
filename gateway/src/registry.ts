@@ -20,12 +20,111 @@ export interface OpSpec {
 }
 
 const LOCAL: OpSpec[] = [
-  { id: 'site.sites', tool: 'site', action: 'sites', level: 'read', summary: 'Every site you can use: name, URL, status, your effective level on it. Start here when several sites are connected.', params: {}, required: [], write: false, confirm: false, untrusted: false, escalates: null, local: true },
-  { id: 'site.whoami', tool: 'site', action: 'whoami', level: 'read', summary: 'Who you are connected as: level, sites, rate limits, token kind.', params: {}, required: [], write: false, confirm: false, untrusted: false, escalates: null, local: true },
-  { id: 'site.describe', tool: 'site', action: 'describe', level: 'read', summary: 'Full parameter schema of one action (or all actions of one tool).', params: { 'tool': 'string|Tool name', action: 'string|Action name; omit to list the tool' }, required: ['tool'], write: false, confirm: false, untrusted: false, escalates: null, local: true },
-  { id: 'site.transfer', tool: 'site', action: 'transfer', level: 'draft', summary: 'Copy content from one site to another through the gateway (nothing passes through the AI): terms, posts/pages with meta, SEO, builder data and images, menus, design settings. Creates drafts, skips existing slugs, resumable by page.', params: { from: 'string|Source site name', to: 'string|Target site name', kinds: 'array|terms, posts, menus, design, users, options (default terms+posts; users and options need admin)', prefixes: 'array|For kind options: option name prefixes such as ["woocommerce_"]', post_type: 'string|Post type for posts (default page)', ids: 'array|Only these source post IDs', page: 'int|First page (default 1)', pages: 'int|How many pages of 10 per call (default 3)', id_map: 'object|Pass back the id_map of the previous call to continue', overwrite: 'bool|Replace existing slugs (confirm)', publish: 'bool|Keep source status (confirm, live level)' }, required: ['from', 'to'], write: true, confirm: 'maybe', untrusted: false, escalates: 'live', local: true },
-  { id: 'site.transfer_files', tool: 'site', action: 'transfer_files', level: 'admin', summary: 'Copy files (a theme folder, a plugin folder, uploads) from one site to another through the gateway. Needs admin on both sites and confirmation.', params: { from: 'string|Source site name', to: 'string|Target site name', root: 'string|e.g. themes/my-child-theme', path: 'string|Subfolder or file inside the root', skip_existing: 'bool|Do not overwrite files that exist on the target' }, required: ['from', 'to', 'root'], write: true, confirm: true, untrusted: false, escalates: null, local: true },
-  { id: 'activity.log', tool: 'activity', action: 'log', level: 'read', summary: 'Gateway log of calls made by AI clients (who, which tool, which site, result). Combine with activity.list for what the site itself recorded.', params: { limit: 'int|Default 30, max 100', mine: 'bool|Only calls of this connection' }, required: [], write: false, confirm: false, untrusted: false, escalates: null, local: true },
+  {
+    id: 'site.sites',
+    tool: 'site',
+    action: 'sites',
+    level: 'read',
+    summary: 'Every site you can use: name, URL, status, your effective level on it. Start here when several sites are connected.',
+    params: {},
+    required: [],
+    write: false,
+    confirm: false,
+    untrusted: false,
+    escalates: null,
+    local: true,
+  },
+  {
+    id: 'site.whoami',
+    tool: 'site',
+    action: 'whoami',
+    level: 'read',
+    summary: 'Who you are connected as: level, sites, rate limits, token kind.',
+    params: {},
+    required: [],
+    write: false,
+    confirm: false,
+    untrusted: false,
+    escalates: null,
+    local: true,
+  },
+  {
+    id: 'site.describe',
+    tool: 'site',
+    action: 'describe',
+    level: 'read',
+    summary: 'Full parameter schema of one action (or all actions of one tool).',
+    params: { tool: 'string|Tool name', action: 'string|Action name; omit to list the tool' },
+    required: ['tool'],
+    write: false,
+    confirm: false,
+    untrusted: false,
+    escalates: null,
+    local: true,
+  },
+  {
+    id: 'site.transfer',
+    tool: 'site',
+    action: 'transfer',
+    level: 'draft',
+    summary:
+      'Copy content from one site to another through the gateway (nothing passes through the AI): terms, posts/pages with meta, SEO, builder data and images, menus, design settings. Creates drafts, skips existing slugs, resumable by page.',
+    params: {
+      from: 'string|Source site name',
+      to: 'string|Target site name',
+      kinds: 'array|terms, posts, menus, design, users, options (default terms+posts; users and options need admin)',
+      prefixes: 'array|For kind options: option name prefixes such as ["woocommerce_"]',
+      post_type: 'string|Post type for posts (default page)',
+      ids: 'array|Only these source post IDs',
+      page: 'int|First page (default 1)',
+      pages: 'int|How many pages of 10 per call (default 3)',
+      id_map: 'object|Pass back the id_map of the previous call to continue',
+      overwrite: 'bool|Replace existing slugs (confirm)',
+      publish: 'bool|Keep source status (confirm, live level)',
+    },
+    required: ['from', 'to'],
+    write: true,
+    confirm: 'maybe',
+    untrusted: false,
+    escalates: 'live',
+    local: true,
+  },
+  {
+    id: 'site.transfer_files',
+    tool: 'site',
+    action: 'transfer_files',
+    level: 'admin',
+    summary:
+      'Copy files (a theme folder, a plugin folder, uploads) from one site to another through the gateway. Needs admin on both sites and confirmation.',
+    params: {
+      from: 'string|Source site name',
+      to: 'string|Target site name',
+      root: 'string|e.g. themes/my-child-theme',
+      path: 'string|Subfolder or file inside the root',
+      skip_existing: 'bool|Do not overwrite files that exist on the target',
+    },
+    required: ['from', 'to', 'root'],
+    write: true,
+    confirm: true,
+    untrusted: false,
+    escalates: null,
+    local: true,
+  },
+  {
+    id: 'activity.log',
+    tool: 'activity',
+    action: 'log',
+    level: 'read',
+    summary:
+      'Gateway log of calls made by AI clients (who, which tool, which site, result). Combine with activity.list for what the site itself recorded.',
+    params: { limit: 'int|Default 30, max 100', mine: 'bool|Only calls of this connection' },
+    required: [],
+    write: false,
+    confirm: false,
+    untrusted: false,
+    escalates: null,
+    local: true,
+  },
 ];
 
 export const OPS: Record<string, OpSpec> = {};
@@ -38,23 +137,90 @@ export interface ToolInfo {
 }
 
 export const TOOLS: ToolInfo[] = [
-  { name: 'site', title: 'Site overview and connections', intro: 'START HERE. Which sites exist, what a site contains (theme, plugins, content types, SEO plugin, WooCommerce), who you are, and the schema of any action.' },
-  { name: 'content', title: 'Posts, pages, terms, comments', intro: 'Blog posts, pages, custom post types, categories/tags, comments. Content is block markup or HTML.' },
-  { name: 'design', title: 'Design: templates, CSS, tokens, menus, themes', intro: 'Header/footer and templates (block themes), additional CSS in named sections, design tokens, menus, homepage, branding, themes and theme files.' },
-  { name: 'builder', title: 'Page builders', intro: 'Read and edit pages built with Elementor or Bricks as element trees (get, set, update/add/remove an element); Divi, WPBakery and Avada as markup. Use detect first.' },
-  { name: 'fields', title: 'Custom fields (ACF, Meta Box)', intro: 'Field groups, field values of posts/terms/users/options, and ACF group creation.' },
-  { name: 'media', title: 'Media library', intro: 'List, upload (base64 or https URL), register files already in uploads, shrink/convert, edit metadata and delete images and files.' },
-  { name: 'seo', title: 'SEO', intro: 'Per-page SEO fields (Yoast, Rank Math, AIOSEO, SEOPress or built-in), page audit, robots.txt, sitemap, redirects, JSON-LD schema.' },
-  { name: 'inspect', title: 'Inspect rendered pages', intro: 'See what visitors get: rendered HTML, structure outline, stylesheets. No browser: for pixels use a browser tool.' },
-  { name: 'maintain', title: 'Maintenance', intro: 'Health, updates, backups, error logs, caches, database cleanup, search-replace, cron, maintenance mode.' },
-  { name: 'plugins', title: 'Plugins', intro: 'List, search, install, activate, deactivate, delete plugins. Use rest for other plugins\' own APIs.' },
+  {
+    name: 'site',
+    title: 'Site overview and connections',
+    intro:
+      'START HERE. Which sites exist, what a site contains (theme, plugins, content types, SEO plugin, WooCommerce), who you are, and the schema of any action.',
+  },
+  {
+    name: 'content',
+    title: 'Posts, pages, terms, comments',
+    intro: 'Blog posts, pages, custom post types, categories/tags, comments. Content is block markup or HTML.',
+  },
+  {
+    name: 'design',
+    title: 'Design: templates, CSS, tokens, menus, themes',
+    intro:
+      'Header/footer and templates (block themes), additional CSS in named sections, design tokens, menus, homepage, branding, themes and theme files.',
+  },
+  {
+    name: 'builder',
+    title: 'Page builders',
+    intro:
+      'Read and edit pages built with Elementor or Bricks as element trees (get, set, update/add/remove an element); Divi, WPBakery and Avada as markup. Use detect first.',
+  },
+  {
+    name: 'fields',
+    title: 'Custom fields (ACF, Meta Box)',
+    intro: 'Field groups, field values of posts/terms/users/options, and ACF group creation.',
+  },
+  {
+    name: 'media',
+    title: 'Media library',
+    intro:
+      'List, upload (base64 or https URL), register files already in uploads, shrink/convert, edit metadata and delete images and files.',
+  },
+  {
+    name: 'seo',
+    title: 'SEO',
+    intro:
+      'Per-page SEO fields (Yoast, Rank Math, AIOSEO, SEOPress or built-in), page audit, robots.txt, sitemap, redirects, JSON-LD schema.',
+  },
+  {
+    name: 'inspect',
+    title: 'Inspect rendered pages',
+    intro: 'See what visitors get: rendered HTML, structure outline, stylesheets. No browser: for pixels use a browser tool.',
+  },
+  {
+    name: 'maintain',
+    title: 'Maintenance',
+    intro: 'Health, updates, backups, error logs, caches, database cleanup, search-replace, cron, maintenance mode.',
+  },
+  {
+    name: 'plugins',
+    title: 'Plugins',
+    intro: "List, search, install, activate, deactivate, delete plugins. Use rest for other plugins' own APIs.",
+  },
   { name: 'users', title: 'Users', intro: 'Public authors (read) and full user management (admin).' },
-  { name: 'options', title: 'Site options', intro: 'WordPress options. Safe settings at live level, the rest admin. Secrets are never returned.' },
-  { name: 'rest', title: 'Generic REST layer', intro: 'Discover and call any REST route (WooCommerce, forms, SEO plugins, custom endpoints). Level is derived from method and route.' },
+  {
+    name: 'options',
+    title: 'Site options',
+    intro: 'WordPress options. Safe settings at live level, the rest admin. Secrets are never returned.',
+  },
+  {
+    name: 'rest',
+    title: 'Generic REST layer',
+    intro: 'Discover and call any REST route (WooCommerce, forms, SEO plugins, custom endpoints). Level is derived from method and route.',
+  },
   { name: 'shop', title: 'WooCommerce', intro: 'Products, stock, coupons, orders (orders are personal data: admin).' },
-  { name: 'forms', title: 'Forms', intro: 'Contact Form 7, Gravity Forms, WPForms, Fluent Forms: list, read, edit (CF7) and entries (admin).' },
-  { name: 'files', title: 'Files in wp-content', intro: 'Browse, read, write and delete files of themes, plugins, mu-plugins and uploads (admin; writes are confirmed and PHP is syntax-checked).' },
-  { name: 'transfer', title: 'Export and import content', intro: 'Portable JSON export/import of posts, terms, menus, media and design settings. To copy between two sites in one go use site.transfer.' },
+  {
+    name: 'forms',
+    title: 'Forms',
+    intro: 'Contact Form 7, Gravity Forms, WPForms, Fluent Forms: list, read, edit (CF7) and entries (admin).',
+  },
+  {
+    name: 'files',
+    title: 'Files in wp-content',
+    intro:
+      'Browse, read, write and delete files of themes, plugins, mu-plugins and uploads (admin; writes are confirmed and PHP is syntax-checked).',
+  },
+  {
+    name: 'transfer',
+    title: 'Export and import content',
+    intro:
+      'Portable JSON export/import of posts, terms, menus, media and design settings. To copy between two sites in one go use site.transfer.',
+  },
   { name: 'activity', title: 'Activity and undo', intro: 'What was done on the site and by whom; undo a change by revision ID.' },
 ];
 
@@ -77,7 +243,8 @@ export function paramSchema(op: OpSpec): Record<string, unknown> {
   const properties: Record<string, unknown> = {};
   for (const [name, def] of Object.entries(op.params)) {
     const p = parseParam(def);
-    const jsonType = p.type === 'int' ? 'integer' : p.type === 'bool' ? 'boolean' : p.type === 'enum' ? 'string' : p.type === 'any' ? undefined : p.type;
+    const jsonType =
+      p.type === 'int' ? 'integer' : p.type === 'bool' ? 'boolean' : p.type === 'enum' ? 'string' : p.type === 'any' ? undefined : p.type;
     properties[name] = { ...(jsonType ? { type: jsonType } : {}), ...(p.enum ? { enum: p.enum } : {}), description: p.description };
   }
   return { type: 'object', properties, required: op.required, additionalProperties: false };
@@ -147,7 +314,8 @@ const ACTION_ALIASES: Record<string, string> = {
 };
 
 /** The real action for a name the model used, or the name itself. */
-export const resolveAction = (tool: string, action: string): string => (OPS[`${tool}.${action}`] ? action : (ACTION_ALIASES[`${tool}.${action}`] ?? action));
+export const resolveAction = (tool: string, action: string): string =>
+  OPS[`${tool}.${action}`] ? action : (ACTION_ALIASES[`${tool}.${action}`] ?? action);
 
 /** Asking a tool about itself ("content.describe") means site.describe for that tool. */
 export const HELP_ACTIONS = ['describe', 'help', 'actions'];
@@ -164,7 +332,8 @@ function normalizeRoot(op: OpSpec, args: Record<string, unknown>): void {
     const m = /^(?:wp-content\/)?(themes|plugins|mu-plugins|uploads)(?:\/(.*))?$/.exec(trimSlashes(args.path));
     if (m) {
       args.root = m[1];
-      if (m[2]) args.path = m[2]; else delete args.path;
+      if (m[2]) args.path = m[2];
+      else delete args.path;
     }
   }
   if (typeof args.root !== 'string') return;
@@ -177,7 +346,8 @@ function normalizeRoot(op: OpSpec, args: Record<string, unknown>): void {
       root = `${root}/${folder}`;
       inside.forEach((name, i) => {
         const rest = parts[i]!.slice(1).join('/');
-        if (rest) args[name] = rest; else delete args[name];
+        if (rest) args[name] = rest;
+        else delete args[name];
       });
     }
   }
@@ -243,14 +413,25 @@ export function checkArgs(op: OpSpec, input: unknown): Checked {
         break;
       case 'object':
         if (typeof v === 'string') {
-          try { v = JSON.parse(v); } catch { /* reported below */ }
+          try {
+            v = JSON.parse(v);
+          } catch {
+            /* reported below */
+          }
         }
         if (Array.isArray(v)) v = listToObject(v) ?? v; // [{slug, color|value|size}] -> {slug: value}
         if (!v || typeof v !== 'object' || Array.isArray(v)) errors.push(`"${name}" must be an object.`);
         break;
       case 'array':
         if (typeof v === 'string') {
-          try { v = JSON.parse(v); } catch { v = (v as string).split(',').map((part: string) => part.trim()).filter(Boolean); }
+          try {
+            v = JSON.parse(v);
+          } catch {
+            v = (v as string)
+              .split(',')
+              .map((part: string) => part.trim())
+              .filter(Boolean);
+          }
         }
         if (!Array.isArray(v)) errors.push(`"${name}" must be an array.`);
         break;
@@ -268,4 +449,5 @@ export function checkArgs(op: OpSpec, input: unknown): Checked {
   return { args, errors };
 }
 
-export const highestLevel = (ops: OpSpec[]): Level => ops.reduce<Level>((top, op) => (rank(op.level) > rank(top) ? op.level : top), LEVELS[0]);
+export const highestLevel = (ops: OpSpec[]): Level =>
+  ops.reduce<Level>((top, op) => (rank(op.level) > rank(top) ? op.level : top), LEVELS[0]);

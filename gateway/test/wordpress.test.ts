@@ -72,7 +72,13 @@ describe('createWordPress', () => {
       },
       upload: async () => 'upload-bridge-1',
     } as unknown as AgentClient;
-    env.app.store.addHost({ name: 'h1', url: `http://127.0.0.1:${port}/wpm-agent/`, key_id: 'k1', secret_enc: encrypt(env.config.masterKey, 'x'), level: 'admin' });
+    env.app.store.addHost({
+      name: 'h1',
+      url: `http://127.0.0.1:${port}/wpm-agent/`,
+      key_id: 'k1',
+      secret_enc: encrypt(env.config.masterKey, 'x'),
+      level: 'admin',
+    });
     env.app.store.hostHealth('h1', true, '', { version: '2.0.0', caps: { script_dir: '/wpm-agent' } });
   });
 
@@ -82,7 +88,13 @@ describe('createWordPress', () => {
     await env.stop();
   });
 
-  const base = { host: 'h1', name: 'blog', title: 'My Blog', adminEmail: 'me@example.com', db: { method: 'cpanel' as const, url: 'https://panel:2083', user: 'u', token: 't' } };
+  const base = {
+    host: 'h1',
+    name: 'blog',
+    title: 'My Blog',
+    adminEmail: 'me@example.com',
+    db: { method: 'cpanel' as const, url: 'https://panel:2083', user: 'u', token: 't' },
+  };
 
   it('creates the site, installs through the web installer, activates the bridge and pairs', async () => {
     const r = await createWordPress(env.app, base);
@@ -117,7 +129,9 @@ describe('createWordPress', () => {
   it('keeps the files and says what to do when the installer never answers', async () => {
     calls.length = 0;
     installStatus = 500;
-    await expect(createWordPress(env.app, { ...base, name: 'third', folder: 'third' })).rejects.toMatchObject({ code: 'wp_install_failed' });
+    await expect(createWordPress(env.app, { ...base, name: 'third', folder: 'third' })).rejects.toMatchObject({
+      code: 'wp_install_failed',
+    });
     installStatus = 200;
     expect(calls.map((c) => c.op)).not.toContain('sites.delete');
     expect(calls.map((c) => c.op)).not.toContain('wp.finish');
@@ -127,7 +141,9 @@ describe('createWordPress', () => {
     calls.length = 0;
     await expect(createWordPress(env.app, { ...base, name: 'Bad Name!' })).rejects.toMatchObject({ code: 'bad_name' });
     await expect(createWordPress(env.app, { ...base, name: 'okname', adminEmail: 'nope' })).rejects.toMatchObject({ code: 'bad_email' });
-    await expect(createWordPress(env.app, { ...base, name: 'okname', adminPassword: 'short' })).rejects.toMatchObject({ code: 'weak_password' });
+    await expect(createWordPress(env.app, { ...base, name: 'okname', adminPassword: 'short' })).rejects.toMatchObject({
+      code: 'weak_password',
+    });
     await expect(createWordPress(env.app, { ...base, name: 'okname', adminUser: 'a b' })).rejects.toMatchObject({ code: 'bad_admin' });
     await expect(createWordPress(env.app, { ...base, name: 'blog' })).rejects.toMatchObject({ code: 'name_taken' });
     expect(calls).toHaveLength(0);

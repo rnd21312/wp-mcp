@@ -4,8 +4,12 @@
   "description": "Multi-site MCP gateway for WordPress (Streamable HTTP, OAuth 2.1, API keys)",
   "type": "module",
   "license": "MIT",
-  "engines": { "node": ">=22.13" },
-  "bin": { "wp-mcp": "dist/index.js" },
+  "engines": {
+    "node": ">=22.13"
+  },
+  "bin": {
+    "wp-mcp": "dist/index.js"
+  },
   "scripts": {
     "sync-spec": "node ../scripts/sync-spec.mjs",
     "build": "node ../scripts/sync-spec.mjs && tsc -p tsconfig.json && node ../scripts/copy-agent.mjs && npm --prefix ../panel run build",

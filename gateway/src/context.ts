@@ -14,7 +14,13 @@ export interface App {
 }
 
 export function createApp(config: Config, store: Store, parts: Partial<Pick<App, 'limiter' | 'sites' | 'agents'>> = {}): App {
-  return { config, store, limiter: parts.limiter ?? new RateLimiter(), sites: parts.sites ?? new SiteClient(config), agents: parts.agents ?? new AgentClient(config) };
+  return {
+    config,
+    store,
+    limiter: parts.limiter ?? new RateLimiter(),
+    sites: parts.sites ?? new SiteClient(config),
+    agents: parts.agents ?? new AgentClient(config),
+  };
 }
 
 /** What a handler returns; the HTTP layer turns it into a response. */
@@ -28,4 +34,8 @@ export interface Reply {
   text?: string;
 }
 
-export const json = (status: number, body: unknown, headers: Record<string, string> = {}): Reply => ({ status, json: body, headers: { 'cache-control': 'no-store', ...headers } });
+export const json = (status: number, body: unknown, headers: Record<string, string> = {}): Reply => ({
+  status,
+  json: body,
+  headers: { 'cache-control': 'no-store', ...headers },
+});

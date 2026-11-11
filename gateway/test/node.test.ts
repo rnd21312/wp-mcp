@@ -50,7 +50,8 @@ describe('Next standalone assembly', () => {
     writeFileSync(join(dir, '.next/static/css/a.css'), 'c');
     writeFileSync(join(dir, 'public/logo.svg'), '<svg/>');
     assembleNextStandalone(dir);
-    for (const f of ['server.js', 'node_modules/next/p.json', '.next/static/css/a.css', 'public/logo.svg']) expect(existsSync(join(dir, '.wpm-deploy', f)), f).toBe(true);
+    for (const f of ['server.js', 'node_modules/next/p.json', '.next/static/css/a.css', 'public/logo.svg'])
+      expect(existsSync(join(dir, '.wpm-deploy', f)), f).toBe(true);
     assembleNextStandalone(dir); // idempotent
   });
 
@@ -98,7 +99,13 @@ describe('deploying a Node project', () => {
         return { id: 'r1', previous: null, mode: 'sync', created: 0, files: 0, bytes: 0, sha256: '', note: '', by: '' };
       },
     } as unknown as AgentClient;
-    env.app.store.addHost({ name: 'h', url: 'https://h.test/wpm-agent/', key_id: 'k', secret_enc: encrypt(env.config.masterKey, 'x'), level: 'admin' });
+    env.app.store.addHost({
+      name: 'h',
+      url: 'https://h.test/wpm-agent/',
+      key_id: 'k',
+      secret_enc: encrypt(env.config.masterKey, 'x'),
+      level: 'admin',
+    });
     env.app.store.hostHealth('h', true);
   });
   afterAll(async () => {
@@ -112,10 +119,27 @@ describe('deploying a Node project', () => {
     mkdirSync(join(dir, 'node_modules/dep'), { recursive: true });
     writeFileSync(join(dir, 'node_modules/dep/index.js'), 'x');
     const port = (app.address() as AddressInfo).port;
-    const done = await deployProject(env.app, { project: 'api', host: 'h', note: 'n', node: { appRoot: '/home/u/nodeapps', docroot: 'api-public', port: 24100, env: { DATABASE_URL: 'mysql://x' }, checkUrl: `http://127.0.0.1:${port}/` } });
+    const done = await deployProject(env.app, {
+      project: 'api',
+      host: 'h',
+      note: 'n',
+      node: {
+        appRoot: '/home/u/nodeapps',
+        docroot: 'api-public',
+        port: 24100,
+        env: { DATABASE_URL: 'mysql://x' },
+        checkUrl: `http://127.0.0.1:${port}/`,
+      },
+    });
     expect(calls.map((c) => c.op)).toEqual(['roots.add', 'sites.create', 'sites.env']);
     expect(calls[0].args.path).toBe('/home/u/nodeapps');
-    expect(calls[1].args).toMatchObject({ kind: 'node', root: '/home/u/nodeapps', startup: 'server.js', docroot: 'api-public', port: 24100 });
+    expect(calls[1].args).toMatchObject({
+      kind: 'node',
+      root: '/home/u/nodeapps',
+      startup: 'server.js',
+      docroot: 'api-public',
+      port: 24100,
+    });
     expect(calls[2].args.env).toEqual({ DATABASE_URL: 'mysql://x' });
     expect(names(deployedZip)).toEqual(expect.arrayContaining(['server.js', 'package.json', 'node_modules/dep/index.js']));
     expect(done.check?.status).toBe(200);

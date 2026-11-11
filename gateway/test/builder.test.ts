@@ -20,13 +20,48 @@ const PLAN = {
   audience: 'neighbours',
   footer_note: '© Nur Bakery',
   pages: [
-    { slug: 'index', title: 'Home', purpose: 'Introduce the bakery and invite people in', sections: ['Hero', 'Why us'], seo_title: 'Nur Bakery - fresh bread daily', seo_description: 'Nur Bakery bakes fresh bread, pastries and cakes every morning in the heart of the neighbourhood.' },
-    { slug: 'menu', title: 'Menu', purpose: 'Show what is baked', sections: ['Breads', 'Pastries'], seo_title: 'Menu - Nur Bakery bread and pastries', seo_description: 'See the breads, pastries and cakes baked fresh at Nur Bakery, with seasonal specials every month.' },
-    { slug: 'contact', title: 'Contact', purpose: 'How to reach us', sections: ['Address and hours', 'Message form'], seo_title: 'Contact Nur Bakery - visit or call us', seo_description: 'Find Nur Bakery, see the opening hours and send us a message about orders and events.' },
+    {
+      slug: 'index',
+      title: 'Home',
+      purpose: 'Introduce the bakery and invite people in',
+      sections: ['Hero', 'Why us'],
+      seo_title: 'Nur Bakery - fresh bread daily',
+      seo_description: 'Nur Bakery bakes fresh bread, pastries and cakes every morning in the heart of the neighbourhood.',
+    },
+    {
+      slug: 'menu',
+      title: 'Menu',
+      purpose: 'Show what is baked',
+      sections: ['Breads', 'Pastries'],
+      seo_title: 'Menu - Nur Bakery bread and pastries',
+      seo_description: 'See the breads, pastries and cakes baked fresh at Nur Bakery, with seasonal specials every month.',
+    },
+    {
+      slug: 'contact',
+      title: 'Contact',
+      purpose: 'How to reach us',
+      sections: ['Address and hours', 'Message form'],
+      seo_title: 'Contact Nur Bakery - visit or call us',
+      seo_description: 'Find Nur Bakery, see the opening hours and send us a message about orders and events.',
+    },
   ],
 };
 
-const GOOD_TOKENS = { palette: { primary: '#9a3412', secondary: '#78350f', accent: '#f59e0b', background: '#fffbeb', surface: '#ffffff', text: '#1c1917', muted: '#57534e' }, fonts: { heading: 'serif', body: 'system' }, radius: 10, maxWidth: 1080, rationale: 'warm bakery tones' };
+const GOOD_TOKENS = {
+  palette: {
+    primary: '#9a3412',
+    secondary: '#78350f',
+    accent: '#f59e0b',
+    background: '#fffbeb',
+    surface: '#ffffff',
+    text: '#1c1917',
+    muted: '#57534e',
+  },
+  fonts: { heading: 'serif', body: 'system' },
+  radius: 10,
+  maxWidth: 1080,
+  rationale: 'warm bakery tones',
+};
 const BAD_TOKENS = { ...GOOD_TOKENS, palette: { ...GOOD_TOKENS.palette, text: '#cccccc' } };
 
 const mainFor = (slug: string): string =>
@@ -43,7 +78,15 @@ describe('builder pipeline (scripted AI)', () => {
 
   beforeAll(async () => {
     env = await createEnv([], { dataDir: mkdtempSync(join(tmpdir(), 'wpm-bld-')) }, { owner: false });
-    env.app.store.addAiProvider({ id: 'p1', name: 'test', preset: 'custom', type: 'openai', base_url: 'http://x', model: 'm', key_enc: '' });
+    env.app.store.addAiProvider({
+      id: 'p1',
+      name: 'test',
+      preset: 'custom',
+      type: 'openai',
+      base_url: 'http://x',
+      model: 'm',
+      key_enc: '',
+    });
     llm.complete = async (_app, _provider, system, user) => {
       seenPrompts.push(user);
       if (system.includes('information architect')) {
@@ -55,14 +98,23 @@ describe('builder pipeline (scripted AI)', () => {
       }
       pageCalls++;
       const slug = /Page to write: .*\((\w+)\.html\)/.exec(user)![1];
-      if (pageMode === 'script' || (pageMode === 'no-h1' && !user.includes('was rejected'))) return pageMode === 'script' ? `<section class="section"><div class="container"><h1>x</h1><script>alert(1)</script></div></section>` : '<section class="section"><div class="container"><h2>No heading one here</h2><p>' + 'text '.repeat(20) + '</p></div></section>';
+      if (pageMode === 'script' || (pageMode === 'no-h1' && !user.includes('was rejected')))
+        return pageMode === 'script'
+          ? `<section class="section"><div class="container"><h1>x</h1><script>alert(1)</script></div></section>`
+          : '<section class="section"><div class="container"><h2>No heading one here</h2><p>' + 'text '.repeat(20) + '</p></div></section>';
       return mainFor(slug);
     };
     env.app.agents = {
       call: async (_h: unknown, op: string, args: Record<string, unknown>) => (op === 'sites.create' ? { site: { id: args.name } } : {}),
       deploy: async () => ({ id: 'rel1', previous: null, mode: 'sync', created: 0, files: 0, bytes: 0, sha256: '', note: '', by: '' }),
     } as unknown as AgentClient;
-    env.app.store.addHost({ name: 'h', url: 'https://h.test/wpm-agent/', key_id: 'k', secret_enc: encrypt(env.config.masterKey, 'x'), level: 'admin' });
+    env.app.store.addHost({
+      name: 'h',
+      url: 'https://h.test/wpm-agent/',
+      key_id: 'k',
+      secret_enc: encrypt(env.config.masterKey, 'x'),
+      level: 'admin',
+    });
     env.app.store.hostHealth('h', true);
   });
   afterAll(async () => {
@@ -73,7 +125,14 @@ describe('builder pipeline (scripted AI)', () => {
     pageMode = 'good';
   });
 
-  const start = (name: string, extra = {}) => startBuilder(env.app, { name, brief: 'A neighbourhood bakery that sells bread, pastries and cakes. Visitors should find the menu and our address.', provider: 'p1', baseUrl: 'https://nur.example.com', ...extra });
+  const start = (name: string, extra = {}) =>
+    startBuilder(env.app, {
+      name,
+      brief: 'A neighbourhood bakery that sells bread, pastries and cakes. Visitors should find the menu and our address.',
+      provider: 'p1',
+      baseUrl: 'https://nur.example.com',
+      ...extra,
+    });
 
   it('validates the start', () => {
     expect(() => startBuilder(env.app, { name: 'x1', brief: 'short', provider: 'p1' })).toThrow(/few sentences/);
@@ -191,8 +250,16 @@ describe('builder pipeline (scripted AI)', () => {
     // a person's edit goes through the same checks
     pageMode = 'good';
     await runStage(env.app, 'scripty', { stage: 'pages', slug: 'index' });
-    expect(() => approve(env.app, 'scripty', { stage: 'pages', slug: 'index', edit: '<h1>x</h1><p>' + 'a'.repeat(60) + '</p><img src="http://evil.test/p.png" alt="x">' })).toThrow(/images\//);
-    expect(() => approve(env.app, 'scripty', { stage: 'pages', slug: 'index', edit: '<h1>x</h1><p onclick="x()">' + 'a'.repeat(60) + '</p>' })).toThrow(/event handlers/);
+    expect(() =>
+      approve(env.app, 'scripty', {
+        stage: 'pages',
+        slug: 'index',
+        edit: '<h1>x</h1><p>' + 'a'.repeat(60) + '</p><img src="http://evil.test/p.png" alt="x">',
+      }),
+    ).toThrow(/images\//);
+    expect(() =>
+      approve(env.app, 'scripty', { stage: 'pages', slug: 'index', edit: '<h1>x</h1><p onclick="x()">' + 'a'.repeat(60) + '</p>' }),
+    ).toThrow(/event handlers/);
     expect(pageMain(env.app, 'scripty', 'index')).toContain('Page index');
   }, 30000);
 
@@ -217,7 +284,14 @@ describe('site kit', () => {
   });
 
   it('escapes names and descriptions in the shell', () => {
-    const evil = { ...plan, site_name: '<script>alert(1)</script>', pages: [{ ...plan.pages[0], seo_title: 'a"><img src=x onerror=alert(1)>', seo_description: "x' onmouseover='y" }, ...plan.pages.slice(1)] };
+    const evil = {
+      ...plan,
+      site_name: '<script>alert(1)</script>',
+      pages: [
+        { ...plan.pages[0], seo_title: 'a"><img src=x onerror=alert(1)>', seo_description: "x' onmouseover='y" },
+        ...plan.pages.slice(1),
+      ],
+    };
     const html = assemblePage({ plan: evil, page: evil.pages[0], main: '<h1>x</h1>' });
     expect(html).not.toContain('<script>alert(1)');
     expect(html).not.toContain('<img src=x');
@@ -233,7 +307,15 @@ describe('site kit', () => {
   });
 
   it('refuses markup the shell must own', () => {
-    for (const bad of ['<script>x</script>' + 'a'.repeat(50), '<iframe src="x"></iframe>' + 'a'.repeat(50), '<p onclick="x()">' + 'a'.repeat(50), '<a href="javascript:x()">' + 'a'.repeat(50), '<body>' + 'a'.repeat(50), '<form action="https://evil.test/">' + 'a'.repeat(50)]) expect(() => checkMain(bad), bad).toThrow();
+    for (const bad of [
+      '<script>x</script>' + 'a'.repeat(50),
+      '<iframe src="x"></iframe>' + 'a'.repeat(50),
+      '<p onclick="x()">' + 'a'.repeat(50),
+      '<a href="javascript:x()">' + 'a'.repeat(50),
+      '<body>' + 'a'.repeat(50),
+      '<form action="https://evil.test/">' + 'a'.repeat(50),
+    ])
+      expect(() => checkMain(bad), bad).toThrow();
     expect(() => checkMain('<h1>ok</h1><p>' + 'a'.repeat(60) + '</p>')).not.toThrow();
   });
 
@@ -247,12 +329,17 @@ describe('site kit', () => {
 describe('audit', () => {
   const plan = PLAN as unknown as Plan;
   const tokens = GOOD_TOKENS as unknown as Tokens;
-  const page = (extra: string, head = '<title>A reasonable page title</title><meta name="description" content="A description that is long enough to be useful to searchers, saying what the page is.">'): string =>
+  const page = (
+    extra: string,
+    head = '<title>A reasonable page title</title><meta name="description" content="A description that is long enough to be useful to searchers, saying what the page is.">',
+  ): string =>
     `<!doctype html><html lang="en" dir="ltr"><head><meta name="viewport" content="width=device-width">${head}</head><body><main><h1>Hi</h1><p>${'content '.repeat(15)}</p>${extra}</main></body></html>`;
 
   it('finds the problems that matter', () => {
     const files = {
-      'index.html': page('<img src="images/index-1.svg" alt="ok"><a href="gone.html">x</a><a href="menu.html">click here</a><a href="#nowhere">y</a><h4>skip</h4>'),
+      'index.html': page(
+        '<img src="images/index-1.svg" alt="ok"><a href="gone.html">x</a><a href="menu.html">click here</a><a href="#nowhere">y</a><h4>skip</h4>',
+      ),
       'menu.html': page('<h1>second</h1><img src="p.png"><form><input></form>', '<title>x</title>'),
       'contact.html': '<html><body><main><p>short</p></main></body></html>',
     };
@@ -275,12 +362,22 @@ describe('audit', () => {
   });
 
   it('flags a low-contrast design as an error', () => {
-    const r = auditSite(plan, BAD_TOKENS as unknown as Tokens, { 'index.html': page(''), 'menu.html': page(''), 'contact.html': page('') }, ['style.css']);
+    const r = auditSite(
+      plan,
+      BAD_TOKENS as unknown as Tokens,
+      { 'index.html': page(''), 'menu.html': page(''), 'contact.html': page('') },
+      ['style.css'],
+    );
     expect(r.issues.some((i) => i.rule === 'contrast' && i.level === 'error')).toBe(true);
   });
 
   it('passes a clean site', () => {
-    const files = Object.fromEntries(plan.pages.map((p) => [p.slug === 'index' ? 'index.html' : `${p.slug}.html`, page('<a href="index.html">Home page</a>', `<title>${p.seo_title}</title><meta name="description" content="${p.seo_description}">`)]));
+    const files = Object.fromEntries(
+      plan.pages.map((p) => [
+        p.slug === 'index' ? 'index.html' : `${p.slug}.html`,
+        page('<a href="index.html">Home page</a>', `<title>${p.seo_title}</title><meta name="description" content="${p.seo_description}">`),
+      ]),
+    );
     const r = auditSite(plan, tokens, files, ['style.css']);
     expect(r.errors).toBe(0);
   });

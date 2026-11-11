@@ -7,7 +7,12 @@ describe('local web panel', () => {
   let csrf = '';
   beforeAll(async () => {
     env = await createEnv(['alpha']);
-    const login = await fetch(`${env.base}/admin/login`, { method: 'POST', redirect: 'manual', headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ password: OWNER_PASSWORD }) });
+    const login = await fetch(`${env.base}/admin/login`, {
+      method: 'POST',
+      redirect: 'manual',
+      headers: { 'content-type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ password: OWNER_PASSWORD }),
+    });
     cookie = login.headers.getSetCookie()[0].split(';')[0];
     const html = await (await fetch(`${env.base}/admin/workbench`, { headers: { cookie } })).text();
     csrf = /name="_csrf" value="([^"]+)"/.exec(html)![1];
@@ -15,7 +20,12 @@ describe('local web panel', () => {
   afterAll(() => env.stop());
 
   const run = (data: Record<string, string>, extraCookie = '') =>
-    fetch(`${env.base}/admin/workbench/run`, { method: 'POST', redirect: 'manual', headers: { cookie: cookie + extraCookie, 'content-type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ _csrf: csrf, ...data }) });
+    fetch(`${env.base}/admin/workbench/run`, {
+      method: 'POST',
+      redirect: 'manual',
+      headers: { cookie: cookie + extraCookie, 'content-type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ _csrf: csrf, ...data }),
+    });
 
   it('is Persian and right-to-left by default, and switches to English', async () => {
     const fa = await (await fetch(`${env.base}/admin`, { headers: { cookie } })).text();
@@ -66,7 +76,11 @@ describe('local web panel', () => {
 
   it('rejects bad JSON and missing CSRF', async () => {
     expect(await (await run({ tool: 'content', action: 'list', level: 'read', args: '{nope' })).text()).toContain('not valid JSON');
-    const bad = await fetch(`${env.base}/admin/workbench/run`, { method: 'POST', headers: { cookie, 'content-type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ tool: 'content', action: 'list' }) });
+    const bad = await fetch(`${env.base}/admin/workbench/run`, {
+      method: 'POST',
+      headers: { cookie, 'content-type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ tool: 'content', action: 'list' }),
+    });
     expect(bad.status).toBe(403);
   });
 

@@ -28,13 +28,25 @@ const here = dirname(fileURLToPath(import.meta.url));
 export const panelDir = resolve(here, 'panel');
 const ENTRY = resolve(here, 'index.js');
 
-const TYPES: Record<string, string> = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml', '.woff2': 'font/woff2', '.woff': 'font/woff', '.json': 'application/json', '.ico': 'image/x-icon', '.png': 'image/png', '.txt': 'text/plain; charset=utf-8' };
+const TYPES: Record<string, string> = {
+  '.html': 'text/html; charset=utf-8',
+  '.js': 'text/javascript; charset=utf-8',
+  '.css': 'text/css; charset=utf-8',
+  '.svg': 'image/svg+xml',
+  '.woff2': 'font/woff2',
+  '.woff': 'font/woff',
+  '.json': 'application/json',
+  '.ico': 'image/x-icon',
+  '.png': 'image/png',
+  '.txt': 'text/plain; charset=utf-8',
+};
 
 const SECURITY: Record<string, string> = {
   'x-frame-options': 'DENY',
   'x-content-type-options': 'nosniff',
   'referrer-policy': 'no-referrer',
-  'content-security-policy': "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https:; img-src 'self' data: https: http:; font-src 'self' data: https:; media-src https:; connect-src 'self'; frame-src http://127.0.0.1:* http://localhost:*; worker-src 'self' blob:; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
+  'content-security-policy':
+    "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https:; img-src 'self' data: https: http:; font-src 'self' data: https:; media-src https:; connect-src 'self'; frame-src http://127.0.0.1:* http://localhost:*; worker-src 'self' blob:; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
 };
 
 const json = (status: number, body: unknown): Reply => ({ status, json: body, headers: { 'cache-control': 'no-store', ...SECURITY } });
@@ -58,13 +70,36 @@ function serveFile(path: string): Reply {
   let file = join(panelDir, rel === '.' || rel === '' ? 'index.html' : rel);
   if (!file.startsWith(panelDir + sep) && file !== panelDir) return json(404, { error: 'not_found' });
   if (!existsSync(file) || statSync(file).isDirectory()) file = join(panelDir, 'index.html'); // client-side routes
-  if (!existsSync(file)) return { status: 503, headers: { ...SECURITY, 'content-type': 'text/plain; charset=utf-8' }, text: 'The panel is not built. Run: npm run build (in the project folder).' };
+  if (!existsSync(file))
+    return {
+      status: 503,
+      headers: { ...SECURITY, 'content-type': 'text/plain; charset=utf-8' },
+      text: 'The panel is not built. Run: npm run build (in the project folder).',
+    };
   const ext = extname(file).toLowerCase();
   const hashed = file.includes(`${sep}assets${sep}`);
-  return { status: 200, headers: { ...SECURITY, 'content-type': TYPES[ext] ?? 'application/octet-stream', 'cache-control': hashed ? 'public, max-age=31536000, immutable' : 'no-store' }, body: readFileSync(file) };
+  return {
+    status: 200,
+    headers: {
+      ...SECURITY,
+      'content-type': TYPES[ext] ?? 'application/octet-stream',
+      'cache-control': hashed ? 'public, max-age=31536000, immutable' : 'no-store',
+    },
+    body: readFileSync(file),
+  };
 }
 
-const toSite = (s: ReturnType<App['store']['sites']>[number]) => ({ name: s.name, url: s.url, title: s.title, status: s.status, last_error: s.last_error, last_ok: s.last_ok, max_level: s.max_level, wp_version: s.wp_version, plugin_version: s.plugin_version });
+const toSite = (s: ReturnType<App['store']['sites']>[number]) => ({
+  name: s.name,
+  url: s.url,
+  title: s.title,
+  status: s.status,
+  last_error: s.last_error,
+  last_ok: s.last_ok,
+  max_level: s.max_level,
+  wp_version: s.wp_version,
+  plugin_version: s.plugin_version,
+});
 
 function spec() {
   return TOOLS.map((t) => ({
@@ -73,22 +108,48 @@ function spec() {
     intro: t.intro,
     actions: Object.values(OPS)
       .filter((o) => o.tool === t.name)
-      .map((o) => ({ action: o.action, level: o.level, summary: o.summary, confirm: !!o.confirm, write: o.write, required: o.required, params: o.params })),
+      .map((o) => ({
+        action: o.action,
+        level: o.level,
+        summary: o.summary,
+        confirm: !!o.confirm,
+        write: o.write,
+        required: o.required,
+        params: o.params,
+      })),
   }));
 }
 
 function state(app: App) {
-  const clients = app.store.clients().filter((c) => c.grant_level).map((c) => ({ id: c.id, name: c.name, level: c.grant_level, sites: parseScope(c.grant_sites!), last_used: c.last_used }));
+  const clients = app.store
+    .clients()
+    .filter((c) => c.grant_level)
+    .map((c) => ({ id: c.id, name: c.name, level: c.grant_level, sites: parseScope(c.grant_sites!), last_used: c.last_used }));
   return {
     version: '2.3.0',
     levels: LEVELS,
-    stdio: { level: stdioLevel(app), from: app.store.setting('stdio_level') ? 'panel' : process.env.WPMCP_STDIO_LEVEL ? 'environment' : 'default' },
+    stdio: {
+      level: stdioLevel(app),
+      from: app.store.setting('stdio_level') ? 'panel' : process.env.WPMCP_STDIO_LEVEL ? 'environment' : 'default',
+    },
     publicUrl: app.config.publicUrl,
     dataDir: app.config.dataDir,
     entry: ENTRY,
     preview: previewInfo(app),
     sites: app.store.sites().map(toSite),
-    keys: app.store.keys().filter((k) => !k.revoked).map((k) => ({ id: k.id, name: k.name, prefix: k.prefix, level: k.level, sites: parseScope(k.sites), created: k.created, last_used: k.last_used, expires: k.expires })),
+    keys: app.store
+      .keys()
+      .filter((k) => !k.revoked)
+      .map((k) => ({
+        id: k.id,
+        name: k.name,
+        prefix: k.prefix,
+        level: k.level,
+        sites: parseScope(k.sites),
+        created: k.created,
+        last_used: k.last_used,
+        expires: k.expires,
+      })),
     clients,
     activity: app.store.activity({ limit: 15 }),
   };
@@ -104,7 +165,11 @@ async function fetchChain(app: App, start: string): Promise<Record<string, unkno
   let url = start;
   const t0 = Date.now();
   for (let hop = 0; hop <= MAX_HOPS; hop++) {
-    const res = await safeRequest(url, policy, { headers: { 'user-agent': UA, accept: 'text/html,application/xhtml+xml,*/*;q=0.8', 'accept-language': 'fa,en;q=0.8' }, maxBytes: 3 * 1024 * 1024, timeoutMs: 20000 });
+    const res = await safeRequest(url, policy, {
+      headers: { 'user-agent': UA, accept: 'text/html,application/xhtml+xml,*/*;q=0.8', 'accept-language': 'fa,en;q=0.8' },
+      maxBytes: 3 * 1024 * 1024,
+      timeoutMs: 20000,
+    });
     const location = typeof res.headers.location === 'string' ? new URL(res.headers.location, url).href : undefined;
     chain.push({ url, status: res.status, location });
     if (res.status >= 300 && res.status < 400 && location) {
@@ -122,7 +187,14 @@ async function fetchChain(app: App, start: string): Promise<Record<string, unkno
         ms: Date.now() - t0,
         bytes: res.body.length,
         type,
-        headers: { 'x-robots-tag': pick('x-robots-tag'), 'cache-control': pick('cache-control'), 'content-encoding': pick('content-encoding'), server: pick('server'), link: pick('link'), 'last-modified': pick('last-modified') },
+        headers: {
+          'x-robots-tag': pick('x-robots-tag'),
+          'cache-control': pick('cache-control'),
+          'content-encoding': pick('content-encoding'),
+          server: pick('server'),
+          link: pick('link'),
+          'last-modified': pick('last-modified'),
+        },
         html: /html|xml/i.test(type) ? res.body.toString('utf8') : '',
       },
     };
@@ -139,13 +211,18 @@ async function checkLinks(app: App, urls: string[]): Promise<Record<string, numb
   const one = async (u: string): Promise<void> => {
     try {
       let r = await safeRequest(u, policy, { method: 'HEAD', headers: { 'user-agent': UA }, maxBytes: 200000, timeoutMs: 10000 });
-      if (r.status === 405 || r.status === 403 || r.status === 501) r = await safeRequest(u, policy, { headers: { 'user-agent': UA }, maxBytes: 500000, timeoutMs: 10000 });
+      if (r.status === 405 || r.status === 403 || r.status === 501)
+        r = await safeRequest(u, policy, { headers: { 'user-agent': UA }, maxBytes: 500000, timeoutMs: 10000 });
       out[u] = r.status;
     } catch (error) {
       out[u] = error instanceof SsrfError ? 'blocked' : (error as Error).message.slice(0, 40);
     }
   };
-  await Promise.all(Array.from({ length: 6 }, async () => { for (let u = queue.shift(); u; u = queue.shift()) await one(u); }));
+  await Promise.all(
+    Array.from({ length: 6 }, async () => {
+      for (let u = queue.shift(); u; u = queue.shift()) await one(u);
+    }),
+  );
 
   return out;
 }
@@ -157,8 +234,21 @@ async function api(app: App, req: LocalReq): Promise<Reply> {
     if (method === 'GET' && route === 'state') return json(200, state(app));
     if (method === 'GET' && route === 'spec') return json(200, spec());
     if (method === 'GET' && route === 'ws/status') return json(200, ws.status(app, String(query.get('site') ?? '')));
-    if (method === 'GET' && route === 'ai/providers') return json(200, { providers: app.store.aiProviders().map((p) => ({ id: p.id, name: p.name, preset: p.preset, type: p.type, base_url: p.base_url, model: p.model, has_key: !!p.key_enc })), presets: PRESETS });
-    if (method === 'GET' && route === 'activity') return json(200, { entries: app.store.activity({ limit: Math.min(200, Number(query.get('limit') ?? 100)) }) });
+    if (method === 'GET' && route === 'ai/providers')
+      return json(200, {
+        providers: app.store.aiProviders().map((p) => ({
+          id: p.id,
+          name: p.name,
+          preset: p.preset,
+          type: p.type,
+          base_url: p.base_url,
+          model: p.model,
+          has_key: !!p.key_enc,
+        })),
+        presets: PRESETS,
+      });
+    if (method === 'GET' && route === 'activity')
+      return json(200, { entries: app.store.activity({ limit: Math.min(200, Number(query.get('limit') ?? 100)) }) });
     if (method === 'GET' && route === 'connector/status') return json(200, connectorStatus(app));
     if (method === 'GET' && route === 'gsc/status') return json(200, gscStatus(app));
     const studio = await studioApi(app, method, route, body);
@@ -169,11 +259,20 @@ async function api(app: App, req: LocalReq): Promise<Reply> {
       case 'ai/providers/add': {
         const preset = PRESETS.find((p) => p.id === body.preset) ?? PRESETS[PRESETS.length - 1];
         const base = String(body.base_url || preset.base).trim();
-        if (!/^https?:\/\//.test(base)) return json(200, { ok: false, error: { code: 'bad_url', message: 'Base URL must start with http(s)://' } });
+        if (!/^https?:\/\//.test(base))
+          return json(200, { ok: false, error: { code: 'bad_url', message: 'Base URL must start with http(s)://' } });
         const model = String(body.model || preset.model).trim();
         if (!model) return json(200, { ok: false, error: { code: 'bad_model', message: 'Choose a model name.' } });
         const id = `ai_${Math.random().toString(36).slice(2, 10)}`;
-        app.store.addAiProvider({ id, name: String(body.name || preset.label).slice(0, 60), preset: preset.id, type: preset.type, base_url: base, model, key_enc: sealKey(app, String(body.key ?? '').trim()) });
+        app.store.addAiProvider({
+          id,
+          name: String(body.name || preset.label).slice(0, 60),
+          preset: preset.id,
+          type: preset.type,
+          base_url: base,
+          model,
+          key_enc: sealKey(app, String(body.key ?? '').trim()),
+        });
         return json(200, { ok: true, id });
       }
       case 'ws/pull':
@@ -181,13 +280,23 @@ async function api(app: App, req: LocalReq): Promise<Reply> {
       case 'ws/open':
         return json(200, { ...ws.openInVsCode(ws.wsDir(app, String(body.site))), dir: ws.wsDir(app, String(body.site)) });
       case 'ws/watch':
-        if (body.on) ws.startWatch(app, String(body.site)); else ws.stopWatch(String(body.site));
+        if (body.on) ws.startWatch(app, String(body.site));
+        else ws.stopWatch(String(body.site));
         return json(200, { ok: true, ...ws.status(app, String(body.site)) });
       case 'ai/providers/remove':
         app.store.removeAiProvider(String(body.id));
         return json(200, { ok: true });
       case 'ai/chat':
-        return json(200, await chat(app, { providerId: String(body.provider ?? ''), site: body.site ? String(body.site) : undefined, level: isLevel(body.level) ? body.level : 'read', messages: Array.isArray(body.messages) ? body.messages : [], approve: body.approve }));
+        return json(
+          200,
+          await chat(app, {
+            providerId: String(body.provider ?? ''),
+            site: body.site ? String(body.site) : undefined,
+            level: isLevel(body.level) ? body.level : 'read',
+            messages: Array.isArray(body.messages) ? body.messages : [],
+            approve: body.approve,
+          }),
+        );
       case 'gsc/client':
         saveClient(app, String(body.client_id ?? ''), String(body.client_secret ?? ''));
         return json(200, gscStatus(app));
@@ -202,13 +311,24 @@ async function api(app: App, req: LocalReq): Promise<Reply> {
         try {
           return json(200, await fetchChain(app, String(body.url ?? '')));
         } catch (error) {
-          return json(200, { ok: false, error: { code: error instanceof SsrfError ? 'blocked' : 'fetch_failed', message: error instanceof Error ? error.message : 'Failed' } });
+          return json(200, {
+            ok: false,
+            error: {
+              code: error instanceof SsrfError ? 'blocked' : 'fetch_failed',
+              message: error instanceof Error ? error.message : 'Failed',
+            },
+          });
         }
       }
       case 'inspect/links':
         return json(200, { ok: true, statuses: await checkLinks(app, Array.isArray(body.urls) ? body.urls.map(String) : []) });
       case 'sites/add': {
-        const site = await addSite(app, { url: String(body.url ?? ''), code: String(body.code ?? ''), name: String(body.name ?? ''), maxLevel: isLevel(body.max_level) ? body.max_level : 'admin' });
+        const site = await addSite(app, {
+          url: String(body.url ?? ''),
+          code: String(body.code ?? ''),
+          name: String(body.name ?? ''),
+          maxLevel: isLevel(body.max_level) ? body.max_level : 'admin',
+        });
         return json(200, { ok: true, site: toSite(site) });
       }
       case 'sites/test':
@@ -233,7 +353,12 @@ async function api(app: App, req: LocalReq): Promise<Reply> {
       case 'keys/create': {
         const known = app.store.sites().map((s) => s.name);
         const chosen = (Array.isArray(body.sites) ? body.sites : []).filter((s: string) => known.includes(s));
-        const key = createApiKey(app, { name: String(body.name || 'API key'), level: isLevel(body.level) ? body.level : 'read', sites: chosen.length === 0 || chosen.length === known.length ? '*' : chosen, expiresInDays: Math.max(0, Math.min(3650, Number(body.days) || 0)) || undefined });
+        const key = createApiKey(app, {
+          name: String(body.name || 'API key'),
+          level: isLevel(body.level) ? body.level : 'read',
+          sites: chosen.length === 0 || chosen.length === known.length ? '*' : chosen,
+          expiresInDays: Math.max(0, Math.min(3650, Number(body.days) || 0)) || undefined,
+        });
         return json(200, { ok: true, token: key.token });
       }
       case 'keys/revoke':
@@ -248,8 +373,20 @@ async function api(app: App, req: LocalReq): Promise<Reply> {
         return json(200, { ok: true });
       }
       case 'run': {
-        const principal: Principal = { id: 'panel', kind: 'stdio', name: 'Local panel', level: isLevel(body.level) ? body.level : 'read', sites: '*' };
-        const result = await callTool(app, principal, String(body.tool ?? ''), { site: body.site || undefined, action: body.action, args: body.args ?? {}, dry_run: !!body.dry_run, confirm_token: body.confirm_token || undefined });
+        const principal: Principal = {
+          id: 'panel',
+          kind: 'stdio',
+          name: 'Local panel',
+          level: isLevel(body.level) ? body.level : 'read',
+          sites: '*',
+        };
+        const result = await callTool(app, principal, String(body.tool ?? ''), {
+          site: body.site || undefined,
+          action: body.action,
+          args: body.args ?? {},
+          dry_run: !!body.dry_run,
+          confirm_token: body.confirm_token || undefined,
+        });
         let data: unknown;
         try {
           data = JSON.parse(result.content[0].text);
@@ -264,18 +401,23 @@ async function api(app: App, req: LocalReq): Promise<Reply> {
   } catch (error) {
     if (error instanceof GscError) return json(200, { ok: false, error: { code: error.code, message: error.message } });
     const message = error instanceof SiteError || error instanceof Error ? error.message : 'Failed.';
-    return json(error instanceof SiteError ? 200 : 500, { ok: false, error: { code: error instanceof SiteError ? error.code : 'error', message } });
+    return json(error instanceof SiteError ? 200 : 500, {
+      ok: false,
+      error: { code: error instanceof SiteError ? error.code : 'error', message },
+    });
   }
 }
 
 /** Handles every /admin request in local mode. */
 export async function handleLocal(app: App, req: LocalReq): Promise<Reply> {
-  if (!hostOk(app, req.headers)) return json(403, { error: 'forbidden', message: 'The local panel only answers on 127.0.0.1 / localhost.' });
+  if (!hostOk(app, req.headers))
+    return json(403, { error: 'forbidden', message: 'The local panel only answers on 127.0.0.1 / localhost.' });
   // Google sends the browser back here after sign-in; a top-level navigation cannot carry the panel header, so the signed state is the check.
   if (req.method === 'GET' && req.path === '/admin/gsc/callback') return handleCallback(app, req.query);
   if (req.path.startsWith('/admin/api/')) {
     const origin = String(req.headers.origin ?? '');
-    if (origin && origin !== `http://${req.headers.host}`) return json(403, { error: 'forbidden', message: 'Cross-origin request refused.' });
+    if (origin && origin !== `http://${req.headers.host}`)
+      return json(403, { error: 'forbidden', message: 'Cross-origin request refused.' });
     if (req.headers['x-wpm-panel'] !== '1') return json(403, { error: 'forbidden', message: 'Missing panel header.' });
     return api(app, req);
   }

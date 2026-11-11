@@ -16,7 +16,8 @@ export interface PanelReq {
   form: URLSearchParams;
 }
 
-const NAV = '<nav><a href="/admin">Dashboard</a><a href="/admin/workbench">Workbench</a><a href="/admin/connect">Connect AI</a><a href="/admin/activity">Activity</a><a href="/admin/lang?l=fa">فارسی</a> <a href="/admin/lang?l=en">English</a></nav>';
+const NAV =
+  '<nav><a href="/admin">Dashboard</a><a href="/admin/workbench">Workbench</a><a href="/admin/connect">Connect AI</a><a href="/admin/activity">Activity</a><a href="/admin/lang?l=fa">فارسی</a> <a href="/admin/lang?l=en">English</a></nav>';
 
 /** What the browser needs to build argument forms: tools, actions, parameters. No secrets. */
 function specJson(): string {
@@ -25,7 +26,15 @@ function specJson(): string {
     title: t.title,
     actions: Object.values(OPS)
       .filter((o) => o.tool === t.name)
-      .map((o) => ({ action: o.action, level: o.level, summary: o.summary, confirm: !!o.confirm, write: o.write, required: o.required, params: o.params })),
+      .map((o) => ({
+        action: o.action,
+        level: o.level,
+        summary: o.summary,
+        confirm: !!o.confirm,
+        write: o.write,
+        required: o.required,
+        params: o.params,
+      })),
   }));
   return JSON.stringify(out).replace(/</g, '\\u003c');
 }
@@ -95,12 +104,15 @@ fillActions();
 if (q.get('action')) { action.value = q.get('action'); fillFields(); }
 `;
 
-const levelSelect = (current: string): string => `<select name="level">${LEVELS.map((l) => `<option ${l === current ? 'selected' : ''}>${l}</option>`).join('')}</select>`;
+const levelSelect = (current: string): string =>
+  `<select name="level">${LEVELS.map((l) => `<option ${l === current ? 'selected' : ''}>${l}</option>`).join('')}</select>`;
 
 function workbench(app: App, session: Session, result = '', form: URLSearchParams = new URLSearchParams(), confirmToken = ''): Reply {
   const nonce = randomBytes(12).toString('base64url');
   const sites = app.store.sites();
-  const siteOptions = ['', ...sites.map((s) => s.name)].map((n) => `<option value="${esc(n)}" ${form.get('site') === n ? 'selected' : ''}>${n ? esc(n) : '(single site / none)'}</option>`).join('');
+  const siteOptions = ['', ...sites.map((s) => s.name)]
+    .map((n) => `<option value="${esc(n)}" ${form.get('site') === n ? 'selected' : ''}>${n ? esc(n) : '(single site / none)'}</option>`)
+    .join('');
   const csrf = `<input type="hidden" name="_csrf" value="${esc(csrfToken(app, session))}">`;
   const body = `
 <h1>Workbench</h1>
@@ -133,7 +145,10 @@ function renderResult(app: App, session: Session, text: string, form: URLSearchP
   const csrf = `<input type="hidden" name="_csrf" value="${esc(csrfToken(app, session))}">`;
   let confirm = '';
   if (data?.needs_confirmation && data.confirm_token) {
-    const hidden = [...form.entries()].filter(([k]) => !['_csrf', 'confirm_token'].includes(k)).map(([k, v]) => `<input type="hidden" name="${esc(k)}" value="${esc(v)}">`).join('');
+    const hidden = [...form.entries()]
+      .filter(([k]) => !['_csrf', 'confirm_token'].includes(k))
+      .map(([k, v]) => `<input type="hidden" name="${esc(k)}" value="${esc(v)}">`)
+      .join('');
     confirm = `<div class="warn"><b>Confirmation needed.</b> Nothing has changed yet. Read the preview below. If it is what you want:</div>
 <form method="post" action="/admin/workbench/run">${csrf}${hidden}<input type="hidden" name="confirm_token" value="${esc(data.confirm_token)}"><button class="danger">Confirm and run</button></form>`;
   }
@@ -145,7 +160,19 @@ function renderResult(app: App, session: Session, text: string, form: URLSearchP
 function connectPage(app: App): Reply {
   const entry = resolve(dirname(fileURLToPath(import.meta.url)), 'index.js');
   const url = `${app.config.publicUrl}/mcp`;
-  const desktop = JSON.stringify({ mcpServers: { wp: { command: 'node', args: [entry.replace(/\\/g, '/'), 'stdio'], env: { WPMCP_DATA_DIR: app.config.dataDir.replace(/\\/g, '/'), WPMCP_STDIO_LEVEL: 'draft' } } } }, null, 2);
+  const desktop = JSON.stringify(
+    {
+      mcpServers: {
+        wp: {
+          command: 'node',
+          args: [entry.replace(/\\/g, '/'), 'stdio'],
+          env: { WPMCP_DATA_DIR: app.config.dataDir.replace(/\\/g, '/'), WPMCP_STDIO_LEVEL: 'draft' },
+        },
+      },
+    },
+    null,
+    2,
+  );
   const code = (s: string): string => `<pre class="mono card" style="white-space:pre-wrap;word-break:break-all">${esc(s)}</pre>`;
   const body = `
 <h1>Connect an AI app</h1>
@@ -169,7 +196,12 @@ export async function handlePanel(app: App, req: PanelReq, session: Session): Pr
   if (req.method === 'GET' && req.path === '/admin/workbench') return workbench(app, session, '', req.query);
   if (req.method === 'GET' && req.path === '/admin/connect') return connectPage(app);
   if (req.method === 'POST' && req.path === '/admin/workbench/run') {
-    if (!checkCsrf(app, session, req.form.get('_csrf'))) return { status: 403, headers: securityHeaders(), html: page('Error', '<h1>Form expired</h1><p>Reload the page and try again.</p>', NAV) };
+    if (!checkCsrf(app, session, req.form.get('_csrf')))
+      return {
+        status: 403,
+        headers: securityHeaders(),
+        html: page('Error', '<h1>Form expired</h1><p>Reload the page and try again.</p>', NAV),
+      };
     const level = isLevel(req.form.get('level')) ? (req.form.get('level') as never) : 'read';
     const principal: Principal = { id: 'panel', kind: 'stdio', name: 'Admin panel', level, sites: '*' };
     let parsed: unknown = {};

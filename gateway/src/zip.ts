@@ -51,7 +51,19 @@ export function createZip(entries: ZipEntry[]): Buffer {
   return Buffer.concat([...parts, dir, end]);
 }
 
-const SKIP_DIRS = new Set(['.wpm-builder', 'node_modules', '.git', '.svn', '.hg', '.idea', '.vscode', '.next', '.nuxt', '.cache', '.turbo']);
+const SKIP_DIRS = new Set([
+  '.wpm-builder',
+  'node_modules',
+  '.git',
+  '.svn',
+  '.hg',
+  '.idea',
+  '.vscode',
+  '.next',
+  '.nuxt',
+  '.cache',
+  '.turbo',
+]);
 /** A Node app ships its dependencies and build folders (.next/static); only repository and editor folders stay out. */
 const SKIP_DIRS_NODE = new Set(['.wpm-builder', '.git', '.svn', '.hg', '.idea', '.vscode']);
 const SKIP_FILES = /^(\.DS_Store|Thumbs\.db|desktop\.ini|\.env(\..*)?|\.wpm-project\.json)$/i;
@@ -78,7 +90,8 @@ export function zipDirectory(dir: string, limits = { files: 20000, bytes: 400 * 
       }
       if (!info.isFile() || SKIP_FILES.test(name)) continue;
       bytes += info.size;
-      if (entries.length >= limits.files || bytes > limits.bytes) throw new Error('The project is too large to deploy (over 20,000 files or 400 MB). Remove build leftovers or large media.');
+      if (entries.length >= limits.files || bytes > limits.bytes)
+        throw new Error('The project is too large to deploy (over 20,000 files or 400 MB). Remove build leftovers or large media.');
       entries.push({ name: relative(dir, full).split(sep).join('/'), data: readFileSync(full) });
     }
   };

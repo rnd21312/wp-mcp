@@ -32,7 +32,14 @@ describe('panel URL inspector (crawler-style fetch)', () => {
     await new Promise<void>((done) => target.close(() => done()));
   });
 
-  const post = async (path: string, body: unknown) => (await (await fetch(`${env.base}/admin/api/${path}`, { method: 'POST', headers: { 'x-wpm-panel': '1', 'content-type': 'application/json' }, body: JSON.stringify(body) })).json()) as any;
+  const post = async (path: string, body: unknown) =>
+    (await (
+      await fetch(`${env.base}/admin/api/${path}`, {
+        method: 'POST',
+        headers: { 'x-wpm-panel': '1', 'content-type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+    ).json()) as any;
 
   it('follows redirects by hand and reports the chain, headers and html', async () => {
     const r = await post('inspect/fetch', { url: `${origin}/old` });
@@ -57,7 +64,11 @@ describe('panel URL inspector (crawler-style fetch)', () => {
 
   it('refuses private addresses when private sites are not allowed', async () => {
     const strict = await createEnv([], { localPanel: true, allowPrivateSites: false }, { owner: false });
-    const res = await fetch(`${strict.base}/admin/api/inspect/fetch`, { method: 'POST', headers: { 'x-wpm-panel': '1', 'content-type': 'application/json' }, body: JSON.stringify({ url: 'http://169.254.169.254/latest/meta-data/' }) });
+    const res = await fetch(`${strict.base}/admin/api/inspect/fetch`, {
+      method: 'POST',
+      headers: { 'x-wpm-panel': '1', 'content-type': 'application/json' },
+      body: JSON.stringify({ url: 'http://169.254.169.254/latest/meta-data/' }),
+    });
     const r = (await res.json()) as any;
     expect(r.ok).toBe(false);
     expect(r.error.code).toBe('blocked');

@@ -58,10 +58,18 @@ async function main(): Promise<void> {
       if (localMode) {
         const { spawn } = await import('node:child_process');
         const target = `http://127.0.0.1:${config.port}/admin`;
-        const opener = process.platform === 'win32' ? ['cmd', ['/c', 'start', '', target]] : process.platform === 'darwin' ? ['open', [target]] : ['xdg-open', [target]];
-        spawn(opener[0] as string, opener[1] as string[], { stdio: 'ignore', detached: true }).on('error', () => undefined).unref();
+        const opener =
+          process.platform === 'win32'
+            ? ['cmd', ['/c', 'start', '', target]]
+            : process.platform === 'darwin'
+              ? ['open', [target]]
+              : ['xdg-open', [target]];
+        spawn(opener[0] as string, opener[1] as string[], { stdio: 'ignore', detached: true })
+          .on('error', () => undefined)
+          .unref();
       }
-      if (!config.publicUrl.startsWith('https://')) console.warn('WARNING: WPMCP_PUBLIC_URL is not https. Put the gateway behind HTTPS before connecting Claude.ai or real sites.');
+      if (!config.publicUrl.startsWith('https://'))
+        console.warn('WARNING: WPMCP_PUBLIC_URL is not https. Put the gateway behind HTTPS before connecting Claude.ai or real sites.');
       setInterval(() => store.purge(), 3600_000).unref();
       const stop = (): void => {
         server.close(() => {
@@ -108,7 +116,12 @@ async function main(): Promise<void> {
       const level = flag('level', 'read');
       if (!isLevel(level)) throw new Error('--level must be read, draft, live or admin.');
       const names = flag('sites');
-      const key = createApiKey(app, { name: flag('name', 'CLI key'), level, sites: names ? names.split(',').map((s) => s.trim()) : '*', expiresInDays: Number(flag('days', '0')) || undefined });
+      const key = createApiKey(app, {
+        name: flag('name', 'CLI key'),
+        level,
+        sites: names ? names.split(',').map((s) => s.trim()) : '*',
+        expiresInDays: Number(flag('days', '0')) || undefined,
+      });
       console.log(key.token);
       console.error('Store this key now; it is not shown again.');
       return;

@@ -11,23 +11,52 @@ const pkce = () => {
 };
 
 async function login(env: Env): Promise<string> {
-  const res = await fetch(`${env.base}/admin/login`, { method: 'POST', redirect: 'manual', headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ password: OWNER_PASSWORD }) });
+  const res = await fetch(`${env.base}/admin/login`, {
+    method: 'POST',
+    redirect: 'manual',
+    headers: { 'content-type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({ password: OWNER_PASSWORD }),
+  });
   expect(res.status).toBe(303);
   return res.headers.getSetCookie()[0].split(';')[0];
 }
 
 async function register(env: Env, redirect = REDIRECT, name = 'Claude'): Promise<string> {
-  const res = await fetch(`${env.base}/register`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ client_name: name, redirect_uris: [redirect] }) });
+  const res = await fetch(`${env.base}/register`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ client_name: name, redirect_uris: [redirect] }),
+  });
   expect(res.status).toBe(201);
   return ((await res.json()) as { client_id: string }).client_id;
 }
 
 const authorizeUrl = (env: Env, clientId: string, challenge: string, extra: Record<string, string> = {}, redirect = REDIRECT): string =>
-  `${env.base}/authorize?` + new URLSearchParams({ response_type: 'code', client_id: clientId, redirect_uri: redirect, code_challenge: challenge, code_challenge_method: 'S256', state: 'st-1', scope: 'live', ...extra });
+  `${env.base}/authorize?` +
+  new URLSearchParams({
+    response_type: 'code',
+    client_id: clientId,
+    redirect_uri: redirect,
+    code_challenge: challenge,
+    code_challenge_method: 'S256',
+    state: 'st-1',
+    scope: 'live',
+    ...extra,
+  });
 
 /** Runs consent and returns the authorization code. */
-async function approve(env: Env, cookie: string, clientId: string, challenge: string, level = 'live', redirect = REDIRECT): Promise<string> {
-  const page = await fetch(authorizeUrl(env, clientId, challenge, { prompt: 'consent' }, redirect), { headers: { cookie }, redirect: 'manual' });
+async function approve(
+  env: Env,
+  cookie: string,
+  clientId: string,
+  challenge: string,
+  level = 'live',
+  redirect = REDIRECT,
+): Promise<string> {
+  const page = await fetch(authorizeUrl(env, clientId, challenge, { prompt: 'consent' }, redirect), {
+    headers: { cookie },
+    redirect: 'manual',
+  });
   expect(page.status).toBe(200);
   const html = await page.text();
   const csrf = /name="_csrf" value="([^"]+)"/.exec(html)![1];
@@ -35,7 +64,19 @@ async function approve(env: Env, cookie: string, clientId: string, challenge: st
     method: 'POST',
     redirect: 'manual',
     headers: { cookie, 'content-type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({ response_type: 'code', client_id: clientId, redirect_uri: redirect, code_challenge: challenge, code_challenge_method: 'S256', state: 'st-1', scope: level, _csrf: csrf, level, decision: 'approve', sites: 'alpha' }),
+    body: new URLSearchParams({
+      response_type: 'code',
+      client_id: clientId,
+      redirect_uri: redirect,
+      code_challenge: challenge,
+      code_challenge_method: 'S256',
+      state: 'st-1',
+      scope: level,
+      _csrf: csrf,
+      level,
+      decision: 'approve',
+      sites: 'alpha',
+    }),
   });
   expect(res.status).toBe(302);
   const location = new URL(res.headers.get('location')!);
@@ -43,16 +84,33 @@ async function approve(env: Env, cookie: string, clientId: string, challenge: st
   return location.searchParams.get('code')!;
 }
 
-const token = (env: Env, form: Record<string, string>) => fetch(`${env.base}/token`, { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams(form) });
+const token = (env: Env, form: Record<string, string>) =>
+  fetch(`${env.base}/token`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams(form),
+  });
 
 async function connect(env: Env, level = 'live') {
   const cookie = await login(env);
   const clientId = await register(env);
   const { verifier, challenge } = pkce();
   const code = await approve(env, cookie, clientId, challenge, level);
-  const res = await token(env, { grant_type: 'authorization_code', code, client_id: clientId, redirect_uri: REDIRECT, code_verifier: verifier });
+  const res = await token(env, {
+    grant_type: 'authorization_code',
+    code,
+    client_id: clientId,
+    redirect_uri: REDIRECT,
+    code_verifier: verifier,
+  });
   expect(res.status).toBe(200);
-  const tokens = (await res.json()) as { access_token: string; refresh_token: string; expires_in: number; token_type: string; scope: string };
+  const tokens = (await res.json()) as {
+    access_token: string;
+    refresh_token: string;
+    expires_in: number;
+    token_type: string;
+    scope: string;
+  };
   return { cookie, clientId, verifier, challenge, tokens };
 }
 
@@ -88,7 +146,9 @@ describe('OAuth 2.1 with PKCE', () => {
   it('shows the redirect domain prominently on the consent page', async () => {
     const cookie = await login(env);
     const clientId = await register(env, 'https://app.example.org/cb', 'Looks Like Claude');
-    const html = await (await fetch(authorizeUrl(env, clientId, pkce().challenge, {}, 'https://app.example.org/cb'), { headers: { cookie } })).text();
+    const html = await (
+      await fetch(authorizeUrl(env, clientId, pkce().challenge, {}, 'https://app.example.org/cb'), { headers: { cookie } })
+    ).text();
     expect(html).toContain('<div class="domain">app.example.org</div>');
     expect(html).toContain('not verified');
     expect(html).toContain('Looks Like Claude');
@@ -97,7 +157,9 @@ describe('OAuth 2.1 with PKCE', () => {
   it('offers a Persian, right-to-left consent page that still shows the domain', async () => {
     const cookie = await login(env);
     const clientId = await register(env, 'https://app.example.org/cb', 'App');
-    const html = await (await fetch(authorizeUrl(env, clientId, pkce().challenge, { lang: 'fa' }, 'https://app.example.org/cb'), { headers: { cookie } })).text();
+    const html = await (
+      await fetch(authorizeUrl(env, clientId, pkce().challenge, { lang: 'fa' }, 'https://app.example.org/cb'), { headers: { cookie } })
+    ).text();
     expect(html).toContain('dir="rtl"');
     expect(html).toContain('<div class="domain">app.example.org</div>');
     expect(html).toContain('سطح دسترسی');
@@ -113,7 +175,10 @@ describe('OAuth 2.1 with PKCE', () => {
   it('never redirects to an unregistered address', async () => {
     const cookie = await login(env);
     const clientId = await register(env);
-    const res = await fetch(authorizeUrl(env, clientId, pkce().challenge, {}, 'https://evil.example/cb'), { headers: { cookie }, redirect: 'manual' });
+    const res = await fetch(authorizeUrl(env, clientId, pkce().challenge, {}, 'https://evil.example/cb'), {
+      headers: { cookie },
+      redirect: 'manual',
+    });
     expect(res.status).toBe(400);
     expect(res.headers.get('location')).toBeNull();
     const unknown = await fetch(authorizeUrl(env, 'wpmc_nope', pkce().challenge), { headers: { cookie }, redirect: 'manual' });
@@ -122,10 +187,18 @@ describe('OAuth 2.1 with PKCE', () => {
 
   it('refuses dangerous registrations', async () => {
     for (const uri of ['javascript:alert(1)', 'http://evil.example/cb', 'https://x.example/cb#frag', 'data:text/html,x']) {
-      const res = await fetch(`${env.base}/register`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ redirect_uris: [uri] }) });
+      const res = await fetch(`${env.base}/register`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ redirect_uris: [uri] }),
+      });
       expect(res.status, uri).toBe(400);
     }
-    const confidential = await fetch(`${env.base}/register`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ redirect_uris: [REDIRECT], token_endpoint_auth_method: 'client_secret_basic' }) });
+    const confidential = await fetch(`${env.base}/register`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ redirect_uris: [REDIRECT], token_endpoint_auth_method: 'client_secret_basic' }),
+    });
     expect(confidential.status).toBe(400);
   });
 
@@ -143,20 +216,50 @@ describe('OAuth 2.1 with PKCE', () => {
     const clientId = await register(env);
     const { verifier, challenge } = pkce();
     const code = await approve(env, cookie, clientId, challenge);
-    const wrong = await token(env, { grant_type: 'authorization_code', code, client_id: clientId, redirect_uri: REDIRECT, code_verifier: randomBytes(32).toString('base64url') });
+    const wrong = await token(env, {
+      grant_type: 'authorization_code',
+      code,
+      client_id: clientId,
+      redirect_uri: REDIRECT,
+      code_verifier: randomBytes(32).toString('base64url'),
+    });
     expect(wrong.status).toBe(400);
     // The failed attempt burned the code.
-    const again = await token(env, { grant_type: 'authorization_code', code, client_id: clientId, redirect_uri: REDIRECT, code_verifier: verifier });
+    const again = await token(env, {
+      grant_type: 'authorization_code',
+      code,
+      client_id: clientId,
+      redirect_uri: REDIRECT,
+      code_verifier: verifier,
+    });
     expect(again.status).toBe(400);
 
     const code2 = await approve(env, cookie, clientId, challenge);
-    const mismatch = await token(env, { grant_type: 'authorization_code', code: code2, client_id: clientId, redirect_uri: 'https://evil.example/cb', code_verifier: verifier });
+    const mismatch = await token(env, {
+      grant_type: 'authorization_code',
+      code: code2,
+      client_id: clientId,
+      redirect_uri: 'https://evil.example/cb',
+      code_verifier: verifier,
+    });
     expect(mismatch.status).toBe(400);
 
     const code3 = await approve(env, cookie, clientId, challenge);
-    const ok = await token(env, { grant_type: 'authorization_code', code: code3, client_id: clientId, redirect_uri: REDIRECT, code_verifier: verifier });
+    const ok = await token(env, {
+      grant_type: 'authorization_code',
+      code: code3,
+      client_id: clientId,
+      redirect_uri: REDIRECT,
+      code_verifier: verifier,
+    });
     expect(ok.status).toBe(200);
-    const replay = await token(env, { grant_type: 'authorization_code', code: code3, client_id: clientId, redirect_uri: REDIRECT, code_verifier: verifier });
+    const replay = await token(env, {
+      grant_type: 'authorization_code',
+      code: code3,
+      client_id: clientId,
+      redirect_uri: REDIRECT,
+      code_verifier: verifier,
+    });
     expect(replay.status).toBe(400);
   });
 
@@ -166,14 +269,42 @@ describe('OAuth 2.1 with PKCE', () => {
     const { challenge } = pkce();
     const html = await (await fetch(authorizeUrl(env, clientId, challenge), { headers: { cookie } })).text();
     const csrf = /name="_csrf" value="([^"]+)"/.exec(html)![1];
-    const res = await fetch(`${env.base}/authorize`, { method: 'POST', redirect: 'manual', headers: { cookie, 'content-type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ response_type: 'code', client_id: clientId, redirect_uri: REDIRECT, code_challenge: challenge, code_challenge_method: 'S256', state: 's', _csrf: csrf, decision: 'deny' }) });
+    const res = await fetch(`${env.base}/authorize`, {
+      method: 'POST',
+      redirect: 'manual',
+      headers: { cookie, 'content-type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        response_type: 'code',
+        client_id: clientId,
+        redirect_uri: REDIRECT,
+        code_challenge: challenge,
+        code_challenge_method: 'S256',
+        state: 's',
+        _csrf: csrf,
+        decision: 'deny',
+      }),
+    });
     expect(new URL(res.headers.get('location')!).searchParams.get('error')).toBe('access_denied');
   });
 
   it('rejects the consent form without the CSRF token', async () => {
     const cookie = await login(env);
     const clientId = await register(env);
-    const res = await fetch(`${env.base}/authorize`, { method: 'POST', redirect: 'manual', headers: { cookie, 'content-type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ response_type: 'code', client_id: clientId, redirect_uri: REDIRECT, code_challenge: pkce().challenge, code_challenge_method: 'S256', decision: 'approve', level: 'admin', sites: 'alpha' }) });
+    const res = await fetch(`${env.base}/authorize`, {
+      method: 'POST',
+      redirect: 'manual',
+      headers: { cookie, 'content-type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        response_type: 'code',
+        client_id: clientId,
+        redirect_uri: REDIRECT,
+        code_challenge: pkce().challenge,
+        code_challenge_method: 'S256',
+        decision: 'approve',
+        level: 'admin',
+        sites: 'alpha',
+      }),
+    });
     expect(res.status).toBe(400);
     expect(res.headers.get('location')).toBeNull();
   });
@@ -233,7 +364,9 @@ describe('long-lived connections', () => {
 
   it('treats a stale refresh token as theft and ends the whole chain', async () => {
     const { clientId, tokens } = await connect(env);
-    const rotated = (await (await token(env, { grant_type: 'refresh_token', refresh_token: tokens.refresh_token, client_id: clientId })).json()) as typeof tokens;
+    const rotated = (await (
+      await token(env, { grant_type: 'refresh_token', refresh_token: tokens.refresh_token, client_id: clientId })
+    ).json()) as typeof tokens;
     env.app.store.db.exec('UPDATE oauth_tokens SET rotated_at = rotated_at - 100000 WHERE rotated_at > 0');
     const reuse = await token(env, { grant_type: 'refresh_token', refresh_token: tokens.refresh_token, client_id: clientId });
     expect(reuse.status).toBe(400);
@@ -246,7 +379,9 @@ describe('long-lived connections', () => {
   it('a refresh token only works for its own client', async () => {
     const a = await connect(env);
     const b = await connect(env);
-    expect((await token(env, { grant_type: 'refresh_token', refresh_token: a.tokens.refresh_token, client_id: b.clientId })).status).toBe(400);
+    expect((await token(env, { grant_type: 'refresh_token', refresh_token: a.tokens.refresh_token, client_id: b.clientId })).status).toBe(
+      400,
+    );
   });
 
   it('disconnecting an app or lowering its level takes effect at once', async () => {
@@ -261,20 +396,31 @@ describe('long-lived connections', () => {
 
   it('revocation endpoint ends the chain', async () => {
     const { clientId, tokens } = await connect(env);
-    await fetch(`${env.base}/revoke`, { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ token: tokens.refresh_token, client_id: clientId }) });
+    await fetch(`${env.base}/revoke`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ token: tokens.refresh_token, client_id: clientId }),
+    });
     expect((await rpc(env, tokens.access_token, 'tools/list')).status).toBe(401);
   });
 
   it('rate-limits the token endpoint per client and registration per address', async () => {
-    const env2 = await createEnv(['alpha'], { limits: { clientPerMin: 240, writePerMin: 60, sitePerMin: 400, tokenPerMin: 3, registerPerHour: 2, loginPer10Min: 10 } });
+    const env2 = await createEnv(['alpha'], {
+      limits: { clientPerMin: 240, writePerMin: 60, sitePerMin: 400, tokenPerMin: 3, registerPerHour: 2, loginPer10Min: 10 },
+    });
     const clientId = await register(env2);
     const statuses = [];
-    for (let i = 0; i < 5; i++) statuses.push((await token(env2, { grant_type: 'refresh_token', refresh_token: 'wpmrt_x', client_id: clientId })).status);
+    for (let i = 0; i < 5; i++)
+      statuses.push((await token(env2, { grant_type: 'refresh_token', refresh_token: 'wpmrt_x', client_id: clientId })).status);
     expect(statuses.slice(0, 3).every((s) => s === 400)).toBe(true);
     expect(statuses.slice(3)).toEqual([429, 429]);
     // register() above used 1 of 2; one more, then blocked.
     await register(env2);
-    const blocked = await fetch(`${env2.base}/register`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ redirect_uris: [REDIRECT] }) });
+    const blocked = await fetch(`${env2.base}/register`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ redirect_uris: [REDIRECT] }),
+    });
     expect(blocked.status).toBe(429);
     expect(blocked.headers.get('retry-after')).toBeTruthy();
     await env2.stop();
@@ -308,13 +454,21 @@ describe('/mcp authentication', () => {
 
   it('accepts the key in X-API-Key too', async () => {
     const k = key(env, 'read');
-    const res = await fetch(`${env.base}/mcp`, { method: 'POST', headers: { 'content-type': 'application/json', 'x-api-key': k }, body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'ping' }) });
+    const res = await fetch(`${env.base}/mcp`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-api-key': k },
+      body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'ping' }),
+    });
     expect(res.status).toBe(200);
   });
 
   it('never accepts a key in the URL', async () => {
     const k = key(env, 'read');
-    const res = await fetch(`${env.base}/mcp?key=${k}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'ping' }) });
+    const res = await fetch(`${env.base}/mcp?key=${k}`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'ping' }),
+    });
     expect(res.status).toBe(401);
   });
 

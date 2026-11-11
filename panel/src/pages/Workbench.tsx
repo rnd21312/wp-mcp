@@ -63,7 +63,8 @@ export function Workbench({ state, spec, preset }: { state: State; spec: ToolSpe
       if (v === '') continue;
       const { type } = parseParam(def);
       try {
-        out[name] = type === 'int' ? Number(v) : type === 'bool' ? v === 'true' : ['object', 'array', 'any'].includes(type) ? JSON.parse(v) : v;
+        out[name] =
+          type === 'int' ? Number(v) : type === 'bool' ? v === 'true' : ['object', 'array', 'any'].includes(type) ? JSON.parse(v) : v;
       } catch {
         out[name] = v;
       }
@@ -78,7 +79,15 @@ export function Workbench({ state, spec, preset }: { state: State; spec: ToolSpe
       return;
     }
     setBusy(true);
-    const r = await api.post<Result>('run', { site: site || undefined, tool, action: actionSpec.action, args, level, dry_run: dry, confirm_token: confirmToken });
+    const r = await api.post<Result>('run', {
+      site: site || undefined,
+      tool,
+      action: actionSpec.action,
+      args,
+      level,
+      dry_run: dry,
+      confirm_token: confirmToken,
+    });
     setResult(r);
     setBusy(false);
   };
@@ -88,7 +97,13 @@ export function Workbench({ state, spec, preset }: { state: State; spec: ToolSpe
 
   return (
     <>
-      <PageTitle title={t('Workbench', 'میز کار')} hint={t('Run any action by hand with the same safety rules the AI has: levels, previews and confirmations.', 'هر عملیات را دستی و با همان قواعد ایمنی هوش مصنوعی اجرا کنید: سطح‌ها، پیش‌نمایش و تأیید.')} />
+      <PageTitle
+        title={t('Workbench', 'میز کار')}
+        hint={t(
+          'Run any action by hand with the same safety rules the AI has: levels, previews and confirmations.',
+          'هر عملیات را دستی و با همان قواعد ایمنی هوش مصنوعی اجرا کنید: سطح‌ها، پیش‌نمایش و تأیید.',
+        )}
+      />
       <div className="grid gap-6 lg:grid-cols-[minmax(0,26rem)_minmax(0,1fr)]">
         <Card>
           <CardHeader>
@@ -99,7 +114,11 @@ export function Workbench({ state, spec, preset }: { state: State; spec: ToolSpe
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label>{t('Site', 'سایت')}</Label>
-                <Pick value={site || '-'} onChange={(v) => setSite(v === '-' ? '' : v)} options={[{ value: '-', label: t('(none)', '(بدون)') }, ...state.sites.map((s) => ({ value: s.name, label: s.name }))]} />
+                <Pick
+                  value={site || '-'}
+                  onChange={(v) => setSite(v === '-' ? '' : v)}
+                  options={[{ value: '-', label: t('(none)', '(بدون)') }, ...state.sites.map((s) => ({ value: s.name, label: s.name }))]}
+                />
               </div>
               <div className="space-y-1.5">
                 <Label>{t('Run as level', 'اجرا با سطح')}</Label>
@@ -115,7 +134,11 @@ export function Workbench({ state, spec, preset }: { state: State; spec: ToolSpe
                 {t('Action', 'عملیات')} <LevelBadge level={actionSpec.level} />
                 {actionSpec.confirm && <Badge variant="outline">{t('confirm', 'تأیید')}</Badge>}
               </Label>
-              <Pick value={actionSpec.action} onChange={setAction} options={toolSpec.actions.map((a) => ({ value: a.action, label: a.action }))} />
+              <Pick
+                value={actionSpec.action}
+                onChange={setAction}
+                options={toolSpec.actions.map((a) => ({ value: a.action, label: a.action }))}
+              />
             </div>
 
             {Object.entries(actionSpec.params).map(([name, def]) => {
@@ -128,11 +151,30 @@ export function Workbench({ state, spec, preset }: { state: State; spec: ToolSpe
                     {required && <span className="text-destructive"> *</span>}
                   </Label>
                   {p.type === 'enum' || p.type === 'bool' ? (
-                    <Pick value={values[name] || '-'} onChange={(v) => setValues({ ...values, [name]: v === '-' ? '' : v })} options={[{ value: '-', label: '—' }, ...(p.type === 'bool' ? ['true', 'false'] : p.options).map((o) => ({ value: o, label: o }))]} />
+                    <Pick
+                      value={values[name] || '-'}
+                      onChange={(v) => setValues({ ...values, [name]: v === '-' ? '' : v })}
+                      options={[
+                        { value: '-', label: '—' },
+                        ...(p.type === 'bool' ? ['true', 'false'] : p.options).map((o) => ({ value: o, label: o })),
+                      ]}
+                    />
                   ) : ['object', 'array', 'any'].includes(p.type) ? (
-                    <Textarea dir="ltr" rows={2} className="font-mono text-xs" placeholder={p.type === 'array' ? '["a","b"]' : p.type === 'object' ? '{"key":"value"}' : ''} value={values[name] ?? ''} onChange={(e) => setValues({ ...values, [name]: e.target.value })} />
+                    <Textarea
+                      dir="ltr"
+                      rows={2}
+                      className="font-mono text-xs"
+                      placeholder={p.type === 'array' ? '["a","b"]' : p.type === 'object' ? '{"key":"value"}' : ''}
+                      value={values[name] ?? ''}
+                      onChange={(e) => setValues({ ...values, [name]: e.target.value })}
+                    />
                   ) : (
-                    <Input dir="ltr" type={p.type === 'int' ? 'number' : 'text'} value={values[name] ?? ''} onChange={(e) => setValues({ ...values, [name]: e.target.value })} />
+                    <Input
+                      dir="ltr"
+                      type={p.type === 'int' ? 'number' : 'text'}
+                      value={values[name] ?? ''}
+                      onChange={(e) => setValues({ ...values, [name]: e.target.value })}
+                    />
                   )}
                   {p.desc && <p className="text-xs text-muted-foreground">{p.desc}</p>}
                 </div>
@@ -140,8 +182,16 @@ export function Workbench({ state, spec, preset }: { state: State; spec: ToolSpe
             })}
 
             <details className="rounded-lg border p-3 text-sm">
-              <summary className="cursor-pointer text-muted-foreground">{t('Edit arguments as JSON', 'ویرایش آرگومان‌ها به‌صورت JSON')}</summary>
-              <Textarea dir="ltr" rows={5} className="mt-2 font-mono text-xs" value={raw || JSON.stringify(args ?? {}, null, 1)} onChange={(e) => setRaw(e.target.value)} />
+              <summary className="cursor-pointer text-muted-foreground">
+                {t('Edit arguments as JSON', 'ویرایش آرگومان‌ها به‌صورت JSON')}
+              </summary>
+              <Textarea
+                dir="ltr"
+                rows={5}
+                className="mt-2 font-mono text-xs"
+                value={raw || JSON.stringify(args ?? {}, null, 1)}
+                onChange={(e) => setRaw(e.target.value)}
+              />
             </details>
 
             <div className="flex items-center justify-between rounded-lg border p-3">
@@ -158,7 +208,18 @@ export function Workbench({ state, spec, preset }: { state: State; spec: ToolSpe
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               {t('Result', 'نتیجه')}
-              {result && <Badge variant="secondary" className={result.ok === false ? 'bg-rose-500/15 text-rose-700 dark:text-rose-300' : 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300'}>{result.ok === false ? t('error', 'خطا') : 'ok'}</Badge>}
+              {result && (
+                <Badge
+                  variant="secondary"
+                  className={
+                    result.ok === false
+                      ? 'bg-rose-500/15 text-rose-700 dark:text-rose-300'
+                      : 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300'
+                  }
+                >
+                  {result.ok === false ? t('error', 'خطا') : 'ok'}
+                </Badge>
+              )}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -167,15 +228,29 @@ export function Workbench({ state, spec, preset }: { state: State; spec: ToolSpe
                 <ShieldAlertIcon />
                 <AlertTitle>{t('Confirmation needed. Nothing has changed yet.', 'تأیید لازم است. هنوز چیزی تغییر نکرده.')}</AlertTitle>
                 <AlertDescription className="space-y-3">
-                  <p>{t('Read the preview below. If it is what you want, confirm.', 'پیش‌نمایش زیر را بخوانید؛ اگر همین را می‌خواهید تأیید کنید.')}</p>
-                  <Button variant="destructive" disabled={busy} onClick={() => run(result!.confirm_token)}>{t('Confirm and run', 'تأیید و اجرا')}</Button>
+                  <p>
+                    {t(
+                      'Read the preview below. If it is what you want, confirm.',
+                      'پیش‌نمایش زیر را بخوانید؛ اگر همین را می‌خواهید تأیید کنید.',
+                    )}
+                  </p>
+                  <Button variant="destructive" disabled={busy} onClick={() => run(result!.confirm_token)}>
+                    {t('Confirm and run', 'تأیید و اجرا')}
+                  </Button>
                 </AlertDescription>
               </Alert>
             )}
             {result ? (
-              <pre dir="ltr" className="max-h-[70vh] overflow-auto rounded-lg border bg-muted/40 p-3 text-start font-mono text-xs leading-relaxed whitespace-pre-wrap break-words">{JSON.stringify(result, null, 2)}</pre>
+              <pre
+                dir="ltr"
+                className="max-h-[70vh] overflow-auto rounded-lg border bg-muted/40 p-3 text-start font-mono text-xs leading-relaxed whitespace-pre-wrap break-words"
+              >
+                {JSON.stringify(result, null, 2)}
+              </pre>
             ) : (
-              <p className="py-12 text-center text-sm text-muted-foreground">{t('The answer appears here.', 'پاسخ اینجا نشان داده می‌شود.')}</p>
+              <p className="py-12 text-center text-sm text-muted-foreground">
+                {t('The answer appears here.', 'پاسخ اینجا نشان داده می‌شود.')}
+              </p>
             )}
           </CardContent>
         </Card>

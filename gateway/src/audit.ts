@@ -21,7 +21,12 @@ const attr = (t: string, name: string): string | null => {
   const m = new RegExp(`\\s${name}\\s*=\\s*("([^"]*)"|'([^']*)')`, 'i').exec(t);
   return m ? (m[2] ?? m[3] ?? '') : null;
 };
-const textOf = (html: string): string => html.replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>/gi, '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+const textOf = (html: string): string =>
+  html
+    .replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>/gi, '')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
 
 /**
  * Checks the assembled site. Errors block publishing (the human cannot approve past them); warnings are shown.
@@ -29,7 +34,8 @@ const textOf = (html: string): string => html.replace(/<script[\s\S]*?<\/script>
  */
 export function auditSite(plan: Plan, tokens: Tokens, files: Record<string, string>, others: string[], now = Date.now()): AuditReport {
   const issues: Issue[] = [];
-  const add = (level: Issue['level'], page: string, rule: string, message: string): void => void issues.push({ level, page, rule, message });
+  const add = (level: Issue['level'], page: string, rule: string, message: string): void =>
+    void issues.push({ level, page, rule, message });
   const known = new Set([...Object.keys(files), ...others]);
   const titles = new Map<string, string>();
   const descriptions = new Map<string, string>();
@@ -43,19 +49,29 @@ export function auditSite(plan: Plan, tokens: Tokens, files: Record<string, stri
     [p.primary, p.background, 'links on background', 4.5],
   ] as const) {
     const ratio = contrast(fg, bg);
-    if (ratio < min) add(label.startsWith('muted') || label.startsWith('links') ? 'warn' : 'error', '(design)', 'contrast', `Low contrast for ${label}: ${ratio.toFixed(1)}:1 (needs ${min}:1).`);
+    if (ratio < min)
+      add(
+        label.startsWith('muted') || label.startsWith('links') ? 'warn' : 'error',
+        '(design)',
+        'contrast',
+        `Low contrast for ${label}: ${ratio.toFixed(1)}:1 (needs ${min}:1).`,
+      );
   }
   for (const c of Object.values(p)) if (!HEX.test(c)) add('error', '(design)', 'palette', `"${c}" is not a #rrggbb colour.`);
 
   for (const [path, html] of Object.entries(files)) {
     const name = path;
     const title = /<title>([\s\S]*?)<\/title>/i.exec(html)?.[1]?.trim() ?? '';
-    const desc = tag(html, 'meta').map((m) => (attr(m, 'name') === 'description' ? attr(m, 'content') : null)).find((x) => x !== null && x !== undefined) ?? '';
+    const desc =
+      tag(html, 'meta')
+        .map((m) => (attr(m, 'name') === 'description' ? attr(m, 'content') : null))
+        .find((x) => x !== null && x !== undefined) ?? '';
     const main = /<main\b[^>]*>([\s\S]*?)<\/main>/i.exec(html)?.[1] ?? '';
 
     if (!/<html[^>]*\slang=/i.test(html)) add('error', name, 'lang', 'The <html> tag has no lang attribute.');
     if (!/<html[^>]*\sdir=/i.test(html)) add('warn', name, 'dir', 'The <html> tag has no dir attribute.');
-    if (!tag(html, 'meta').some((m) => attr(m, 'name') === 'viewport')) add('error', name, 'viewport', 'Missing viewport meta tag (the page will not be mobile friendly).');
+    if (!tag(html, 'meta').some((m) => attr(m, 'name') === 'viewport'))
+      add('error', name, 'viewport', 'Missing viewport meta tag (the page will not be mobile friendly).');
     if (!title) add('error', name, 'title', 'The page has no title.');
     else {
       if (title.length > 65) add('warn', name, 'title-length', `The title is ${title.length} characters; search engines show about 60.`);
@@ -84,7 +100,8 @@ export function auditSite(plan: Plan, tokens: Tokens, files: Record<string, stri
     for (const img of tag(main, 'img')) {
       const alt = attr(img, 'alt');
       if (alt === null) add('error', name, 'img-alt', `Image without alt text: ${attr(img, 'src') ?? '?'}`);
-      else if (alt.trim() === '') add('warn', name, 'img-alt', `Empty alt text on ${attr(img, 'src') ?? 'an image'} (fine only for decoration).`);
+      else if (alt.trim() === '')
+        add('warn', name, 'img-alt', `Empty alt text on ${attr(img, 'src') ?? 'an image'} (fine only for decoration).`);
       const src = attr(img, 'src') ?? '';
       if (/^images\/.+\.svg$/.test(src) && !known.has(src)) add('error', name, 'img-missing', `Image file not found: ${src}`);
       if (/^https?:/i.test(src)) add('warn', name, 'img-external', `External image: ${src}`);
@@ -99,22 +116,39 @@ export function auditSite(plan: Plan, tokens: Tokens, files: Record<string, stri
       if (/^(https?:|mailto:|tel:)/i.test(href)) continue;
       const [target, hash] = href.split('#');
       if (target && !known.has(target)) add('error', name, 'link-broken', `Link to a missing page: ${href}`);
-      if (!target && hash && !new RegExp(`\\sid\\s*=\\s*["']${hash.replace(/[^\w-]/g, '')}["']`, 'i').test(html)) add('warn', name, 'anchor-missing', `Link to a missing section: #${hash}`);
+      if (!target && hash && !new RegExp(`\\sid\\s*=\\s*["']${hash.replace(/[^\w-]/g, '')}["']`, 'i').test(html))
+        add('warn', name, 'anchor-missing', `Link to a missing section: #${hash}`);
     }
     const links = [...main.matchAll(/<a\b[^>]*>([\s\S]*?)<\/a>/gi)].map((m) => textOf(m[1]).toLowerCase());
-    if (links.some((l) => ['click here', 'here', 'read more', 'اینجا', 'بیشتر'].includes(l))) add('warn', name, 'link-text', 'Some links say only "click here" / "read more"; describe where they go.');
+    if (links.some((l) => ['click here', 'here', 'read more', 'اینجا', 'بیشتر'].includes(l)))
+      add('warn', name, 'link-text', 'Some links say only "click here" / "read more"; describe where they go.');
 
     if (/<script[^>]+src\s*=\s*["']https?:/i.test(html)) add('warn', name, 'external-script', 'The page loads a script from another site.');
     if (/<form\b/i.test(main) && !/<label\b/i.test(main)) add('error', name, 'form-label', 'A form has no labels.');
     if (Buffer.byteLength(html) > 600_000) add('warn', name, 'size', 'The page is larger than 600 KB.');
-    if (/images\/[\w-]+\.svg/.test(main)) add('warn', name, 'placeholder-image', 'The page still uses placeholder images; replace them with real pictures (same file names) before launch.');
+    if (/images\/[\w-]+\.svg/.test(main))
+      add(
+        'warn',
+        name,
+        'placeholder-image',
+        'The page still uses placeholder images; replace them with real pictures (same file names) before launch.',
+      );
   }
 
-  for (const p2 of plan.pages) if (!files[p2.slug === 'index' ? 'index.html' : `${p2.slug}.html`]) add('error', p2.slug, 'missing-page', `The page "${p2.title}" has not been built.`);
+  for (const p2 of plan.pages)
+    if (!files[p2.slug === 'index' ? 'index.html' : `${p2.slug}.html`])
+      add('error', p2.slug, 'missing-page', `The page "${p2.title}" has not been built.`);
   if (!known.has('style.css')) add('error', '(site)', 'css', 'style.css is missing.');
 
   const errors = issues.filter((i) => i.level === 'error').length;
   const warnings = issues.length - errors;
 
-  return { issues, errors, warnings, pages: Object.keys(files).length, score: Math.max(0, Math.round(100 - errors * 12 - warnings * 3)), checked_at: now };
+  return {
+    issues,
+    errors,
+    warnings,
+    pages: Object.keys(files).length,
+    score: Math.max(0, Math.round(100 - errors * 12 - warnings * 3)),
+    checked_at: now,
+  };
 }

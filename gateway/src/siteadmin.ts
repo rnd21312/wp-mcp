@@ -9,7 +9,10 @@ export const SITE_NAME = /^[a-z0-9][a-z0-9._-]{1,39}$/;
 
 export function suggestName(url: string): string {
   const host = new URL(url).hostname.replace(/^www\./, '');
-  return host.toLowerCase().replace(/[^a-z0-9._-]/g, '-').slice(0, 40);
+  return host
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]/g, '-')
+    .slice(0, 40);
 }
 
 /** Pairs with the WordPress plugin using a one-time code and stores the signing secret encrypted. */
@@ -47,7 +50,12 @@ export async function testSite(app: App, name: string): Promise<{ ok: boolean; d
   const site = app.store.site(name);
   if (!site) return { ok: false, detail: 'Unknown site.' };
   try {
-    const result = await app.sites.call(site, 'site.ping', {}, { level: 'read', actor: 'gateway', client: 'gateway', requestId: 'test', write: false });
+    const result = await app.sites.call(
+      site,
+      'site.ping',
+      {},
+      { level: 'read', actor: 'gateway', client: 'gateway', requestId: 'test', write: false },
+    );
     const data = result.data as { wp_version?: string; plugin_version?: string; title?: string };
     app.store.siteHealth(name, true, '', { wp: data.wp_version, plugin: data.plugin_version, title: data.title });
     return { ok: true, detail: `WordPress ${data.wp_version ?? '?'}, bridge ${data.plugin_version ?? '?'}` };

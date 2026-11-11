@@ -5,11 +5,32 @@ import net from 'node:net';
 
 const blocked = new net.BlockList();
 for (const [net4, bits] of [
-  ['0.0.0.0', 8], ['10.0.0.0', 8], ['100.64.0.0', 10], ['127.0.0.0', 8], ['169.254.0.0', 16], ['172.16.0.0', 12],
-  ['192.0.0.0', 24], ['192.0.2.0', 24], ['192.168.0.0', 16], ['198.18.0.0', 15], ['198.51.100.0', 24], ['203.0.113.0', 24],
-  ['224.0.0.0', 4], ['240.0.0.0', 4],
-] as const) blocked.addSubnet(net4, bits, 'ipv4');
-for (const [net6, bits] of [['::', 128], ['::1', 128], ['fc00::', 7], ['fe80::', 10], ['ff00::', 8], ['2001:db8::', 32], ['100::', 64]] as const) blocked.addSubnet(net6, bits, 'ipv6');
+  ['0.0.0.0', 8],
+  ['10.0.0.0', 8],
+  ['100.64.0.0', 10],
+  ['127.0.0.0', 8],
+  ['169.254.0.0', 16],
+  ['172.16.0.0', 12],
+  ['192.0.0.0', 24],
+  ['192.0.2.0', 24],
+  ['192.168.0.0', 16],
+  ['198.18.0.0', 15],
+  ['198.51.100.0', 24],
+  ['203.0.113.0', 24],
+  ['224.0.0.0', 4],
+  ['240.0.0.0', 4],
+] as const)
+  blocked.addSubnet(net4, bits, 'ipv4');
+for (const [net6, bits] of [
+  ['::', 128],
+  ['::1', 128],
+  ['fc00::', 7],
+  ['fe80::', 10],
+  ['ff00::', 8],
+  ['2001:db8::', 32],
+  ['100::', 64],
+] as const)
+  blocked.addSubnet(net6, bits, 'ipv6');
 
 /** True for loopback, private, link-local, metadata, multicast and other non-public addresses. */
 export function isPrivateAddress(address: string): boolean {
@@ -44,7 +65,8 @@ export function assertUrlShape(raw: string, policy: UrlPolicy): URL {
   if (url.username || url.password) throw new SsrfError('URLs with credentials are not allowed.');
   if (!policy.allowPrivate) {
     const host = url.hostname.replace(/^\[|\]$/g, '').toLowerCase();
-    if (host === 'localhost' || host.endsWith('.localhost') || host.endsWith('.local') || host.endsWith('.internal')) throw new SsrfError('Local host names are not allowed.');
+    if (host === 'localhost' || host.endsWith('.localhost') || host.endsWith('.local') || host.endsWith('.internal'))
+      throw new SsrfError('Local host names are not allowed.');
     if (net.isIP(host) && isPrivateAddress(host)) throw new SsrfError('Private or reserved addresses are not allowed.');
   }
   return url;
@@ -90,7 +112,14 @@ export function safeRequest(raw: string, policy: UrlPolicy, init: SafeRequest = 
   return new Promise((resolve, reject) => {
     const req = client.request(
       url,
-      { method: init.method ?? 'GET', headers: init.headers, lookup: guardedLookup(policy) as never, timeout: init.timeoutMs ?? 25000, agent: false, ...(policy.allowSelfSigned ? { rejectUnauthorized: false } : {}) },
+      {
+        method: init.method ?? 'GET',
+        headers: init.headers,
+        lookup: guardedLookup(policy) as never,
+        timeout: init.timeoutMs ?? 25000,
+        agent: false,
+        ...(policy.allowSelfSigned ? { rejectUnauthorized: false } : {}),
+      },
       (res) => {
         const chunks: Buffer[] = [];
         let size = 0;
@@ -104,7 +133,11 @@ export function safeRequest(raw: string, policy: UrlPolicy, init: SafeRequest = 
           }
           chunks.push(chunk);
         });
-        res.on('end', () => (tooBig ? reject(new Error('Response too large.')) : resolve({ status: res.statusCode ?? 0, headers: res.headers, body: Buffer.concat(chunks) })));
+        res.on('end', () =>
+          tooBig
+            ? reject(new Error('Response too large.'))
+            : resolve({ status: res.statusCode ?? 0, headers: res.headers, body: Buffer.concat(chunks) }),
+        );
         res.on('error', reject);
       },
     );

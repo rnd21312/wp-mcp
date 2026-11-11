@@ -72,10 +72,13 @@ export function SiteProvider({ state, reload, children }: { state: State; reload
     async <T,>(tool: string, action: string, args: Record<string, unknown> = {}, opts: RunOpts = {}): Promise<RunResult<T>> => {
       const target = opts.site ?? site?.name;
       const lv = opts.level ?? effective;
-      const send = (token?: string) => api.post<any>('run', { site: target, tool, action, args, level: lv, dry_run: !!opts.dry, confirm_token: token });
+      const send = (token?: string) =>
+        api.post<any>('run', { site: target, tool, action, args, level: lv, dry_run: !!opts.dry, confirm_token: token });
       let r = await send();
       if (r.needs_confirmation) {
-        const ok = opts.auto ? true : await new Promise<boolean>((resolve) => setPending({ preview: r.preview, action: r.action, resolve }));
+        const ok = opts.auto
+          ? true
+          : await new Promise<boolean>((resolve) => setPending({ preview: r.preview, action: r.action, resolve }));
         setPending(null);
         if (!ok) return { ok: false, cancelled: true };
         r = await send(r.confirm_token);
@@ -90,7 +93,13 @@ export function SiteProvider({ state, reload, children }: { state: State; reload
           action: {
             label: t('Undo', 'بازگردانی'),
             onClick: async () => {
-              const u = await api.post<any>('run', { site: target, tool: 'activity', action: 'undo', args: { revision: r.revision }, level: lv });
+              const u = await api.post<any>('run', {
+                site: target,
+                tool: 'activity',
+                action: 'undo',
+                args: { revision: r.revision },
+                level: lv,
+              });
               u.ok === false ? toast.error(u.error?.message ?? 'Undo failed') : toast.success(t('Reverted', 'بازگردانی شد'));
             },
           },
@@ -110,7 +119,22 @@ export function SiteProvider({ state, reload, children }: { state: State; reload
   }, [site?.name]);
 
   const value = useMemo<Ctx>(
-    () => ({ state, site, setSite: (n) => { setName(n); keep('wpm_site', n); }, overview, level: effective, setLevel: (l) => { setLevelState(l); keep('wpm_level', l); }, run, reload }),
+    () => ({
+      state,
+      site,
+      setSite: (n) => {
+        setName(n);
+        keep('wpm_site', n);
+      },
+      overview,
+      level: effective,
+      setLevel: (l) => {
+        setLevelState(l);
+        keep('wpm_level', l);
+      },
+      run,
+      reload,
+    }),
     [state, site, overview, effective, run, reload],
   );
 
@@ -121,12 +145,26 @@ export function SiteProvider({ state, reload, children }: { state: State; reload
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>{t('Please confirm', 'لطفاً تأیید کنید')}</DialogTitle>
-            <DialogDescription>{t('Nothing has changed yet. This is what will happen:', 'هنوز چیزی تغییر نکرده. این اتفاق می‌افتد:')} <span dir="ltr" className="font-mono text-xs">{pending?.action}</span></DialogDescription>
+            <DialogDescription>
+              {t('Nothing has changed yet. This is what will happen:', 'هنوز چیزی تغییر نکرده. این اتفاق می‌افتد:')}{' '}
+              <span dir="ltr" className="font-mono text-xs">
+                {pending?.action}
+              </span>
+            </DialogDescription>
           </DialogHeader>
-          <pre dir="ltr" className="max-h-80 overflow-auto rounded-lg border bg-muted/40 p-3 text-start font-mono text-xs whitespace-pre-wrap break-words">{JSON.stringify(pending?.preview, null, 2)}</pre>
+          <pre
+            dir="ltr"
+            className="max-h-80 overflow-auto rounded-lg border bg-muted/40 p-3 text-start font-mono text-xs whitespace-pre-wrap break-words"
+          >
+            {JSON.stringify(pending?.preview, null, 2)}
+          </pre>
           <DialogFooter>
-            <Button variant="outline" onClick={() => pending?.resolve(false)}>{t('Cancel', 'انصراف')}</Button>
-            <Button variant="destructive" onClick={() => pending?.resolve(true)}>{t('Confirm and run', 'تأیید و اجرا')}</Button>
+            <Button variant="outline" onClick={() => pending?.resolve(false)}>
+              {t('Cancel', 'انصراف')}
+            </Button>
+            <Button variant="destructive" onClick={() => pending?.resolve(true)}>
+              {t('Confirm and run', 'تأیید و اجرا')}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

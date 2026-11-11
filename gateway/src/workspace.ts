@@ -31,31 +31,50 @@ export interface WsEvent {
 const watchers = new Map<string, { watcher: FSWatcher; timers: Map<string, NodeJS.Timeout> }>();
 const events = new Map<string, WsEvent[]>();
 
-export const wsDir = (app: App, site: string): string => join(app.config.dataDir, 'workspaces', site.replace(/[^a-z0-9._-]/gi, '_'), 'theme');
+export const wsDir = (app: App, site: string): string =>
+  join(app.config.dataDir, 'workspaces', site.replace(/[^a-z0-9._-]/gi, '_'), 'theme');
 
 const readManifest = (dir: string): Manifest | null => {
-  try { return JSON.parse(readFileSync(join(dir, MANIFEST), 'utf8')) as Manifest; } catch { return null; }
+  try {
+    return JSON.parse(readFileSync(join(dir, MANIFEST), 'utf8')) as Manifest;
+  } catch {
+    return null;
+  }
 };
 const writeManifest = (dir: string, m: Manifest): void => writeFileSync(join(dir, MANIFEST), JSON.stringify(m));
 
 function siteCall(app: App, name: string, op: string, args: Record<string, unknown>, write: boolean) {
   const site = app.store.site(name);
   if (!site) throw new Error(`Unknown site "${name}".`);
-  if (site.max_level !== 'admin') throw new Error(`Theme file access needs the site ceiling "admin" (now "${site.max_level}"). Raise it on the Sites page.`);
+  if (site.max_level !== 'admin')
+    throw new Error(`Theme file access needs the site ceiling "admin" (now "${site.max_level}"). Raise it on the Sites page.`);
 
-  return app.sites.call(site, op, args, { level: minLevel('admin', site.max_level), actor: 'workspace', client: 'workspace', requestId: 'ws', write, idempotencyKey: write ? `ws-${sha(JSON.stringify([op, args])).slice(0, 16)}-${Date.now()}` : undefined });
+  return app.sites.call(site, op, args, {
+    level: minLevel('admin', site.max_level),
+    actor: 'workspace',
+    client: 'workspace',
+    requestId: 'ws',
+    write,
+    idempotencyKey: write ? `ws-${sha(JSON.stringify([op, args])).slice(0, 16)}-${Date.now()}` : undefined,
+  });
 }
 
 /** Downloads the active theme into the workspace. */
 export async function pull(app: App, site: string): Promise<{ dir: string; files: number; theme: string }> {
   const dir = wsDir(app, site);
-  const listing = (await siteCall(app, site, 'design.theme_files', {}, false)).data as { theme: string; files: { path: string; bytes: number }[] };
+  const listing = (await siteCall(app, site, 'design.theme_files', {}, false)).data as {
+    theme: string;
+    files: { path: string; bytes: number }[];
+  };
   mkdirSync(dir, { recursive: true });
   const manifest: Manifest = { site, theme: listing.theme, pulledAt: Date.now(), files: {} };
   let count = 0;
   for (const f of listing.files.slice(0, 500)) {
     if (!TEXT.test(f.path) || f.bytes > 400_000) continue;
-    const read = (await siteCall(app, site, 'design.theme_file_read', { path: f.path }, false)).data as { content: string; truncated: boolean };
+    const read = (await siteCall(app, site, 'design.theme_file_read', { path: f.path }, false)).data as {
+      content: string;
+      truncated: boolean;
+    };
     if (read.truncated) continue;
     const target = resolve(dir, f.path);
     if (!target.startsWith(dir + sep)) continue;
@@ -82,7 +101,11 @@ export function openInVsCode(dir: string): { ok: boolean; vscodeUrl: string } {
 }
 
 const push = async (app: App, site: string, dir: string, rel: string): Promise<void> => {
-  const log = (ok: boolean, message: string): void => { const list = events.get(site) ?? []; list.unshift({ at: Date.now(), path: rel, ok, message }); events.set(site, list.slice(0, 30)); };
+  const log = (ok: boolean, message: string): void => {
+    const list = events.get(site) ?? [];
+    list.unshift({ at: Date.now(), path: rel, ok, message });
+    events.set(site, list.slice(0, 30));
+  };
   try {
     const full = resolve(dir, rel);
     if (!full.startsWith(dir + sep) || !existsSync(full) || !statSync(full).isFile() || !TEXT.test(rel)) return;
@@ -93,7 +116,18 @@ const push = async (app: App, site: string, dir: string, rel: string): Promise<v
     await siteCall(app, site, 'design.theme_file_write', { path: rel, content }, true);
     manifest.files[rel] = sha(content);
     writeManifest(dir, manifest);
-    app.store.log({ principal: 'workspace', principal_name: 'Workspace sync', tool: 'design', action: 'theme_file_write', site, level: 'admin', status: 'ok', summary: `live sync ${rel}`, request_id: 'ws', revision: 0 });
+    app.store.log({
+      principal: 'workspace',
+      principal_name: 'Workspace sync',
+      tool: 'design',
+      action: 'theme_file_write',
+      site,
+      level: 'admin',
+      status: 'ok',
+      summary: `live sync ${rel}`,
+      request_id: 'ws',
+      revision: 0,
+    });
     log(true, 'pushed');
   } catch (error) {
     log(false, error instanceof Error ? error.message : 'failed');
@@ -109,7 +143,13 @@ export function startWatch(app: App, site: string): { dir: string } {
     if (!name || name.startsWith('.') || name.includes(`${sep}.`)) return;
     const rel = name.split(sep).join('/');
     clearTimeout(timers.get(rel));
-    timers.set(rel, setTimeout(() => { timers.delete(rel); void push(app, site, dir, rel); }, 450));
+    timers.set(
+      rel,
+      setTimeout(() => {
+        timers.delete(rel);
+        void push(app, site, dir, rel);
+      }, 450),
+    );
   });
   watchers.set(site, { watcher, timers });
 
@@ -130,4 +170,6 @@ export const status = (app: App, site: string): { watching: boolean; dir: string
   return { watching: watchers.has(site), dir, pulled: !!m, events: events.get(site) ?? [], files: m ? Object.keys(m.files).length : 0 };
 };
 
-export const stopAll = (): void => { for (const s of [...watchers.keys()]) stopWatch(s); };
+export const stopAll = (): void => {
+  for (const s of [...watchers.keys()]) stopWatch(s);
+};

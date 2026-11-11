@@ -4,7 +4,7 @@ services:
     restart: unless-stopped
     env_file: .env
     ports:
-      - "127.0.0.1:8787:8787"   # put a TLS reverse proxy in front (see docs/install.md)
+      - '127.0.0.1:8787:8787' # put a TLS reverse proxy in front (see docs/install.md)
     volumes:
       - wpmcp-data:/data
 volumes:

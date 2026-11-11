@@ -27,7 +27,11 @@ describe.skipIf(!hasPhp)('WordPress plugin (PHP, no WordPress needed)', () => {
   });
 
   it('every PHP file is syntactically valid', () => {
-    const list = spawnSync(process.platform === 'win32' ? 'cmd' : 'find', process.platform === 'win32' ? ['/c', `dir /s /b ${root}plugin\\*.php`] : [`${root}plugin`, '-name', '*.php'], { encoding: 'utf8' });
+    const list = spawnSync(
+      process.platform === 'win32' ? 'cmd' : 'find',
+      process.platform === 'win32' ? ['/c', `dir /s /b ${root}plugin\\*.php`] : [`${root}plugin`, '-name', '*.php'],
+      { encoding: 'utf8' },
+    );
     const files = list.stdout.split(/\r?\n/).filter((f) => f.endsWith('.php'));
     expect(files.length).toBeGreaterThan(20);
     for (const file of files) {

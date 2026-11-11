@@ -39,7 +39,8 @@ describe('framework templates', () => {
     // (astro and next carry the title only as a JSON string literal, which their renderers escape)
     for (const file of Object.keys(t.files('Café "Nur" <b>', false))) {
       const text = readFileSync(join(dir, file), 'utf8');
-      if (id === 'astro' || id === 'next-export' || id === 'next-ssr') expect(text.replace(JSON.stringify('Café "Nur" <b>'), '')).not.toContain('<b>');
+      if (id === 'astro' || id === 'next-export' || id === 'next-ssr')
+        expect(text.replace(JSON.stringify('Café "Nur" <b>'), '')).not.toContain('<b>');
       else expect(text).not.toContain('<b>');
     }
     // nothing is built or installed at creation
@@ -49,7 +50,8 @@ describe('framework templates', () => {
   });
 
   it('vite templates keep asset links relative so they work in a sub-folder', () => {
-    for (const id of ['vite-react', 'vite-vue', 'vite-svelte']) expect(FRAMEWORKS[id].files('x', false)['vite.config.js']).toContain("base: './'");
+    for (const id of ['vite-react', 'vite-vue', 'vite-svelte'])
+      expect(FRAMEWORKS[id].files('x', false)['vite.config.js']).toContain("base: './'");
   });
 
   it('plain templates have no build step', () => {
@@ -82,7 +84,10 @@ describe('local build runner', () => {
   });
 
   it('installs, builds and reports the output folder', async () => {
-    const dir = makeProject('ok-site', "import { mkdirSync, writeFileSync } from 'node:fs'; mkdirSync('dist', { recursive: true }); writeFileSync('dist/index.html', '<h1>built</h1>'); writeFileSync('dist/app.js', '1'); console.log('compiled!');");
+    const dir = makeProject(
+      'ok-site',
+      "import { mkdirSync, writeFileSync } from 'node:fs'; mkdirSync('dist', { recursive: true }); writeFileSync('dist/index.html', '<h1>built</h1>'); writeFileSync('dist/app.js', '1'); console.log('compiled!');",
+    );
     const started = startBuild(env.app, 'ok-site');
     expect(started.status).toBe('running');
     expect(() => startBuild(env.app, 'ok-site')).toThrow(/already running/);

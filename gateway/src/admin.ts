@@ -18,9 +18,19 @@ export interface AdminReq {
   ip: string;
 }
 
-const html = (body: string, title: string, status = 200, extra: Partial<Reply> = {}): Reply => ({ status, headers: securityHeaders(), html: page(title, body, nav()), ...extra });
-const redirect = (to: string, cookies: string[] = []): Reply => ({ status: 303, headers: { location: to, 'cache-control': 'no-store' }, cookies });
-const nav = (): string => '<nav><a href="/admin">Dashboard</a><a href="/admin/workbench">Workbench</a><a href="/admin/connect">Connect AI</a><a href="/admin/activity">Activity</a><a href="/admin/lang?l=fa">فارسی</a> <a href="/admin/lang?l=en">English</a></nav>';
+const html = (body: string, title: string, status = 200, extra: Partial<Reply> = {}): Reply => ({
+  status,
+  headers: securityHeaders(),
+  html: page(title, body, nav()),
+  ...extra,
+});
+const redirect = (to: string, cookies: string[] = []): Reply => ({
+  status: 303,
+  headers: { location: to, 'cache-control': 'no-store' },
+  cookies,
+});
+const nav = (): string =>
+  '<nav><a href="/admin">Dashboard</a><a href="/admin/workbench">Workbench</a><a href="/admin/connect">Connect AI</a><a href="/admin/activity">Activity</a><a href="/admin/lang?l=fa">فارسی</a> <a href="/admin/lang?l=en">English</a></nav>';
 
 /** Setup token printed at start-up: only someone who can read the server log can claim an empty gateway. */
 let setupToken = '';
@@ -37,14 +47,16 @@ export function prepareSetup(app: App): string | null {
   return setupToken;
 }
 
-const safeNext = (value: string | null): string => (value && value.startsWith('/') && !value.startsWith('//') && !value.includes('\\') ? value : '/admin');
+const safeNext = (value: string | null): string =>
+  value && value.startsWith('/') && !value.startsWith('//') && !value.includes('\\') ? value : '/admin';
 
 export function loginRedirect(next: string): Reply {
   return redirect(`/admin/login?next=${encodeURIComponent(next)}`);
 }
 
 /** The signed-in owner's session, or null. */
-export const sessionOf = (app: App, cookie: string | undefined): Session | null => (app.store.ownerHash() ? readSession(app, cookie) : null);
+export const sessionOf = (app: App, cookie: string | undefined): Session | null =>
+  app.store.ownerHash() ? readSession(app, cookie) : null;
 
 import { handlePanel } from './panel.ts';
 import { translate } from './fa.ts';
@@ -80,7 +92,8 @@ async function handleAdminInner(app: App, req: AdminReq): Promise<Reply> {
     return html('<h1>Not found</h1>', 'Not found', 404);
   }
   if (method !== 'POST') return html('<h1>Method not allowed</h1>', 'Error', 405);
-  if (!checkCsrf(app, session, req.form.get('_csrf'))) return html('<h1>Form expired</h1><p>Reload the page and try again.</p>', 'Error', 403);
+  if (!checkCsrf(app, session, req.form.get('_csrf')))
+    return html('<h1>Form expired</h1><p>Reload the page and try again.</p>', 'Error', 403);
 
   const f = req.form;
   switch (path) {
@@ -89,8 +102,15 @@ async function handleAdminInner(app: App, req: AdminReq): Promise<Reply> {
 
     case '/admin/sites/add': {
       try {
-        const site = await addSite(app, { url: f.get('url') ?? '', code: f.get('code') ?? '', name: f.get('name') ?? '', maxLevel: isLevel(f.get('max_level')) ? (f.get('max_level') as never) : 'admin' });
-        return site.status === 'ok' ? dashboard(app, session, `Connected "${site.name}".`) : dashboard(app, session, `Paired "${site.name}".`, `The first test call failed: ${site.last_error}`);
+        const site = await addSite(app, {
+          url: f.get('url') ?? '',
+          code: f.get('code') ?? '',
+          name: f.get('name') ?? '',
+          maxLevel: isLevel(f.get('max_level')) ? (f.get('max_level') as never) : 'admin',
+        });
+        return site.status === 'ok'
+          ? dashboard(app, session, `Connected "${site.name}".`)
+          : dashboard(app, session, `Paired "${site.name}".`, `The first test call failed: ${site.last_error}`);
       } catch (error) {
         return dashboard(app, session, undefined, error instanceof SiteError || error instanceof Error ? error.message : 'Failed.');
       }
@@ -123,7 +143,8 @@ async function handleAdminInner(app: App, req: AdminReq): Promise<Reply> {
       app.store.removeClient(f.get('id') ?? '');
       return redirect('/admin');
     case '/admin/clients/level':
-      if (isLevel(f.get('level')) && app.store.grant(f.get('id') ?? '')) app.store.setGrant(f.get('id')!, f.get('level') as never, app.store.grant(f.get('id')!)!.sites);
+      if (isLevel(f.get('level')) && app.store.grant(f.get('id') ?? ''))
+        app.store.setGrant(f.get('id')!, f.get('level') as never, app.store.grant(f.get('id')!)!.sites);
       return redirect('/admin');
 
     default:
@@ -163,7 +184,10 @@ function login(app: App, req: AdminReq): Reply {
     );
   if (req.method !== 'POST') return form();
   const gate = app.limiter.take(`login:${req.ip}`, app.config.limits.loginPer10Min, app.config.limits.loginPer10Min / 10);
-  if (!gate.ok) return html('<h1>Too many attempts</h1><p>Try again in a few minutes.</p>', 'Locked', 429, { headers: { ...securityHeaders(), 'retry-after': String(gate.retryAfter) } });
+  if (!gate.ok)
+    return html('<h1>Too many attempts</h1><p>Try again in a few minutes.</p>', 'Locked', 429, {
+      headers: { ...securityHeaders(), 'retry-after': String(gate.retryAfter) },
+    });
   if (!verifyPassword(req.form.get('password') ?? '', app.store.ownerHash() ?? '')) return form('Wrong password.');
   return redirect(next, [newSessionCookie(app)]);
 }
@@ -176,7 +200,8 @@ function levelSelect(name: string, current: string): string {
 
 function dashboard(app: App, session: Session, notice = '', problem = '', newKey = ''): Reply {
   const csrf = `<input type="hidden" name="_csrf" value="${esc(csrfToken(app, session))}">`;
-  const post = (action: string, fields: string, label: string, cls = 'secondary'): string => `<form method="post" action="${action}" style="display:inline">${csrf}${fields}<button class="${cls}">${label}</button></form>`;
+  const post = (action: string, fields: string, label: string, cls = 'secondary'): string =>
+    `<form method="post" action="${action}" style="display:inline">${csrf}${fields}<button class="${cls}">${label}</button></form>`;
   const sites = app.store.sites();
 
   const siteRows = sites
@@ -188,18 +213,26 @@ function dashboard(app: App, session: Session, notice = '', problem = '', newKey
     )
     .join('');
 
-  const siteBoxes = sites.map((s) => `<label class="radio"><input type="checkbox" name="sites" value="${esc(s.name)}"> ${esc(s.name)}</label>`).join('') || '<span class="muted">No sites yet.</span>';
+  const siteBoxes =
+    sites.map((s) => `<label class="radio"><input type="checkbox" name="sites" value="${esc(s.name)}"> ${esc(s.name)}</label>`).join('') ||
+    '<span class="muted">No sites yet.</span>';
 
   const keyRows = app.store
     .keys()
     .filter((k) => !k.revoked)
-    .map((k) => `<tr><td>${esc(k.name)}<div class="muted mono">${esc(k.prefix)}…</div></td><td>${esc(k.level)}</td><td>${esc(parseScope(k.sites) === '*' ? 'all sites' : (parseScope(k.sites) as string[]).join(', '))}</td><td>${when(k.last_used)}<div class="muted">${k.expires ? 'expires ' + when(k.expires) : 'no expiry'}</div></td><td>${post('/admin/keys/revoke', `<input type="hidden" name="id" value="${esc(k.id)}">`, 'Revoke', 'danger')}</td></tr>`)
+    .map(
+      (k) =>
+        `<tr><td>${esc(k.name)}<div class="muted mono">${esc(k.prefix)}…</div></td><td>${esc(k.level)}</td><td>${esc(parseScope(k.sites) === '*' ? 'all sites' : (parseScope(k.sites) as string[]).join(', '))}</td><td>${when(k.last_used)}<div class="muted">${k.expires ? 'expires ' + when(k.expires) : 'no expiry'}</div></td><td>${post('/admin/keys/revoke', `<input type="hidden" name="id" value="${esc(k.id)}">`, 'Revoke', 'danger')}</td></tr>`,
+    )
     .join('');
 
   const clientRows = app.store
     .clients()
     .filter((c) => c.grant_level)
-    .map((c) => `<tr><td>${esc(c.name)}<div class="muted mono">${esc(c.id)}</div></td><td><form method="post" action="/admin/clients/level" class="row">${csrf}<input type="hidden" name="id" value="${esc(c.id)}">${levelSelect('level', c.grant_level!)}<button class="secondary">Set</button></form></td><td>${esc(parseScope(c.grant_sites!) === '*' ? 'all sites' : (parseScope(c.grant_sites!) as string[]).join(', '))}</td><td>${when(c.last_used)}</td><td>${post('/admin/clients/revoke', `<input type="hidden" name="id" value="${esc(c.id)}">`, 'Disconnect', 'danger')}</td></tr>`)
+    .map(
+      (c) =>
+        `<tr><td>${esc(c.name)}<div class="muted mono">${esc(c.id)}</div></td><td><form method="post" action="/admin/clients/level" class="row">${csrf}<input type="hidden" name="id" value="${esc(c.id)}">${levelSelect('level', c.grant_level!)}<button class="secondary">Set</button></form></td><td>${esc(parseScope(c.grant_sites!) === '*' ? 'all sites' : (parseScope(c.grant_sites!) as string[]).join(', '))}</td><td>${when(c.last_used)}</td><td>${post('/admin/clients/revoke', `<input type="hidden" name="id" value="${esc(c.id)}">`, 'Disconnect', 'danger')}</td></tr>`,
+    )
     .join('');
 
   const body = `
@@ -234,7 +267,13 @@ ${newKey ? `<div class="card"><b>New API key (shown once, copy it now)</b><div c
 function activity(app: App): Reply {
   const rows = app.store
     .activity({ limit: 100 })
-    .map((r) => `<tr><td class="mono">${when(r.ts)}</td><td>${esc(r.principal_name)}</td><td>${esc(r.site)}</td><td class="mono">${esc(r.tool)}.${esc(r.action)}</td><td class="${r.status === 'ok' ? 'ok' : r.status === 'error' || r.status === 'denied' ? 'bad' : ''}">${esc(r.status)}</td><td>${esc(r.summary)}</td></tr>`)
+    .map(
+      (r) =>
+        `<tr><td class="mono">${when(r.ts)}</td><td>${esc(r.principal_name)}</td><td>${esc(r.site)}</td><td class="mono">${esc(r.tool)}.${esc(r.action)}</td><td class="${r.status === 'ok' ? 'ok' : r.status === 'error' || r.status === 'denied' ? 'bad' : ''}">${esc(r.status)}</td><td>${esc(r.summary)}</td></tr>`,
+    )
     .join('');
-  return html(`<h1>Activity</h1><div class="card"><table><tr><th>When (UTC)</th><th>Who</th><th>Site</th><th>Action</th><th>Result</th><th>Details</th></tr>${rows || '<tr><td colspan="6" class="muted">Nothing yet.</td></tr>'}</table></div>`, 'Activity');
+  return html(
+    `<h1>Activity</h1><div class="card"><table><tr><th>When (UTC)</th><th>Who</th><th>Site</th><th>Action</th><th>Result</th><th>Details</th></tr>${rows || '<tr><td colspan="6" class="muted">Nothing yet.</td></tr>'}</table></div>`,
+    'Activity',
+  );
 }

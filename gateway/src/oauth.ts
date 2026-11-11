@@ -16,7 +16,16 @@ const MAX_CLIENTS = 200;
 /* ----------------------------------------------------------------- metadata */
 
 export const protectedResource = (app: App): Reply =>
-  json(200, { resource: `${app.config.publicUrl}/mcp`, authorization_servers: [app.config.publicUrl], bearer_methods_supported: ['header'], scopes_supported: [...LEVELS] }, { 'access-control-allow-origin': '*', 'cache-control': 'public, max-age=300' });
+  json(
+    200,
+    {
+      resource: `${app.config.publicUrl}/mcp`,
+      authorization_servers: [app.config.publicUrl],
+      bearer_methods_supported: ['header'],
+      scopes_supported: [...LEVELS],
+    },
+    { 'access-control-allow-origin': '*', 'cache-control': 'public, max-age=300' },
+  );
 
 export const authorizationServer = (app: App): Reply => {
   const base = app.config.publicUrl;
@@ -85,22 +94,42 @@ const hostOf = (uri: string): string => {
 
 export function register(app: App, body: Record<string, unknown>, ip: string): Reply {
   const gate = app.limiter.take(`register:${ip}`, app.config.limits.registerPerHour, app.config.limits.registerPerHour / 60);
-  if (!gate.ok) return json(429, { error: 'slow_down', error_description: 'Too many registrations.' }, { 'retry-after': String(gate.retryAfter) });
+  if (!gate.ok)
+    return json(429, { error: 'slow_down', error_description: 'Too many registrations.' }, { 'retry-after': String(gate.retryAfter) });
 
   const uris = body.redirect_uris;
   if (!Array.isArray(uris) || uris.length === 0 || uris.length > 5 || !uris.every((u) => typeof u === 'string' && redirectUriOk(u))) {
-    return json(400, { error: 'invalid_redirect_uri', error_description: 'Give 1 to 5 redirect_uris: https, loopback http, or an editor scheme.' });
+    return json(400, {
+      error: 'invalid_redirect_uri',
+      error_description: 'Give 1 to 5 redirect_uris: https, loopback http, or an editor scheme.',
+    });
   }
   if (body.token_endpoint_auth_method && body.token_endpoint_auth_method !== 'none') {
-    return json(400, { error: 'invalid_client_metadata', error_description: 'Only public clients (token_endpoint_auth_method none) with PKCE are supported.' });
+    return json(400, {
+      error: 'invalid_client_metadata',
+      error_description: 'Only public clients (token_endpoint_auth_method none) with PKCE are supported.',
+    });
   }
   if (app.store.countClients() >= MAX_CLIENTS) app.store.purge();
-  if (app.store.countClients() >= MAX_CLIENTS) return json(503, { error: 'temporarily_unavailable', error_description: 'Too many registered apps.' });
+  if (app.store.countClients() >= MAX_CLIENTS)
+    return json(503, { error: 'temporarily_unavailable', error_description: 'Too many registered apps.' });
 
-  const name = String(body.client_name ?? '').replace(/[\x00-\x1f<>]/g, '').trim().slice(0, 80) || 'AI app';
+  const name =
+    String(body.client_name ?? '')
+      .replace(/[\x00-\x1f<>]/g, '')
+      .trim()
+      .slice(0, 80) || 'AI app';
   const id = token('wpmc_', 16);
   app.store.addClient({ id, name, redirect_uris: JSON.stringify(uris) });
-  return json(201, { client_id: id, client_name: name, redirect_uris: uris, token_endpoint_auth_method: 'none', grant_types: ['authorization_code', 'refresh_token'], response_types: ['code'], client_id_issued_at: app.store.clock() });
+  return json(201, {
+    client_id: id,
+    client_name: name,
+    redirect_uris: uris,
+    token_endpoint_auth_method: 'none',
+    grant_types: ['authorization_code', 'refresh_token'],
+    response_types: ['code'],
+    client_id_issued_at: app.store.clock(),
+  });
 }
 
 /* ---------------------------------------------------------------- authorize */
@@ -125,7 +154,11 @@ export const readAuthorize = (source: Record<string, unknown>): AuthorizeParams 
   scope: String(source.scope ?? '').slice(0, 200),
 });
 
-const fatal = (message: string): Reply => ({ status: 400, headers: securityHeaders(), html: page('Cannot authorize', `<h1>Cannot authorize</h1><p class="bad">${esc(message)}</p>`) });
+const fatal = (message: string): Reply => ({
+  status: 400,
+  headers: securityHeaders(),
+  html: page('Cannot authorize', `<h1>Cannot authorize</h1><p class="bad">${esc(message)}</p>`),
+});
 
 const back = (uri: string, params: Record<string, string>): Reply => {
   const url = new URL(uri);
@@ -139,9 +172,14 @@ type Checked = { reply: Reply } | { params: AuthorizeParams; clientName: string 
 export function checkAuthorize(app: App, params: AuthorizeParams): Checked {
   const client = app.store.client(params.client_id);
   const uris = client ? (JSON.parse(client.redirect_uris) as string[]) : [];
-  if (!client || !redirectUriOk(params.redirect_uri) || !redirectRegistered(params.redirect_uri, uris)) return { reply: fatal('This app is not registered, or its redirect address does not match its registration.') };
-  if (params.response_type !== 'code') return { reply: back(params.redirect_uri, { error: 'unsupported_response_type', state: params.state }) };
-  if (params.code_challenge_method !== 'S256' || !/^[A-Za-z0-9_-]{43}$/.test(params.code_challenge)) return { reply: back(params.redirect_uri, { error: 'invalid_request', error_description: 'PKCE with S256 is required.', state: params.state }) };
+  if (!client || !redirectUriOk(params.redirect_uri) || !redirectRegistered(params.redirect_uri, uris))
+    return { reply: fatal('This app is not registered, or its redirect address does not match its registration.') };
+  if (params.response_type !== 'code')
+    return { reply: back(params.redirect_uri, { error: 'unsupported_response_type', state: params.state }) };
+  if (params.code_challenge_method !== 'S256' || !/^[A-Za-z0-9_-]{43}$/.test(params.code_challenge))
+    return {
+      reply: back(params.redirect_uri, { error: 'invalid_request', error_description: 'PKCE with S256 is required.', state: params.state }),
+    };
   return { params, clientName: client.name };
 }
 
@@ -174,12 +212,20 @@ export function consentPage(app: App, params: AuthorizeParams, clientName: strin
   const fa = lang === 'fa';
   const sites = app.store.sites();
   const wanted = requestedLevel(params.scope);
-  const hidden = (['client_id', 'redirect_uri', 'response_type', 'code_challenge', 'code_challenge_method', 'state', 'scope'] as const).map((k) => `<input type="hidden" name="${k}" value="${esc(params[k])}">`).join('');
+  const hidden = (['client_id', 'redirect_uri', 'response_type', 'code_challenge', 'code_challenge_method', 'state', 'scope'] as const)
+    .map((k) => `<input type="hidden" name="${k}" value="${esc(params[k])}">`)
+    .join('');
   const levels = LEVELS.map(
-    (l) => `<label class="radio"><input type="radio" name="level" value="${l}" ${l === wanted ? 'checked' : ''}> <b>${l}</b>: ${esc(fa ? FA.levels[l] : LEVEL_HELP[l])}</label>`,
+    (l) =>
+      `<label class="radio"><input type="radio" name="level" value="${l}" ${l === wanted ? 'checked' : ''}> <b>${l}</b>: ${esc(fa ? FA.levels[l] : LEVEL_HELP[l])}</label>`,
   ).join('');
   const siteBoxes = sites.length
-    ? sites.map((s) => `<label class="radio"><input type="checkbox" name="sites" value="${esc(s.name)}" checked> <b>${esc(s.name)}</b> <span class="muted">${esc(s.url)}</span></label>`).join('')
+    ? sites
+        .map(
+          (s) =>
+            `<label class="radio"><input type="checkbox" name="sites" value="${esc(s.name)}" checked> <b>${esc(s.name)}</b> <span class="muted">${esc(s.url)}</span></label>`,
+        )
+        .join('')
     : `<p class="warn">${fa ? FA.none : 'No sites are connected yet. Add one in the admin panel first.'}</p>`;
   const body = `
 <h1>${fa ? FA.title : 'Allow this app to manage your WordPress sites?'}</h1>
@@ -209,7 +255,15 @@ export function silentGrant(app: App, clientId: string): { level: Level; sites: 
 
 export function issueCode(app: App, params: AuthorizeParams, level: Level, sites: SiteScope): Reply {
   const code = token('', 32);
-  app.store.putCode({ hash: sha256(code), client_id: params.client_id, redirect_uri: params.redirect_uri, challenge: params.code_challenge, level, sites: encodeScope(sites), expires: app.store.clock() + 60 });
+  app.store.putCode({
+    hash: sha256(code),
+    client_id: params.client_id,
+    redirect_uri: params.redirect_uri,
+    challenge: params.code_challenge,
+    level,
+    sites: encodeScope(sites),
+    expires: app.store.clock() + 60,
+  });
   return back(params.redirect_uri, { code, state: params.state });
 }
 
@@ -239,9 +293,31 @@ function issueTokens(app: App, clientId: string, family: string, level: Level, s
   const now = app.store.clock();
   const access = token(ACCESS_PREFIX);
   const refresh = token(REFRESH_PREFIX);
-  app.store.putToken({ hash: sha256(access), kind: 'access', client_id: clientId, family, level, sites, expires: now + app.config.accessTtl, created: now });
-  app.store.putToken({ hash: sha256(refresh), kind: 'refresh', client_id: clientId, family, level, sites, expires: now + app.config.refreshTtl, created: now });
-  return json(200, { access_token: access, token_type: 'Bearer', expires_in: app.config.accessTtl, refresh_token: refresh, scope: level }, { 'access-control-allow-origin': '*' });
+  app.store.putToken({
+    hash: sha256(access),
+    kind: 'access',
+    client_id: clientId,
+    family,
+    level,
+    sites,
+    expires: now + app.config.accessTtl,
+    created: now,
+  });
+  app.store.putToken({
+    hash: sha256(refresh),
+    kind: 'refresh',
+    client_id: clientId,
+    family,
+    level,
+    sites,
+    expires: now + app.config.refreshTtl,
+    created: now,
+  });
+  return json(
+    200,
+    { access_token: access, token_type: 'Bearer', expires_in: app.config.accessTtl, refresh_token: refresh, scope: level },
+    { 'access-control-allow-origin': '*' },
+  );
 }
 
 export function tokenEndpoint(app: App, form: Record<string, unknown>, ip: string): Reply {
@@ -253,10 +329,12 @@ export function tokenEndpoint(app: App, form: Record<string, unknown>, ip: strin
 
   if (form.grant_type === 'authorization_code') {
     const row = app.store.takeCode(sha256(String(form.code ?? '')));
-    if (!row || row.client_id !== clientId || row.redirect_uri !== String(form.redirect_uri ?? '')) return oauthError(400, 'invalid_grant', 'The code is invalid, used or expired.');
+    if (!row || row.client_id !== clientId || row.redirect_uri !== String(form.redirect_uri ?? ''))
+      return oauthError(400, 'invalid_grant', 'The code is invalid, used or expired.');
     const verifier = String(form.code_verifier ?? '');
     const challenge = createHash('sha256').update(verifier).digest('base64url');
-    if (!/^[A-Za-z0-9._~-]{43,128}$/.test(verifier) || !safeEqual(challenge, row.challenge)) return oauthError(400, 'invalid_grant', 'PKCE verification failed.');
+    if (!/^[A-Za-z0-9._~-]{43,128}$/.test(verifier) || !safeEqual(challenge, row.challenge))
+      return oauthError(400, 'invalid_grant', 'PKCE verification failed.');
     app.store.touchClient(clientId);
     return issueTokens(app, clientId, token('f_', 9), row.level, row.sites);
   }
@@ -265,7 +343,8 @@ export function tokenEndpoint(app: App, form: Record<string, unknown>, ip: strin
     const presented = String(form.refresh_token ?? '');
     const row = presented.startsWith(REFRESH_PREFIX) ? app.store.token(sha256(presented)) : undefined;
     const now = app.store.clock();
-    if (!row || row.kind !== 'refresh' || row.client_id !== clientId || row.expires < now) return oauthError(400, 'invalid_grant', 'The refresh token is invalid or expired. Connect again.');
+    if (!row || row.kind !== 'refresh' || row.client_id !== clientId || row.expires < now)
+      return oauthError(400, 'invalid_grant', 'The refresh token is invalid or expired. Connect again.');
     const grant = app.store.grant(clientId);
     if (!grant) return oauthError(400, 'invalid_grant', 'Access was revoked. Connect again.');
     if (row.rotated_at > 0 && now - row.rotated_at > app.config.refreshGrace) {

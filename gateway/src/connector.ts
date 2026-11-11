@@ -23,7 +23,15 @@ export const parseTunnelUrl = (text: string): string | null => /https:\/\/[a-z0-
 
 /** cloudflared on PATH, or where the Windows installer puts it (a terminal opened before the install does not see PATH changes). */
 export function findCloudflared(): string | null {
-  const candidates = ['cloudflared', ...(process.platform === 'win32' ? [`${process.env['ProgramFiles(x86)'] ?? 'C:/Program Files (x86)'}/cloudflared/cloudflared.exe`, `${process.env.ProgramFiles ?? 'C:/Program Files'}/cloudflared/cloudflared.exe`] : [])];
+  const candidates = [
+    'cloudflared',
+    ...(process.platform === 'win32'
+      ? [
+          `${process.env['ProgramFiles(x86)'] ?? 'C:/Program Files (x86)'}/cloudflared/cloudflared.exe`,
+          `${process.env.ProgramFiles ?? 'C:/Program Files'}/cloudflared/cloudflared.exe`,
+        ]
+      : []),
+  ];
   for (const c of candidates) {
     if (c !== 'cloudflared' && !existsSync(c)) continue;
     try {
@@ -59,17 +67,25 @@ export function stopConnector(app: App): void {
   }
 }
 
-export async function startConnector(app: App, level: unknown, port: number): Promise<{ ok: true; url: string } | { ok: false; error: { code: string; message: string } }> {
+export async function startConnector(
+  app: App,
+  level: unknown,
+  port: number,
+): Promise<{ ok: true; url: string } | { ok: false; error: { code: string; message: string } }> {
   const fail = (code: string, message: string) => ({ ok: false as const, error: { code, message } });
   if (!app.config.localPanel) return fail('not_local', 'The connector is only available in the local panel.');
   if (running) return { ok: true, url: `${running.url}/mcp` };
   if (starting) return fail('busy', 'Already starting.');
   const bin = findCloudflared();
-  if (!bin) return fail('no_cloudflared', 'cloudflared is not installed. Run: winget install Cloudflare.cloudflared (then restart the panel).');
+  if (!bin)
+    return fail('no_cloudflared', 'cloudflared is not installed. Run: winget install Cloudflare.cloudflared (then restart the panel).');
   const chosen: Level = isLevel(level) ? level : 'live';
   starting = true;
   try {
-    const child = spawn(bin, ['tunnel', '--no-autoupdate', '--protocol', 'http2', '--url', `http://127.0.0.1:${port}`], { windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
+    const child = spawn(bin, ['tunnel', '--no-autoupdate', '--protocol', 'http2', '--url', `http://127.0.0.1:${port}`], {
+      windowsHide: true,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
     const log = join(app.config.dataDir, 'tunnel.log');
     writeFileSync(log, '');
     const url = await new Promise<string | null>((resolve) => {

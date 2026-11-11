@@ -5,7 +5,19 @@ import { handleAdmin, loginRedirect, sessionOf } from './admin.ts';
 import type { App, Reply } from './context.ts';
 import { json } from './context.ts';
 import { handleMessage } from './mcp/server.ts';
-import { authorizationServer, checkAuthorize, consentPage, decide, issueCode, protectedResource, readAuthorize, register, revoke, silentGrant, tokenEndpoint } from './oauth.ts';
+import {
+  authorizationServer,
+  checkAuthorize,
+  consentPage,
+  decide,
+  issueCode,
+  protectedResource,
+  readAuthorize,
+  register,
+  revoke,
+  silentGrant,
+  tokenEndpoint,
+} from './oauth.ts';
 import { esc, page, securityHeaders } from './html.ts';
 import { encodeScope } from './store.ts';
 
@@ -42,7 +54,9 @@ function readBody(req: http.IncomingMessage, limit: number): Promise<Buffer> {
 
 function clientIp(app: App, req: http.IncomingMessage): string {
   if (app.config.trustProxy) {
-    const forwarded = String(req.headers['x-forwarded-for'] ?? '').split(',')[0]?.trim();
+    const forwarded = String(req.headers['x-forwarded-for'] ?? '')
+      .split(',')[0]
+      ?.trim();
     if (forwarded) return forwarded;
   }
   return req.socket.remoteAddress ?? 'unknown';
@@ -105,7 +119,14 @@ async function route(app: App, req: http.IncomingMessage, res: http.ServerRespon
   if (path === '/healthz') return send(res, json(200, { ok: true }));
 
   if (path === '/') {
-    return send(res, { status: 200, headers: securityHeaders(), html: page('WP MCP gateway', `<h1>WP MCP gateway</h1><p>MCP endpoint: <code>${esc(app.config.publicUrl)}/mcp</code></p><p><a href="/admin">Admin panel</a></p>`) });
+    return send(res, {
+      status: 200,
+      headers: securityHeaders(),
+      html: page(
+        'WP MCP gateway',
+        `<h1>WP MCP gateway</h1><p>MCP endpoint: <code>${esc(app.config.publicUrl)}/mcp</code></p><p><a href="/admin">Admin panel</a></p>`,
+      ),
+    });
   }
 
   if (path.startsWith('/.well-known/oauth-protected-resource')) return send(res, protectedResource(app));
@@ -147,7 +168,8 @@ async function route(app: App, req: http.IncomingMessage, res: http.ServerRespon
       if ('reply' in checked) return send(res, checked.reply);
       if (!session) return send(res, loginRedirect(`${path}${url.search}`));
       const remembered = silentGrant(app, checked.params.client_id);
-      if (remembered && url.searchParams.get('prompt') !== 'consent' && !url.searchParams.has('lang')) return send(res, issueCode(app, checked.params, remembered.level, remembered.sites));
+      if (remembered && url.searchParams.get('prompt') !== 'consent' && !url.searchParams.has('lang'))
+        return send(res, issueCode(app, checked.params, remembered.level, remembered.sites));
       return send(res, consentPage(app, checked.params, checked.clientName, session, url.searchParams.get('lang') === 'fa' ? 'fa' : 'en'));
     }
     if (method === 'POST') {
@@ -180,15 +202,33 @@ async function route(app: App, req: http.IncomingMessage, res: http.ServerRespon
 }
 
 async function mcp(app: App, req: http.IncomingMessage, res: http.ServerResponse, method: string, ip: string): Promise<void> {
-  if (method !== 'POST') return send(res, json(405, { error: 'method_not_allowed', error_description: 'Stateless Streamable HTTP: use POST.' }, { allow: 'POST, OPTIONS', ...CORS }));
+  if (method !== 'POST')
+    return send(
+      res,
+      json(
+        405,
+        { error: 'method_not_allowed', error_description: 'Stateless Streamable HTTP: use POST.' },
+        { allow: 'POST, OPTIONS', ...CORS },
+      ),
+    );
 
   const auth = authenticate(app, bearerFrom(req.headers));
   if ('error' in auth) {
     const guard = app.limiter.take(`authfail:${ip}`, 30, 30);
     if (!guard.ok) return send(res, json(429, { error: 'slow_down' }, { 'retry-after': String(guard.retryAfter), ...CORS }));
     const meta = `resource_metadata="${app.config.publicUrl}/.well-known/oauth-protected-resource"`;
-    const detail = auth.error === 'missing' ? '' : `, error="invalid_token", error_description="${auth.error === 'expired' ? 'The access token expired' : 'The access token is invalid'}"`;
-    return send(res, json(401, { error: 'unauthorized', error_description: 'Send Authorization: Bearer <API key or OAuth token>.' }, { 'www-authenticate': `Bearer ${meta}${detail}`, ...CORS }));
+    const detail =
+      auth.error === 'missing'
+        ? ''
+        : `, error="invalid_token", error_description="${auth.error === 'expired' ? 'The access token expired' : 'The access token is invalid'}"`;
+    return send(
+      res,
+      json(
+        401,
+        { error: 'unauthorized', error_description: 'Send Authorization: Bearer <API key or OAuth token>.' },
+        { 'www-authenticate': `Bearer ${meta}${detail}`, ...CORS },
+      ),
+    );
   }
   const { principal } = auth;
 

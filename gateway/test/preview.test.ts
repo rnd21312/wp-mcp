@@ -8,7 +8,8 @@ describe('preview origin for the visual editor', () => {
   const O = 'http://127.0.0.1:9999';
 
   it('proxies stylesheets, keeps scripts, removes CSP and refresh', () => {
-    const html = '<html><head><meta http-equiv="Content-Security-Policy" content="default-src none"><meta http-equiv="refresh" content="0;url=/x"><link rel="stylesheet" href="/s/a.css" integrity="sha" crossorigin="anonymous"><link rel="preload" as="style" href="b.css" media="print" onload="this.media=\'all\'"></head><body><script>1</script></body></html>';
+    const html =
+      '<html><head><meta http-equiv="Content-Security-Policy" content="default-src none"><meta http-equiv="refresh" content="0;url=/x"><link rel="stylesheet" href="/s/a.css" integrity="sha" crossorigin="anonymous"><link rel="preload" as="style" href="b.css" media="print" onload="this.media=\'all\'"></head><body><script>1</script></body></html>';
     const out = rewriteHtml(html, 'https://site.test/page/', O, 'http://127.0.0.1:8787');
     expect(out).not.toMatch(/content-security-policy|http-equiv="refresh"/i);
     expect(out).toContain(`href="${O}/css?u=${encodeURIComponent('https://site.test/s/a.css')}&t=${previewToken}"`);
@@ -21,12 +22,22 @@ describe('preview origin for the visual editor', () => {
   });
 
   it('makes url() and @import in CSS absolute', () => {
-    const css = '@import "reset.css";body{background:url(../img/a.png)}@font-face{src:url("f.woff2")}i{background:url(data:image/png;base64,AA)}';
+    const css =
+      '@import "reset.css";body{background:url(../img/a.png)}@font-face{src:url("f.woff2")}i{background:url(data:image/png;base64,AA)}';
     const out = rewriteCss(css, 'https://site.test/wp-content/themes/t/css/main.css', O);
     expect(out).toContain(`@import url("${O}/css?u=${encodeURIComponent('https://site.test/wp-content/themes/t/css/reset.css')}`);
     expect(out).toContain('url(https://site.test/wp-content/themes/t/img/a.png)');
-    expect(out).toContain(`url("${O}/asset?u=${encodeURIComponent('https://site.test/wp-content/themes/t/css/f.woff2')}&t=${previewToken}")`); // fonts go through the proxy: the site sends no CORS headers
-    expect(rewriteHtml('<html><head><style>@font-face{src:url(/f/a.woff2)}</style></head><body></body></html>', 'https://site.test/', O, 'http://127.0.0.1:1')).toContain(`${O}/asset?u=${encodeURIComponent('https://site.test/f/a.woff2')}`);
+    expect(out).toContain(
+      `url("${O}/asset?u=${encodeURIComponent('https://site.test/wp-content/themes/t/css/f.woff2')}&t=${previewToken}")`,
+    ); // fonts go through the proxy: the site sends no CORS headers
+    expect(
+      rewriteHtml(
+        '<html><head><style>@font-face{src:url(/f/a.woff2)}</style></head><body></body></html>',
+        'https://site.test/',
+        O,
+        'http://127.0.0.1:1',
+      ),
+    ).toContain(`${O}/asset?u=${encodeURIComponent('https://site.test/f/a.woff2')}`);
     expect(out).toContain('url(data:image/png;base64,AA)');
   });
 
@@ -38,7 +49,10 @@ describe('preview origin for the visual editor', () => {
     let base = '';
     beforeAll(async () => {
       target = http.createServer((req, res) => {
-        if (req.url === '/style.css') { res.writeHead(200, { 'content-type': 'text/css' }); return void res.end('h1{background:url(img.png)}'); }
+        if (req.url === '/style.css') {
+          res.writeHead(200, { 'content-type': 'text/css' });
+          return void res.end('h1{background:url(img.png)}');
+        }
         res.writeHead(200, { 'content-type': 'text/html' });
         res.end('<html><head><link rel="stylesheet" href="/style.css"></head><body><h1>Hi</h1></body></html>');
       });
@@ -69,7 +83,9 @@ describe('preview origin for the visual editor', () => {
     it('does not fetch private addresses when they are not allowed', async () => {
       const strict = await createEnv([], { localPanel: true, allowPrivateSites: false }, { owner: false });
       const p2 = await startPreview(strict.app, strict.config.port);
-      const res = await fetch(`http://127.0.0.1:${strict.config.port + 1}/page?u=${encodeURIComponent('http://169.254.169.254/')}&t=${previewToken}`);
+      const res = await fetch(
+        `http://127.0.0.1:${strict.config.port + 1}/page?u=${encodeURIComponent('http://169.254.169.254/')}&t=${previewToken}`,
+      );
       expect(res.status).toBe(502);
       await new Promise<void>((d) => p2.close(() => d()));
       await strict.stop();

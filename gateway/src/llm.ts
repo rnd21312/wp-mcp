@@ -8,10 +8,17 @@ export const llm = {
   async complete(app: App, providerId: string, system: string, user: string): Promise<string> {
     const row = app.store.aiProvider(providerId);
     if (!row) throw new LlmError('no_provider', 'Choose an AI provider first (AI assistant page → add a key).');
-    const provider: Provider = { id: row.id, type: row.type as ProviderType, base: row.base_url, model: row.model, key: row.key_enc ? decrypt(app.config.masterKey, row.key_enc) : '' };
+    const provider: Provider = {
+      id: row.id,
+      type: row.type as ProviderType,
+      base: row.base_url,
+      model: row.model,
+      key: row.key_enc ? decrypt(app.config.masterKey, row.key_enc) : '',
+    };
     const msgs = [{ role: 'user' as const, content: user }];
     try {
-      const reply = provider.type === 'anthropic' ? await askAnthropic(provider, system, msgs, []) : await askOpenAI(provider, system, msgs, []);
+      const reply =
+        provider.type === 'anthropic' ? await askAnthropic(provider, system, msgs, []) : await askOpenAI(provider, system, msgs, []);
       return reply.text;
     } catch (error) {
       throw new LlmError('provider_failed', `The AI provider failed: ${error instanceof Error ? error.message : 'unknown error'}`);
@@ -49,7 +56,12 @@ export function extractJson(text: string): unknown {
 export async function askJson<T>(app: App, providerId: string, system: string, user: string, validate: (raw: unknown) => T): Promise<T> {
   let note = '';
   for (let attempt = 0; attempt < 2; attempt++) {
-    const text = await llm.complete(app, providerId, system, note ? `${user}\n\nYour previous answer was rejected: ${note}\nAnswer again with only the corrected JSON.` : user);
+    const text = await llm.complete(
+      app,
+      providerId,
+      system,
+      note ? `${user}\n\nYour previous answer was rejected: ${note}\nAnswer again with only the corrected JSON.` : user,
+    );
     try {
       return validate(extractJson(text));
     } catch (error) {

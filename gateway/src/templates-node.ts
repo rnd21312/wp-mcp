@@ -4,7 +4,11 @@ import type { FrameworkTemplate } from './templates.ts';
 
 const json = (v: unknown): string => JSON.stringify(v, null, 2) + '\n';
 const esc = (s: string): string => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
-const slug = (s: string): string => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'site';
+const slug = (s: string): string =>
+  s
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '') || 'site';
 const lead = (rtl: boolean): string => (rtl ? 'سایت شما با موفقیت ساخته شد.' : 'Your site is up and running.');
 
 const css = (rtl: boolean): string => `body{margin:0;font-family:system-ui,Tahoma,sans-serif;line-height:1.7${rtl ? ';direction:rtl' : ''}}
@@ -38,7 +42,14 @@ export const NODE_TEMPLATES: Record<string, FrameworkTemplate> = {
       const page = `<!doctype html><html lang="${rtl ? 'fa' : 'en'}" dir="${rtl ? 'rtl' : 'ltr'}"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>${esc(title)}</title><body style="font-family:system-ui;text-align:center;padding:4rem"><h1>${esc(title)}</h1><p>${lead(rtl)}</p>`;
 
       return {
-        'package.json': json({ name: slug(title), private: true, version: '0.0.0', type: 'module', scripts: { start: 'node server.js', build: 'node -e "console.log(\'Nothing to compile; dependencies are installed.\')"' }, engines: { node: '>=20' } }),
+        'package.json': json({
+          name: slug(title),
+          private: true,
+          version: '0.0.0',
+          type: 'module',
+          scripts: { start: 'node server.js', build: 'node -e "console.log(\'Nothing to compile; dependencies are installed.\')"' },
+          engines: { node: '>=20' },
+        }),
         'server.js': SERVER_JS.replace('__PAGE__', JSON.stringify(page)),
       };
     },
@@ -51,7 +62,13 @@ export const NODE_TEMPLATES: Record<string, FrameworkTemplate> = {
     startup: 'server.js',
     note: 'Server-rendered Next.js (standalone output). Needs a host that runs Node.',
     files: (title, rtl) => ({
-      'package.json': json({ name: slug(title), private: true, version: '0.0.0', scripts: { dev: 'next dev', build: 'next build', start: 'node .next/standalone/server.js' }, dependencies: { next: '^15.0.0', react: '^19.0.0', 'react-dom': '^19.0.0' } }),
+      'package.json': json({
+        name: slug(title),
+        private: true,
+        version: '0.0.0',
+        scripts: { dev: 'next dev', build: 'next build', start: 'node .next/standalone/server.js' },
+        dependencies: { next: '^15.0.0', react: '^19.0.0', 'react-dom': '^19.0.0' },
+      }),
       'next.config.mjs': `import { dirname } from 'node:path';\nimport { fileURLToPath } from 'node:url';\n\n// Trace files from this folder, not from a lock file somewhere above it, so the standalone output is not nested.\n/** @type {import('next').NextConfig} */\nconst config = { output: 'standalone', outputFileTracingRoot: dirname(fileURLToPath(import.meta.url)) };\n\nexport default config;\n`,
       'app/layout.jsx': `import './globals.css';\n\nexport const metadata = { title: ${JSON.stringify(title)} };\n\nexport default function RootLayout({ children }) {\n  return (\n    <html lang="${rtl ? 'fa' : 'en'}" dir="${rtl ? 'rtl' : 'ltr'}">\n      <body>{children}</body>\n    </html>\n  );\n}\n`,
       'app/page.jsx': `export const dynamic = 'force-dynamic';\n\nexport default function Page() {\n  return (\n    <main>\n      <h1>${esc(title)}</h1>\n      <p>${lead(rtl)}</p>\n      <p>Rendered on the server at {new Date().toISOString()}</p>\n    </main>\n  );\n}\n`,

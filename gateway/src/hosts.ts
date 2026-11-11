@@ -12,7 +12,11 @@ import type { HostRow } from './store.ts';
 export const HOST_NAME = /^[a-z0-9][a-z0-9._-]{1,39}$/;
 
 export function suggestHostName(url: string): string {
-  return new URL(url).hostname.replace(/^www\./, '').toLowerCase().replace(/[^a-z0-9._-]/g, '-').slice(0, 40);
+  return new URL(url).hostname
+    .replace(/^www\./, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]/g, '-')
+    .slice(0, 40);
 }
 
 export function hostView(h: HostRow) {
@@ -23,7 +27,16 @@ export function hostView(h: HostRow) {
     /* keep empty */
   }
 
-  return { name: h.name, url: h.url, level: h.level, status: h.status, last_ok: h.last_ok, last_error: h.last_error, agent_version: h.agent_version, caps };
+  return {
+    name: h.name,
+    url: h.url,
+    level: h.level,
+    status: h.status,
+    last_ok: h.last_ok,
+    last_error: h.last_error,
+    agent_version: h.agent_version,
+    caps,
+  };
 }
 
 /** Pairs with a Host Agent using the one-time code from its panel, then makes the first signed round trip. */
@@ -40,7 +53,13 @@ export async function addHost(app: App, input: { url: string; code: string; name
   if (app.store.hosts().some((h) => h.url === url)) throw new AgentError('url_taken', 'That agent is already connected.');
 
   const { base, paired } = await app.agents.pair(url, input.code, `Studio (${new URL(app.config.publicUrl).host})`);
-  app.store.addHost({ name, url: base, key_id: paired.key_id, secret_enc: encrypt(app.config.masterKey, paired.secret), level: paired.level });
+  app.store.addHost({
+    name,
+    url: base,
+    key_id: paired.key_id,
+    secret_enc: encrypt(app.config.masterKey, paired.secret),
+    level: paired.level,
+  });
   const test = await testHost(app, name);
   if (!test.ok) throw new AgentError('first_call_failed', `Paired, but the first signed call failed: ${test.detail}`);
 
@@ -79,7 +98,10 @@ const here = dirname(fileURLToPath(import.meta.url));
 export function agentSourceDir(): string {
   const candidates = [resolve(here, 'agent'), resolve(here, '..', '..', 'agent', 'wpm-agent'), resolve(here, '..', 'agent', 'wpm-agent')];
   const found = candidates.find((dir) => existsSync(join(dir, 'index.php')));
-  if (!found) throw new Error('The Host Agent sources were not found next to the Studio. Reinstall or download wpm-agent.zip from the releases page.');
+  if (!found)
+    throw new Error(
+      'The Host Agent sources were not found next to the Studio. Reinstall or download wpm-agent.zip from the releases page.',
+    );
 
   return found;
 }
@@ -88,7 +110,9 @@ export function agentSourceDir(): string {
 export function newSetupCode(): string {
   const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   const bytes = randomBytes(16);
-  const groups = Array.from({ length: 4 }, (_, g) => Array.from({ length: 4 }, (_, i) => alphabet[bytes[g * 4 + i] % alphabet.length]).join(''));
+  const groups = Array.from({ length: 4 }, (_, g) =>
+    Array.from({ length: 4 }, (_, i) => alphabet[bytes[g * 4 + i] % alphabet.length]).join(''),
+  );
 
   return `WPMS-${groups.join('-')}`;
 }
@@ -105,13 +129,18 @@ export function buildAgentZip(setupCode = newSetupCode()): { zip: Buffer; setupC
     }
   };
   walk(root);
-  const plugin = [resolve(here, 'plugin'), resolve(here, '..', '..', 'plugin', 'wp-mcp-bridge'), resolve(here, '..', 'plugin', 'wp-mcp-bridge')].find((d) => existsSync(join(d, 'wp-mcp-bridge.php')));
+  const plugin = [
+    resolve(here, 'plugin'),
+    resolve(here, '..', '..', 'plugin', 'wp-mcp-bridge'),
+    resolve(here, '..', 'plugin', 'wp-mcp-bridge'),
+  ].find((d) => existsSync(join(d, 'wp-mcp-bridge.php')));
   if (plugin) {
     const walkPlugin = (dir: string): void => {
       for (const name of readdirSync(dir).sort()) {
         const full = join(dir, name);
         if (readdirSyncSafe(full)) walkPlugin(full);
-        else entries.push({ name: `wpm-agent/bridge/wp-mcp-bridge/${relative(plugin, full).split(sep).join('/')}`, data: readFileSync(full) });
+        else
+          entries.push({ name: `wpm-agent/bridge/wp-mcp-bridge/${relative(plugin, full).split(sep).join('/')}`, data: readFileSync(full) });
       }
     };
     walkPlugin(plugin);
@@ -155,14 +184,20 @@ export interface AgentRelease {
 export const releasePaths: { dirs?: string[] } = {};
 
 export function agentRelease(): AgentRelease | null {
-  const dirs = releasePaths.dirs ?? [resolve(here, 'agent-release'), resolve(here, '..', 'dist', 'agent-release'), resolve(here, '..', '..', 'dist')];
+  const dirs = releasePaths.dirs ?? [
+    resolve(here, 'agent-release'),
+    resolve(here, '..', 'dist', 'agent-release'),
+    resolve(here, '..', '..', 'dist'),
+  ];
   for (const dir of dirs) {
     const zip = join(dir, 'wpm-agent.zip');
     const sig = join(dir, 'wpm-agent.zip.sig');
     if (!existsSync(zip) || !existsSync(sig)) continue;
     // release.mjs writes the version of the signed zip next to it; fall back to the sources for hand-made releases
     const versionFile = join(dir, 'wpm-agent.version');
-    const version = existsSync(versionFile) ? readFileSync(versionFile, 'utf8').trim() : (/const VERSION = '([^']+)'/.exec(readFileSync(join(agentSourceDir(), 'src', 'Agent.php'), 'utf8'))?.[1] ?? '');
+    const version = existsSync(versionFile)
+      ? readFileSync(versionFile, 'utf8').trim()
+      : (/const VERSION = '([^']+)'/.exec(readFileSync(join(agentSourceDir(), 'src', 'Agent.php'), 'utf8'))?.[1] ?? '');
     return { version, zip, sig };
   }
 
@@ -180,12 +215,32 @@ const newer = (a: string, b: string): boolean => {
 export async function updateAgent(app: App, name: string): Promise<{ from: string; to: string }> {
   const host = needHost(app, name);
   const release = agentRelease();
-  if (!release) throw new AgentError('no_release', 'This Studio has no signed agent release (it is a development build). Download the agent zip and upload it by hand.');
+  if (!release)
+    throw new AgentError(
+      'no_release',
+      'This Studio has no signed agent release (it is a development build). Download the agent zip and upload it by hand.',
+    );
   if (!newer(release.version, host.agent_version)) throw new AgentError('up_to_date', `The agent is already at ${host.agent_version}.`);
   const uploadId = await app.agents.upload(host, readFileSync(release.zip));
-  const out = await app.agents.call<{ from: string; to: string }>(host, 'agent.update', { upload_id: uploadId, signature: readFileSync(release.sig, 'utf8').trim() }, { timeoutMs: 120000 });
+  const out = await app.agents.call<{ from: string; to: string }>(
+    host,
+    'agent.update',
+    { upload_id: uploadId, signature: readFileSync(release.sig, 'utf8').trim() },
+    { timeoutMs: 120000 },
+  );
   await testHost(app, name);
-  app.store.log({ principal: 'studio', principal_name: 'Studio', tool: 'agent', action: 'update', site: name, level: 'admin', status: 'ok', summary: `${out.from} -> ${out.to}`, request_id: out.to, revision: 0 });
+  app.store.log({
+    principal: 'studio',
+    principal_name: 'Studio',
+    tool: 'agent',
+    action: 'update',
+    site: name,
+    level: 'admin',
+    status: 'ok',
+    summary: `${out.from} -> ${out.to}`,
+    request_id: out.to,
+    revision: 0,
+  });
 
   return out;
 }
@@ -198,19 +253,53 @@ export interface Exposure {
 }
 
 /** The agent's own self-test plus a look from outside: can the web reach files it must not? */
-export async function checkHost(app: App, name: string): Promise<{ checks: { id: string; status: string; msg: string }[]; exposure: Exposure[] }> {
+export async function checkHost(
+  app: App,
+  name: string,
+): Promise<{ checks: { id: string; status: string; msg: string }[]; exposure: Exposure[] }> {
   const host = needHost(app, name);
-  const { checks } = await app.agents.call<{ checks: { id: string; status: string; msg: string }[] }>(host, 'host.selftest', { online: true }, { timeoutMs: 90000 });
-  const policy = { allowPrivate: app.config.allowPrivateSites, allowHttp: app.config.allowInsecureSites, allowSelfSigned: app.config.allowSelfSignedSites };
+  const { checks } = await app.agents.call<{ checks: { id: string; status: string; msg: string }[] }>(
+    host,
+    'host.selftest',
+    { online: true },
+    { timeoutMs: 90000 },
+  );
+  const policy = {
+    allowPrivate: app.config.allowPrivateSites,
+    allowHttp: app.config.allowInsecureSites,
+    allowSelfSigned: app.config.allowSelfSignedSites,
+  };
   const exposure: Exposure[] = [];
-  for (const path of ['src/Auth.php', 'src/Store.php', 'data-location.php', 'wpm-setup.php', '.htaccess', 'data/config.json.php', 'README.txt']) {
+  for (const path of [
+    'src/Auth.php',
+    'src/Store.php',
+    'data-location.php',
+    'wpm-setup.php',
+    '.htaccess',
+    'data/config.json.php',
+    'README.txt',
+  ]) {
     try {
       const res = await safeRequest(`${host.url}${path}`, policy, { timeoutMs: 15000, maxBytes: 200000 });
       const text = res.body.toString('utf8');
       const leaks = res.status === 200 && /<\?php|defined\(|namespace |"hash"/i.test(text) && text.trim().length > 0;
-      exposure.push({ path, status: res.status, safe: !leaks, note: leaks ? 'The web server returned the contents of this file. Block it in the server configuration or move the agent.' : res.status === 200 ? 'Reachable but harmless (no secrets or code).' : 'Not served.' });
+      exposure.push({
+        path,
+        status: res.status,
+        safe: !leaks,
+        note: leaks
+          ? 'The web server returned the contents of this file. Block it in the server configuration or move the agent.'
+          : res.status === 200
+            ? 'Reachable but harmless (no secrets or code).'
+            : 'Not served.',
+      });
     } catch (error) {
-      exposure.push({ path, status: 0, safe: true, note: `Not reachable (${error instanceof Error ? error.message.slice(0, 60) : 'error'}).` });
+      exposure.push({
+        path,
+        status: 0,
+        safe: true,
+        note: `Not reachable (${error instanceof Error ? error.message.slice(0, 60) : 'error'}).`,
+      });
     }
   }
 

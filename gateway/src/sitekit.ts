@@ -40,7 +40,8 @@ const FONT_STACKS: Record<string, string> = {
 };
 export const FONT_CHOICES = Object.keys(FONT_STACKS);
 
-export const esc = (s: string): string => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
+export const esc = (s: string): string =>
+  s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
 
 // ---- colour maths (WCAG 2.x) -------------------------------------------------------------------------------------
 
@@ -106,7 +107,8 @@ table{border-collapse:collapse;width:100%}th,td{padding:.6rem;border-bottom:1px 
 }
 
 /** Classes the page generator is told about, so its markup matches the stylesheet. */
-export const CSS_CLASSES = '.container, .section, .section.alt, .hero (with .lead), .grid (auto-fit columns), .card, .btn, .btn.secondary, .cta, figure.img + figcaption, form/label/input/textarea (styled), table';
+export const CSS_CLASSES =
+  '.container, .section, .section.alt, .hero (with .lead), .grid (auto-fit columns), .card, .btn, .btn.secondary, .cta, figure.img + figcaption, form/label/input/textarea (styled), table';
 
 // ---- shell --------------------------------------------------------------------------------------------------------
 
@@ -125,7 +127,9 @@ export function assemblePage({ plan, page, main, baseUrl }: ShellInput): string 
   const dir = plan.rtl ? 'rtl' : 'ltr';
   const url = baseUrl ? `${baseUrl}/${page.slug === 'index' ? '' : fileOf(page.slug)}` : '';
   const title = page.slug === 'index' ? page.seo_title : `${page.seo_title}`;
-  const nav = plan.pages.map((p) => `<li><a href="${fileOf(p.slug)}"${p.slug === page.slug ? ' aria-current="page"' : ''}>${esc(p.title)}</a></li>`).join('');
+  const nav = plan.pages
+    .map((p) => `<li><a href="${fileOf(p.slug)}"${p.slug === page.slug ? ' aria-current="page"' : ''}>${esc(p.title)}</a></li>`)
+    .join('');
   const ld =
     page.slug === 'index'
       ? `<script type="application/ld+json">${JSON.stringify({ '@context': 'https://schema.org', '@type': 'WebSite', name: plan.site_name, description: plan.tagline, inLanguage: plan.language, ...(baseUrl ? { url: baseUrl + '/' } : {}) }).replace(/</g, '\\u003c')}</script>\n`
@@ -178,7 +182,10 @@ export function checkMain(html: string): string {
   const body = html.trim();
   if (body.length < 40) throw new Error('the page content is empty');
   if (body.length > 120_000) throw new Error('the page content is too large');
-  if (/<\s*(html|head|body|title|meta|link|script|iframe|object|embed|style|base|form[^>]*action\s*=\s*["']?https?:)/i.test(body)) throw new Error('use only content markup: no <html>, <head>, <body>, <script>, <style>, <iframe>, <link>, <meta>, or forms posting to other sites');
+  if (/<\s*(html|head|body|title|meta|link|script|iframe|object|embed|style|base|form[^>]*action\s*=\s*["']?https?:)/i.test(body))
+    throw new Error(
+      'use only content markup: no <html>, <head>, <body>, <script>, <style>, <iframe>, <link>, <meta>, or forms posting to other sites',
+    );
   if (/\son[a-z]+\s*=/i.test(body)) throw new Error('no inline event handlers (onclick=...)');
   if (/javascript:/i.test(body)) throw new Error('no javascript: links');
   return body;

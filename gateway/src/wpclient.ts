@@ -46,10 +46,12 @@ export const normalizeSiteUrl = (raw: string): string => {
 };
 
 /** Request signature; the bridge computes the same value (see Signature.php). */
-export const signRequest = (secret: string, keyId: string, ts: number | string, nonce: string, body: string): string => hmacHex(secret, [ts, nonce, keyId, 'POST', ROUTE_CALL, sha256(body)].join('\n'));
+export const signRequest = (secret: string, keyId: string, ts: number | string, nonce: string, body: string): string =>
+  hmacHex(secret, [ts, nonce, keyId, 'POST', ROUTE_CALL, sha256(body)].join('\n'));
 
 /** Signature the bridge puts on every reply. */
-export const responseSignature = (secret: string, nonce: string, body: Buffer | string): string => hmacHex(secret, `${nonce}\n${sha256(body)}`);
+export const responseSignature = (secret: string, nonce: string, body: Buffer | string): string =>
+  hmacHex(secret, `${nonce}\n${sha256(body)}`);
 
 const endpoint = (base: string, route: string): string => `${base}/?rest_route=${route}`;
 
@@ -74,7 +76,11 @@ export class SiteClient {
   ) {}
 
   private policy() {
-    return { allowPrivate: this.config.allowPrivateSites, allowHttp: this.config.allowInsecureSites, allowSelfSigned: this.config.allowSelfSignedSites };
+    return {
+      allowPrivate: this.config.allowPrivateSites,
+      allowHttp: this.config.allowInsecureSites,
+      allowSelfSigned: this.config.allowSelfSignedSites,
+    };
   }
 
   /** Exchanges a one-time pairing code (made in the WordPress admin) for a signing secret. */
@@ -83,12 +89,23 @@ export class SiteClient {
     const body = JSON.stringify({ code: code.trim(), gateway: gatewayName });
     let res;
     try {
-      res = await safeRequest(endpoint(base, ROUTE_PAIR), this.policy(), { method: 'POST', headers: { 'content-type': 'application/json', 'content-length': String(Buffer.byteLength(body)) }, body, timeoutMs: 20000, maxBytes: 200000 });
+      res = await safeRequest(endpoint(base, ROUTE_PAIR), this.policy(), {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'content-length': String(Buffer.byteLength(body)) },
+        body,
+        timeoutMs: 20000,
+        maxBytes: 200000,
+      });
     } catch (error) {
       throw this.transportError(error);
     }
     const json = this.parse(res.body);
-    if (res.status === 404) throw new SiteError('plugin_missing', 'WP MCP Bridge was not found on that URL. Install and activate the plugin, and make sure the REST API is reachable.', 404);
+    if (res.status === 404)
+      throw new SiteError(
+        'plugin_missing',
+        'WP MCP Bridge was not found on that URL. Install and activate the plugin, and make sure the REST API is reachable.',
+        404,
+      );
     if (res.status >= 300 || !json || (json as { ok?: boolean }).ok !== true) {
       const message = (json as { error?: { message?: string } } | null)?.error?.message ?? `Pairing failed (HTTP ${res.status}).`;
       throw new SiteError('pair_failed', message, res.status);
@@ -115,7 +132,16 @@ export class SiteClient {
   }
 
   private async once(site: SiteRow, secret: string, op: string, args: Record<string, unknown>, ctx: CallContext): Promise<CallResult> {
-    const body = JSON.stringify({ op, args, level: ctx.level, actor: ctx.actor, client: ctx.client, request_id: ctx.requestId, idempotency_key: ctx.idempotencyKey ?? '', dry_run: !!ctx.dryRun });
+    const body = JSON.stringify({
+      op,
+      args,
+      level: ctx.level,
+      actor: ctx.actor,
+      client: ctx.client,
+      request_id: ctx.requestId,
+      idempotency_key: ctx.idempotencyKey ?? '',
+      dry_run: !!ctx.dryRun,
+    });
     const ts = Math.floor(Date.now() / 1000);
     const nonce = randomBytes(16).toString('hex');
     const signature = hmacHex(secret, [ts, nonce, site.key_id, 'POST', ROUTE_CALL, sha256(body)].join('\n'));
@@ -123,7 +149,15 @@ export class SiteClient {
     try {
       res = await safeRequest(endpoint(site.url, ROUTE_CALL), this.policy(), {
         method: 'POST',
-        headers: { 'content-type': 'application/json', 'content-length': String(Buffer.byteLength(body)), 'x-wpm-key': site.key_id, 'x-wpm-time': String(ts), 'x-wpm-nonce': nonce, 'x-wpm-signature': signature, 'user-agent': 'wp-mcp-gateway/0.1' },
+        headers: {
+          'content-type': 'application/json',
+          'content-length': String(Buffer.byteLength(body)),
+          'x-wpm-key': site.key_id,
+          'x-wpm-time': String(ts),
+          'x-wpm-nonce': nonce,
+          'x-wpm-signature': signature,
+          'user-agent': 'wp-mcp-gateway/0.1',
+        },
         body,
         timeoutMs: SLOW_OPS.test(op) ? 180000 : 30000,
         maxBytes: 24 * 1024 * 1024,
@@ -133,17 +167,39 @@ export class SiteClient {
     }
 
     if ([502, 503, 504, 429].includes(res.status)) throw new SiteError('site_busy', `Site answered HTTP ${res.status}.`, res.status, true);
-    if (res.status >= 300 && res.status < 400) throw new SiteError('redirect', 'The site redirected the API call (not followed). Check the site URL (http vs https, www).', res.status);
+    if (res.status >= 300 && res.status < 400)
+      throw new SiteError(
+        'redirect',
+        'The site redirected the API call (not followed). Check the site URL (http vs https, www).',
+        res.status,
+      );
 
     const claimed = String(res.headers['x-wpm-signature'] ?? '');
-    const json = this.parse(res.body) as { ok?: boolean; data?: unknown; revision?: number; replayed?: boolean; summary?: string; error?: { code?: string; message?: string; data?: unknown } } | null;
-    if (res.status === 404 && !json?.error) throw new SiteError('plugin_missing', 'WP MCP Bridge is not reachable on this site (plugin deactivated, or REST API blocked).', 404);
+    const json = this.parse(res.body) as {
+      ok?: boolean;
+      data?: unknown;
+      revision?: number;
+      replayed?: boolean;
+      summary?: string;
+      error?: { code?: string; message?: string; data?: unknown };
+    } | null;
+    if (res.status === 404 && !json?.error)
+      throw new SiteError('plugin_missing', 'WP MCP Bridge is not reachable on this site (plugin deactivated, or REST API blocked).', 404);
     if (json === null) throw new SiteError('bad_response', `Site returned something that is not JSON (HTTP ${res.status}).`, res.status);
 
     const expected = hmacHex(secret, `${nonce}\n${sha256(res.body)}`);
     if (!claimed || !safeEqual(claimed, expected)) {
-      if (json.error?.code === 'bad_signature' || json.error?.code === 'unknown_key') throw new SiteError('site_auth', `${json.error.message ?? 'The site rejected the signature.'} Re-pair the site if its secret was reset.`, res.status);
-      throw new SiteError('bad_response_signature', 'The reply did not carry a valid signature from the bridge. Refusing to use it.', res.status);
+      if (json.error?.code === 'bad_signature' || json.error?.code === 'unknown_key')
+        throw new SiteError(
+          'site_auth',
+          `${json.error.message ?? 'The site rejected the signature.'} Re-pair the site if its secret was reset.`,
+          res.status,
+        );
+      throw new SiteError(
+        'bad_response_signature',
+        'The reply did not carry a valid signature from the bridge. Refusing to use it.',
+        res.status,
+      );
     }
     if (json.ok !== true) {
       const code = json.error?.code ?? 'error';

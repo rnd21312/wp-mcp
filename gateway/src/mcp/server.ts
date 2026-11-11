@@ -24,7 +24,12 @@ export async function handleMessage(app: App, principal: Principal, message: Mes
       const asked = String(params.protocolVersion ?? '');
       return ok(id, {
         protocolVersion: PROTOCOLS.includes(asked) ? asked : PROTOCOLS[0],
-        capabilities: { tools: { listChanged: false }, resources: { listChanged: false, subscribe: false }, prompts: { listChanged: false }, logging: {} },
+        capabilities: {
+          tools: { listChanged: false },
+          resources: { listChanged: false, subscribe: false },
+          prompts: { listChanged: false },
+          logging: {},
+        },
         serverInfo: { name: 'wp-mcp', title: 'WordPress MCP gateway', version: VERSION },
         instructions: INSTRUCTIONS,
       });
@@ -48,7 +53,9 @@ export async function handleMessage(app: App, principal: Principal, message: Mes
       return read ? ok(id, { contents: [{ uri, mimeType: read.mime, text: read.text }] }) : err(id, -32002, `Resource not found: ${uri}`);
     }
     case 'prompts/list':
-      return ok(id, { prompts: PROMPTS.map(({ name, title, description, arguments: args }) => ({ name, title, description, arguments: args })) });
+      return ok(id, {
+        prompts: PROMPTS.map(({ name, title, description, arguments: args }) => ({ name, title, description, arguments: args })),
+      });
     case 'prompts/get': {
       const prompt = PROMPTS.find((p) => p.name === params.name);
       if (!prompt) return err(id, -32602, `Unknown prompt: ${String(params.name)}`);
@@ -69,7 +76,10 @@ function readResource(app: App, principal: Principal, uri: string): { mime: stri
   }
   if (uri === 'wpmcp://ops') return { mime: 'text/markdown', text: opsMarkdown(principal) };
   if (uri === 'wpmcp://sites') {
-    const sites = app.store.sites().filter((s) => canUseSite(principal, s.name)).map((s) => ({ name: s.name, url: s.url, title: s.title, status: s.status }));
+    const sites = app.store
+      .sites()
+      .filter((s) => canUseSite(principal, s.name))
+      .map((s) => ({ name: s.name, url: s.url, title: s.title, status: s.status }));
     return { mime: 'application/json', text: JSON.stringify({ sites }) };
   }
   const activity = /^wpmcp:\/\/(?:activity|site\/([^/]+)\/activity)$/.exec(uri);
@@ -77,7 +87,20 @@ function readResource(app: App, principal: Principal, uri: string): { mime: stri
     const site = activity[1] ? decodeURIComponent(activity[1]) : undefined;
     if (site && !canUseSite(principal, site)) return null;
     const rows = app.store.activity({ site, limit: 50 }).filter((r) => !r.site || canUseSite(principal, r.site));
-    return { mime: 'application/json', text: JSON.stringify({ entries: rows.map((r) => ({ id: r.id, at: new Date(r.ts * 1000).toISOString(), by: r.principal_name, site: r.site, op: `${r.tool}.${r.action}`, status: r.status, summary: r.summary })) }) };
+    return {
+      mime: 'application/json',
+      text: JSON.stringify({
+        entries: rows.map((r) => ({
+          id: r.id,
+          at: new Date(r.ts * 1000).toISOString(),
+          by: r.principal_name,
+          site: r.site,
+          op: `${r.tool}.${r.action}`,
+          status: r.status,
+          summary: r.summary,
+        })),
+      }),
+    };
   }
   return null;
 }

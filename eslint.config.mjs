@@ -3,7 +3,18 @@ import globals from 'globals';
 import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
-  { ignores: ['**/node_modules/**', '**/dist/**', 'gateway/src/generated/**', 'panel/src/components/ui/**', 'wpmcp-data*/**', 'data/**', 'plugin/**', 'agent/**'] },
+  {
+    ignores: [
+      '**/node_modules/**',
+      '**/dist/**',
+      'gateway/src/generated/**',
+      'panel/src/components/ui/**',
+      'wpmcp-data*/**',
+      'data/**',
+      'plugin/**',
+      'agent/**',
+    ],
+  },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {

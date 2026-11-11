@@ -11,7 +11,11 @@ describe('stdio connection level', () => {
   afterAll(() => env.stop());
 
   const api = (path: string, body?: unknown) =>
-    fetch(`${env.base}/admin/api/${path}`, { method: body === undefined ? 'GET' : 'POST', headers: { 'x-wpm-panel': '1', ...(body === undefined ? {} : { 'content-type': 'application/json' }) }, body: body === undefined ? undefined : JSON.stringify(body) }).then((r) => r.json() as Promise<any>);
+    fetch(`${env.base}/admin/api/${path}`, {
+      method: body === undefined ? 'GET' : 'POST',
+      headers: { 'x-wpm-panel': '1', ...(body === undefined ? {} : { 'content-type': 'application/json' }) },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    }).then((r) => r.json() as Promise<any>);
 
   it('defaults to live, or to WPMCP_STDIO_LEVEL when set', () => {
     expect(stdioLevel(env.app, {})).toBe('live');
@@ -26,7 +30,9 @@ describe('stdio connection level', () => {
     expect((await api('stdio/level', { level: 'read' })).ok).toBe(true);
     expect(principal.level).toBe('read');
     expect((await api('state')).stdio).toEqual({ level: 'read', from: 'panel' });
-    const denied = JSON.parse((await callTool(env.app, principal, 'content', { site: 'alpha', action: 'trash', args: { id: 1 } })).content[0].text);
+    const denied = JSON.parse(
+      (await callTool(env.app, principal, 'content', { site: 'alpha', action: 'trash', args: { id: 1 } })).content[0].text,
+    );
     expect(denied.error.code).toBe('level_too_low');
 
     expect((await api('stdio/level', { level: 'admin' })).ok).toBe(true);
@@ -41,7 +47,11 @@ describe('stdio connection level', () => {
   });
 
   it('cannot be changed by a page on another origin', async () => {
-    const res = await fetch(`${env.base}/admin/api/stdio/level`, { method: 'POST', headers: { 'content-type': 'application/json', 'x-wpm-panel': '1', origin: 'https://evil.example' }, body: JSON.stringify({ level: 'admin' }) });
+    const res = await fetch(`${env.base}/admin/api/stdio/level`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-wpm-panel': '1', origin: 'https://evil.example' },
+      body: JSON.stringify({ level: 'admin' }),
+    });
     expect(res.status).toBe(403);
   });
 });

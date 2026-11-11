@@ -25,4 +25,5 @@ export function readSession(app: App, cookieHeader: string | undefined): Session
 
 export const csrfToken = (app: App, session: Session): string => hmacHex(app.config.masterKey, `csrf:${session.n}`);
 
-export const checkCsrf = (app: App, session: Session, given: unknown): boolean => typeof given === 'string' && safeEqual(csrfToken(app, session), given);
+export const checkCsrf = (app: App, session: Session, given: unknown): boolean =>
+  typeof given === 'string' && safeEqual(csrfToken(app, session), given);

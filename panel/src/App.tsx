@@ -1,4 +1,30 @@
-import { ActivityIcon, ArrowLeftRightIcon, MousePointerClickIcon, BotIcon, BrushIcon, ChartLineIcon, CodeIcon, FileTextIcon, FolderGit2Icon, GlobeIcon, ImageIcon, KeyRoundIcon, LayoutDashboardIcon, MoonIcon, PlugIcon, PlugZapIcon, ScanSearchIcon, SearchCheckIcon, ServerIcon, ShoppingBagIcon, SparklesIcon, SunIcon, TerminalSquareIcon, WrenchIcon, type LucideIcon } from 'lucide-react';
+import {
+  ActivityIcon,
+  ArrowLeftRightIcon,
+  MousePointerClickIcon,
+  BotIcon,
+  BrushIcon,
+  ChartLineIcon,
+  CodeIcon,
+  FileTextIcon,
+  FolderGit2Icon,
+  GlobeIcon,
+  ImageIcon,
+  KeyRoundIcon,
+  LayoutDashboardIcon,
+  MoonIcon,
+  PlugIcon,
+  PlugZapIcon,
+  ScanSearchIcon,
+  SearchCheckIcon,
+  ServerIcon,
+  ShoppingBagIcon,
+  SparklesIcon,
+  SunIcon,
+  TerminalSquareIcon,
+  WrenchIcon,
+  type LucideIcon,
+} from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { useCallback, useEffect, useState, type ReactElement } from 'react';
 import { Pick } from '@/components/bits';
@@ -6,7 +32,20 @@ import { NeedSite } from '@/components/common';
 import { Breadcrumb, BreadcrumbItem, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from '@/components/ui/breadcrumb';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupLabel, SidebarHeader, SidebarInset, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider, SidebarRail, SidebarTrigger } from '@/components/ui/sidebar';
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarGroup,
+  SidebarGroupLabel,
+  SidebarHeader,
+  SidebarInset,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarProvider,
+  SidebarRail,
+  SidebarTrigger,
+} from '@/components/ui/sidebar';
 import { Toaster } from '@/components/ui/sonner';
 import { api, type State, type ToolSpec } from '@/lib/api';
 import { useI18n } from '@/lib/i18n';
@@ -42,10 +81,21 @@ const useHash = (): [string, URLSearchParams, (h: string) => void] => {
   }, []);
   const [path, query = ''] = hash.slice(1).split('?');
 
-  return [path || '/', new URLSearchParams(query), (h) => { location.hash = h; }];
+  return [
+    path || '/',
+    new URLSearchParams(query),
+    (h) => {
+      location.hash = h;
+    },
+  ];
 };
 
-interface NavItem { path: string; label: string; icon: LucideIcon; hide?: boolean }
+interface NavItem {
+  path: string;
+  label: string;
+  icon: LucideIcon;
+  hide?: boolean;
+}
 
 function Shell({ state, spec, reload }: { state: State; spec: ToolSpec[]; reload: () => Promise<void> }) {
   const { t, lang, setLang } = useI18n();
@@ -54,40 +104,58 @@ function Shell({ state, spec, reload }: { state: State; spec: ToolSpec[]; reload
   const [path, query, go] = useHash();
 
   const groups: { title: string; items: NavItem[] }[] = [
-    { title: t('Site', 'سایت'), items: [
-      { path: '/', label: t('Overview', 'نمای کلی'), icon: LayoutDashboardIcon },
-      { path: '/content', label: t('Content', 'محتوا'), icon: FileTextIcon },
-      { path: '/media', label: t('Media', 'رسانه'), icon: ImageIcon },
-      { path: '/shop', label: t('Shop', 'فروشگاه'), icon: ShoppingBagIcon, hide: overview ? !overview.woocommerce : false },
-      { path: '/visual', label: t('Visual editor', 'ویرایشگر بصری'), icon: MousePointerClickIcon },
-      { path: '/design', label: t('Design', 'طراحی'), icon: BrushIcon },
-    ] },
-    { title: t('Search', 'جستجو'), items: [
-      { path: '/seo', label: t('SEO', 'سئو'), icon: SearchCheckIcon },
-      { path: '/search-console', label: t('Search Console', 'سرچ کنسول گوگل'), icon: ChartLineIcon },
-      { path: '/inspector', label: t('URL Inspector', 'بازرس URL'), icon: ScanSearchIcon },
-    ] },
-    { title: t('Build & publish', 'ساخت و انتشار'), items: [
-      { path: '/builder', label: t('AI site builder', 'سازنده‌ی سایت با AI'), icon: SparklesIcon },
-      { path: '/projects', label: t('Projects', 'پروژه‌ها'), icon: FolderGit2Icon },
-      { path: '/hosts', label: t('Hosts', 'هاست‌ها'), icon: ServerIcon },
-    ] },
-    { title: t('Care', 'نگهداری'), items: [
-      { path: '/maintenance', label: t('Maintenance', 'نگهداری'), icon: WrenchIcon },
-      { path: '/plugins', label: t('Plugins', 'افزونه‌ها'), icon: PlugIcon },
-      { path: '/transfer', label: t('Copy between sites', 'کپی بین سایت‌ها'), icon: ArrowLeftRightIcon },
-    ] },
-    { title: t('AI & developer', 'هوش مصنوعی و برنامه‌نویس'), items: [
-      { path: '/ai', label: t('AI assistant', 'دستیار هوش مصنوعی'), icon: BotIcon },
-      { path: '/workbench', label: t('Workbench', 'میز کار'), icon: TerminalSquareIcon },
-      { path: '/dev', label: t('Theme & REST', 'پوسته و REST'), icon: CodeIcon },
-    ] },
-    { title: t('Setup', 'تنظیمات'), items: [
-      { path: '/sites', label: t('Sites', 'سایت‌ها'), icon: GlobeIcon },
-      { path: '/connect', label: t('Connect AI', 'اتصال هوش مصنوعی'), icon: PlugZapIcon },
-      { path: '/access', label: t('Access', 'دسترسی‌ها'), icon: KeyRoundIcon },
-      { path: '/activity', label: t('Activity', 'فعالیت‌ها'), icon: ActivityIcon },
-    ] },
+    {
+      title: t('Site', 'سایت'),
+      items: [
+        { path: '/', label: t('Overview', 'نمای کلی'), icon: LayoutDashboardIcon },
+        { path: '/content', label: t('Content', 'محتوا'), icon: FileTextIcon },
+        { path: '/media', label: t('Media', 'رسانه'), icon: ImageIcon },
+        { path: '/shop', label: t('Shop', 'فروشگاه'), icon: ShoppingBagIcon, hide: overview ? !overview.woocommerce : false },
+        { path: '/visual', label: t('Visual editor', 'ویرایشگر بصری'), icon: MousePointerClickIcon },
+        { path: '/design', label: t('Design', 'طراحی'), icon: BrushIcon },
+      ],
+    },
+    {
+      title: t('Search', 'جستجو'),
+      items: [
+        { path: '/seo', label: t('SEO', 'سئو'), icon: SearchCheckIcon },
+        { path: '/search-console', label: t('Search Console', 'سرچ کنسول گوگل'), icon: ChartLineIcon },
+        { path: '/inspector', label: t('URL Inspector', 'بازرس URL'), icon: ScanSearchIcon },
+      ],
+    },
+    {
+      title: t('Build & publish', 'ساخت و انتشار'),
+      items: [
+        { path: '/builder', label: t('AI site builder', 'سازنده‌ی سایت با AI'), icon: SparklesIcon },
+        { path: '/projects', label: t('Projects', 'پروژه‌ها'), icon: FolderGit2Icon },
+        { path: '/hosts', label: t('Hosts', 'هاست‌ها'), icon: ServerIcon },
+      ],
+    },
+    {
+      title: t('Care', 'نگهداری'),
+      items: [
+        { path: '/maintenance', label: t('Maintenance', 'نگهداری'), icon: WrenchIcon },
+        { path: '/plugins', label: t('Plugins', 'افزونه‌ها'), icon: PlugIcon },
+        { path: '/transfer', label: t('Copy between sites', 'کپی بین سایت‌ها'), icon: ArrowLeftRightIcon },
+      ],
+    },
+    {
+      title: t('AI & developer', 'هوش مصنوعی و برنامه‌نویس'),
+      items: [
+        { path: '/ai', label: t('AI assistant', 'دستیار هوش مصنوعی'), icon: BotIcon },
+        { path: '/workbench', label: t('Workbench', 'میز کار'), icon: TerminalSquareIcon },
+        { path: '/dev', label: t('Theme & REST', 'پوسته و REST'), icon: CodeIcon },
+      ],
+    },
+    {
+      title: t('Setup', 'تنظیمات'),
+      items: [
+        { path: '/sites', label: t('Sites', 'سایت‌ها'), icon: GlobeIcon },
+        { path: '/connect', label: t('Connect AI', 'اتصال هوش مصنوعی'), icon: PlugZapIcon },
+        { path: '/access', label: t('Access', 'دسترسی‌ها'), icon: KeyRoundIcon },
+        { path: '/activity', label: t('Activity', 'فعالیت‌ها'), icon: ActivityIcon },
+      ],
+    },
   ];
 
   const siteOnly = (el: ReactElement): ReactElement => <NeedSite>{el}</NeedSite>;
@@ -127,9 +195,11 @@ function Shell({ state, spec, reload }: { state: State; spec: ToolSpec[]; reload
             <span className="truncate group-data-[collapsible=icon]:hidden">WP MCP</span>
           </a>
           <div className="group-data-[collapsible=icon]:hidden">
-            {state.sites.length > 0
-              ? <Pick value={site?.name ?? ''} onChange={setSite} options={state.sites.map((s) => ({ value: s.name, label: s.name }))} />
-              : <span className="px-1 text-sm text-muted-foreground">{t('No site connected', 'سایتی وصل نیست')}</span>}
+            {state.sites.length > 0 ? (
+              <Pick value={site?.name ?? ''} onChange={setSite} options={state.sites.map((s) => ({ value: s.name, label: s.name }))} />
+            ) : (
+              <span className="px-1 text-sm text-muted-foreground">{t('No site connected', 'سایتی وصل نیست')}</span>
+            )}
           </div>
         </SidebarHeader>
         <SidebarContent>
@@ -137,14 +207,16 @@ function Shell({ state, spec, reload }: { state: State; spec: ToolSpec[]; reload
             <SidebarGroup key={g.title}>
               <SidebarGroupLabel>{g.title}</SidebarGroupLabel>
               <SidebarMenu>
-                {g.items.filter((n) => !n.hide).map((n) => (
-                  <SidebarMenuItem key={n.path}>
-                    <SidebarMenuButton isActive={active(n.path)} tooltip={n.label} render={<a href={`#${n.path}`} />}>
-                      <n.icon />
-                      <span>{n.label}</span>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                ))}
+                {g.items
+                  .filter((n) => !n.hide)
+                  .map((n) => (
+                    <SidebarMenuItem key={n.path}>
+                      <SidebarMenuButton isActive={active(n.path)} tooltip={n.label} render={<a href={`#${n.path}`} />}>
+                        <n.icon />
+                        <span>{n.label}</span>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  ))}
               </SidebarMenu>
             </SidebarGroup>
           ))}
@@ -159,17 +231,42 @@ function Shell({ state, spec, reload }: { state: State; spec: ToolSpec[]; reload
             <BreadcrumbList>
               {current && <BreadcrumbItem className="hidden sm:block">{current.group}</BreadcrumbItem>}
               {current && <BreadcrumbSeparator className="hidden sm:block" />}
-              <BreadcrumbItem><BreadcrumbPage className="truncate">{current?.label ?? t('Content', 'محتوا')}</BreadcrumbPage></BreadcrumbItem>
+              <BreadcrumbItem>
+                <BreadcrumbPage className="truncate">{current?.label ?? t('Content', 'محتوا')}</BreadcrumbPage>
+              </BreadcrumbItem>
             </BreadcrumbList>
           </Breadcrumb>
           <div className="ms-auto flex items-center gap-2">
-            {site && <a dir="ltr" href={site.url} target="_blank" rel="noreferrer" className="hidden max-w-56 truncate text-xs text-muted-foreground hover:underline lg:block">{site.url}</a>}
-            <div className="w-28" title={t('Level the panel acts at', 'سطحی که پنل با آن کار می‌کند')}><Pick size="sm" value={level} onChange={setLevel} options={state.levels.map((l) => ({ value: l, label: l }))} /></div>
-            <Button variant="outline" size="sm" onClick={() => setLang(lang === 'fa' ? 'en' : 'fa')}>{lang === 'fa' ? 'EN' : 'فا'}</Button>
-            <Button variant="outline" size="icon-sm" aria-label="theme" onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}>{resolvedTheme === 'dark' ? <SunIcon /> : <MoonIcon />}</Button>
+            {site && (
+              <a
+                dir="ltr"
+                href={site.url}
+                target="_blank"
+                rel="noreferrer"
+                className="hidden max-w-56 truncate text-xs text-muted-foreground hover:underline lg:block"
+              >
+                {site.url}
+              </a>
+            )}
+            <div className="w-28" title={t('Level the panel acts at', 'سطحی که پنل با آن کار می‌کند')}>
+              <Pick size="sm" value={level} onChange={setLevel} options={state.levels.map((l) => ({ value: l, label: l }))} />
+            </div>
+            <Button variant="outline" size="sm" onClick={() => setLang(lang === 'fa' ? 'en' : 'fa')}>
+              {lang === 'fa' ? 'EN' : 'فا'}
+            </Button>
+            <Button
+              variant="outline"
+              size="icon-sm"
+              aria-label="theme"
+              onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
+            >
+              {resolvedTheme === 'dark' ? <SunIcon /> : <MoonIcon />}
+            </Button>
           </div>
         </header>
-        <main className="p-4 md:p-8"><div className={path === '/visual' ? '' : 'mx-auto max-w-6xl'}>{page}</div></main>
+        <main className="p-4 md:p-8">
+          <div className={path === '/visual' ? '' : 'mx-auto max-w-6xl'}>{page}</div>
+        </main>
       </SidebarInset>
       <Toaster position="top-center" />
     </SidebarProvider>
@@ -193,7 +290,10 @@ export default function App() {
 
   useEffect(() => {
     void reload();
-    void api.spec().then(setSpec).catch(() => undefined);
+    void api
+      .spec()
+      .then(setSpec)
+      .catch(() => undefined);
     const id = setInterval(reload, 20000);
     return () => clearInterval(id);
   }, [reload]);

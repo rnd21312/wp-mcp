@@ -78,17 +78,31 @@ export class FakeSite {
 
     if (route === '/wp-mcp/v1/pair') {
       const body = JSON.parse(raw) as { code: string };
-      if (body.code !== this.code) return this.reply(res, 403, { ok: false, error: { code: 'bad_code', message: 'That pairing code is wrong.' } });
+      if (body.code !== this.code)
+        return this.reply(res, 403, { ok: false, error: { code: 'bad_code', message: 'That pairing code is wrong.' } });
       this.code = '';
-      return this.reply(res, 200, { ok: true, data: { key_id: this.keyId, secret: this.secret, site_title: this.title, wp_version: '6.8', plugin_version: '0.1.0', ceiling: this.ceiling, site_url: this.url } });
+      return this.reply(res, 200, {
+        ok: true,
+        data: {
+          key_id: this.keyId,
+          secret: this.secret,
+          site_title: this.title,
+          wp_version: '6.8',
+          plugin_version: '0.1.0',
+          ceiling: this.ceiling,
+          site_url: this.url,
+        },
+      });
     }
     if (route !== '/wp-mcp/v1/call') return this.reply(res, 404, { code: 'rest_no_route' });
 
     const h = req.headers;
     const nonce = String(h['x-wpm-nonce']);
     const expected = hmac(this.secret, [h['x-wpm-time'], nonce, h['x-wpm-key'], 'POST', '/wp-mcp/v1/call', sha(raw)].join('\n'));
-    if (h['x-wpm-key'] !== this.keyId || h['x-wpm-signature'] !== expected) return this.reply(res, 401, { ok: false, error: { code: 'bad_signature', message: 'Request signature rejected.' } }, nonce);
-    if (Math.abs(Date.now() / 1000 - Number(h['x-wpm-time'])) > 300) return this.reply(res, 401, { ok: false, error: { code: 'stale_request', message: 'stale' } }, nonce);
+    if (h['x-wpm-key'] !== this.keyId || h['x-wpm-signature'] !== expected)
+      return this.reply(res, 401, { ok: false, error: { code: 'bad_signature', message: 'Request signature rejected.' } }, nonce);
+    if (Math.abs(Date.now() / 1000 - Number(h['x-wpm-time'])) > 300)
+      return this.reply(res, 401, { ok: false, error: { code: 'stale_request', message: 'stale' } }, nonce);
     if (this.nonces.has(nonce)) return this.reply(res, 401, { ok: false, error: { code: 'replayed', message: 'replayed' } }, nonce);
     this.nonces.add(nonce);
 
@@ -98,14 +112,31 @@ export class FakeSite {
       return void res.end('busy');
     }
 
-    const body = JSON.parse(raw) as { op: string; args: Record<string, unknown>; level: string; actor: string; client: string; dry_run: boolean; idempotency_key: string };
-    const call: Call = { op: body.op, args: body.args, level: body.level, actor: body.actor, client: body.client, dry_run: !!body.dry_run, idempotency_key: body.idempotency_key };
+    const body = JSON.parse(raw) as {
+      op: string;
+      args: Record<string, unknown>;
+      level: string;
+      actor: string;
+      client: string;
+      dry_run: boolean;
+      idempotency_key: string;
+    };
+    const call: Call = {
+      op: body.op,
+      args: body.args,
+      level: body.level,
+      actor: body.actor,
+      client: body.client,
+      dry_run: !!body.dry_run,
+      idempotency_key: body.idempotency_key,
+    };
     this.calls.push(call);
 
     const spec = OPS[body.op];
     if (!spec) return this.reply(res, 404, { ok: false, error: { code: 'unknown_op', message: 'unknown' } }, nonce);
     const cacheKey = spec.write && !body.dry_run && body.idempotency_key ? `${body.op}|${body.idempotency_key}` : '';
-    if (cacheKey && this.idem.has(cacheKey)) return this.reply(res, 200, { ok: true, data: this.idem.get(cacheKey), replayed: true, revision: 0 }, nonce);
+    if (cacheKey && this.idem.has(cacheKey))
+      return this.reply(res, 200, { ok: true, data: this.idem.get(cacheKey), replayed: true, revision: 0 }, nonce);
 
     const answer = this.answers[body.op];
     let data: unknown;
@@ -131,11 +162,26 @@ export interface Env {
 export const OWNER_PASSWORD = 'correct horse battery staple';
 
 /** A gateway on a random port with the given fake sites already connected. */
-export async function createEnv(siteNames: string[] = ['alpha'], overrides: Partial<Config> = {}, opts: { owner?: boolean } = {}): Promise<Env> {
+export async function createEnv(
+  siteNames: string[] = ['alpha'],
+  overrides: Partial<Config> = {},
+  opts: { owner?: boolean } = {},
+): Promise<Env> {
   const server = http.createServer();
   await new Promise<void>((done) => server.listen(0, '127.0.0.1', done));
   const port = (server.address() as AddressInfo).port;
-  const config = loadConfig({}, { port, publicUrl: `http://127.0.0.1:${port}`, dataDir: process.env.TEMP ?? '.', masterKey: randomBytes(32), allowPrivateSites: true, allowInsecureSites: true, ...overrides });
+  const config = loadConfig(
+    {},
+    {
+      port,
+      publicUrl: `http://127.0.0.1:${port}`,
+      dataDir: process.env.TEMP ?? '.',
+      masterKey: randomBytes(32),
+      allowPrivateSites: true,
+      allowInsecureSites: true,
+      ...overrides,
+    },
+  );
   const store = new Store(':memory:');
   if (opts.owner !== false) store.setOwnerHash(hashPassword(OWNER_PASSWORD));
   const app = createApp(config, store, { sites: new SiteClient(config, 1) });
@@ -173,14 +219,28 @@ export function key(env: Env, level: Level, sites: '*' | string[] = '*'): string
 let rpcId = 0;
 
 /** One JSON-RPC call to /mcp. */
-export async function rpc(env: Env, bearer: string, method: string, params: Record<string, unknown> = {}): Promise<{ status: number; headers: Headers; body: any }> {
-  const res = await fetch(`${env.base}/mcp`, { method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${bearer}` }, body: JSON.stringify({ jsonrpc: '2.0', id: ++rpcId, method, params }) });
+export async function rpc(
+  env: Env,
+  bearer: string,
+  method: string,
+  params: Record<string, unknown> = {},
+): Promise<{ status: number; headers: Headers; body: any }> {
+  const res = await fetch(`${env.base}/mcp`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', authorization: `Bearer ${bearer}` },
+    body: JSON.stringify({ jsonrpc: '2.0', id: ++rpcId, method, params }),
+  });
   const text = await res.text();
   return { status: res.status, headers: res.headers, body: text ? JSON.parse(text) : null };
 }
 
 /** Calls a tool and returns the parsed JSON text content. */
-export async function tool(env: Env, bearer: string, name: string, args: Record<string, unknown>): Promise<{ isError: boolean; data: any }> {
+export async function tool(
+  env: Env,
+  bearer: string,
+  name: string,
+  args: Record<string, unknown>,
+): Promise<{ isError: boolean; data: any }> {
   const { body } = await rpc(env, bearer, 'tools/call', { name, arguments: args });
   const text = body.result.content[0].text as string;
   let data: any;

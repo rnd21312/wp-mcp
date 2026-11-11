@@ -38,9 +38,15 @@ export function Pager({ page, pages, onPage }: { page: number; pages: number; on
 
   return (
     <div className="flex items-center justify-center gap-3 pt-4 text-sm">
-      <Button variant="outline" size="icon-sm" disabled={page <= 1} onClick={() => onPage(page - 1)}><Prev /></Button>
-      <span className="text-muted-foreground">{page} / {pages}</span>
-      <Button variant="outline" size="icon-sm" disabled={page >= pages} onClick={() => onPage(page + 1)}><Next /></Button>
+      <Button variant="outline" size="icon-sm" disabled={page <= 1} onClick={() => onPage(page - 1)}>
+        <Prev />
+      </Button>
+      <span className="text-muted-foreground">
+        {page} / {pages}
+      </span>
+      <Button variant="outline" size="icon-sm" disabled={page >= pages} onClick={() => onPage(page + 1)}>
+        <Next />
+      </Button>
     </div>
   );
 }
@@ -59,7 +65,13 @@ export function Counter({ value, min, max }: { value: string; min: number; max: 
   const n = value.length;
   const ok = n >= min && n <= max;
 
-  return <span className={ok ? 'text-emerald-600 dark:text-emerald-400' : n === 0 ? 'text-muted-foreground' : 'text-amber-600 dark:text-amber-400'}>{n}/{max}</span>;
+  return (
+    <span
+      className={ok ? 'text-emerald-600 dark:text-emerald-400' : n === 0 ? 'text-muted-foreground' : 'text-amber-600 dark:text-amber-400'}
+    >
+      {n}/{max}
+    </span>
+  );
 }
 
 /** Turns "&#8217;" style entities from WordPress text into real characters. */

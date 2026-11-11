@@ -10,8 +10,19 @@ describe('VS Code workspace: pull, edit locally, live sync back', () => {
   const dataDir = mkdtempSync(join(tmpdir(), 'wpmcp-ws-'));
   beforeAll(async () => {
     env = await createEnv(['alpha'], { localPanel: true, dataDir }, { owner: false });
-    env.sites.alpha.answers['design.theme_files'] = () => ({ theme: 'kid', files: [{ path: 'style.css', bytes: 12 }, { path: 'inc/helpers.php', bytes: 30 }, { path: 'screenshot.png', bytes: 9 }] });
-    env.sites.alpha.answers['design.theme_file_read'] = (args) => ({ path: args.path, content: args.path === 'style.css' ? 'body{color:red}' : '<?php // helpers', truncated: false });
+    env.sites.alpha.answers['design.theme_files'] = () => ({
+      theme: 'kid',
+      files: [
+        { path: 'style.css', bytes: 12 },
+        { path: 'inc/helpers.php', bytes: 30 },
+        { path: 'screenshot.png', bytes: 9 },
+      ],
+    });
+    env.sites.alpha.answers['design.theme_file_read'] = (args) => ({
+      path: args.path,
+      content: args.path === 'style.css' ? 'body{color:red}' : '<?php // helpers',
+      truncated: false,
+    });
   });
   afterAll(async () => {
     stopAll();
@@ -19,7 +30,14 @@ describe('VS Code workspace: pull, edit locally, live sync back', () => {
     rmSync(dataDir, { recursive: true, force: true });
   });
 
-  const api = async (path: string, body?: unknown) => (await (await fetch(`${env.base}/admin/api/${path}`, { method: body === undefined ? 'GET' : 'POST', headers: { 'x-wpm-panel': '1', 'content-type': 'application/json' }, body: body === undefined ? undefined : JSON.stringify(body) })).json()) as any;
+  const api = async (path: string, body?: unknown) =>
+    (await (
+      await fetch(`${env.base}/admin/api/${path}`, {
+        method: body === undefined ? 'GET' : 'POST',
+        headers: { 'x-wpm-panel': '1', 'content-type': 'application/json' },
+        body: body === undefined ? undefined : JSON.stringify(body),
+      })
+    ).json()) as any;
 
   it('pulls the theme text files to a local folder', async () => {
     const r = await api('ws/pull', { site: 'alpha' });

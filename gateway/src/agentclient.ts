@@ -30,7 +30,14 @@ export function normalizeAgentUrl(raw: string): string {
 export const agentEndpoint = (base: string, route: string): string => `${base}index.php?r=${encodeURIComponent(route)}`;
 
 /** Request signature; the agent computes the same value (Security::sign in PHP, same layout as the WordPress bridge). */
-export const signAgentRequest = (secret: string, keyId: string, ts: number | string, nonce: string, route: string, body: string | Buffer): string => hmacHex(secret, [ts, nonce, keyId, 'POST', route, sha256(body)].join('\n'));
+export const signAgentRequest = (
+  secret: string,
+  keyId: string,
+  ts: number | string,
+  nonce: string,
+  route: string,
+  body: string | Buffer,
+): string => hmacHex(secret, [ts, nonce, keyId, 'POST', route, sha256(body)].join('\n'));
 
 const sleep = (ms: number): Promise<void> => new Promise((done) => setTimeout(done, ms));
 
@@ -70,7 +77,11 @@ export class AgentClient {
   ) {}
 
   private policy() {
-    return { allowPrivate: this.config.allowPrivateSites, allowHttp: this.config.allowInsecureSites, allowSelfSigned: this.config.allowSelfSignedSites };
+    return {
+      allowPrivate: this.config.allowPrivateSites,
+      allowHttp: this.config.allowInsecureSites,
+      allowSelfSigned: this.config.allowSelfSignedSites,
+    };
   }
 
   /** Exchanges the one-time pairing code (made in the agent panel) for a signing secret. */
@@ -79,23 +90,45 @@ export class AgentClient {
     const body = JSON.stringify({ code: code.trim(), name });
     let res;
     try {
-      res = await safeRequest(agentEndpoint(base, `${API}pair`), this.policy(), { method: 'POST', headers: { 'content-type': 'application/json', 'content-length': String(Buffer.byteLength(body)) }, body, timeoutMs: 20000, maxBytes: 200000 });
+      res = await safeRequest(agentEndpoint(base, `${API}pair`), this.policy(), {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'content-length': String(Buffer.byteLength(body)) },
+        body,
+        timeoutMs: 20000,
+        maxBytes: 200000,
+      });
     } catch (error) {
       throw this.transportError(error);
     }
     const json = this.parse(res.body) as { ok?: boolean; data?: PairedAgent; error?: { code?: string; message?: string } } | null;
-    if (!json) throw new AgentError('not_an_agent', 'That address did not answer like a WPM Host Agent. Check the address (the folder where you uploaded the agent) and that index.php is reachable.', res.status);
-    if (res.status >= 300 || json.ok !== true || !json.data) throw new AgentError(json.error?.code ?? 'pair_failed', json.error?.message ?? `Pairing failed (HTTP ${res.status}).`, res.status);
+    if (!json)
+      throw new AgentError(
+        'not_an_agent',
+        'That address did not answer like a WPM Host Agent. Check the address (the folder where you uploaded the agent) and that index.php is reachable.',
+        res.status,
+      );
+    if (res.status >= 300 || json.ok !== true || !json.data)
+      throw new AgentError(json.error?.code ?? 'pair_failed', json.error?.message ?? `Pairing failed (HTTP ${res.status}).`, res.status);
 
     return { base, paired: json.data };
   }
 
   /** One signed call. Safe (idempotent) calls are retried on network trouble. */
-  async call<T = Record<string, unknown>>(host: HostRow, op: string, args: Record<string, unknown> = {}, opts: { retry?: boolean; timeoutMs?: number } = {}): Promise<T> {
+  async call<T = Record<string, unknown>>(
+    host: HostRow,
+    op: string,
+    args: Record<string, unknown> = {},
+    opts: { retry?: boolean; timeoutMs?: number } = {},
+  ): Promise<T> {
     return this.signed<T>(host, `${API}${op}`, Buffer.from(JSON.stringify(args)), opts);
   }
 
-  private async signed<T>(host: HostRow, route: string, body: Buffer, opts: { retry?: boolean; timeoutMs?: number; type?: string } = {}): Promise<T> {
+  private async signed<T>(
+    host: HostRow,
+    route: string,
+    body: Buffer,
+    opts: { retry?: boolean; timeoutMs?: number; type?: string } = {},
+  ): Promise<T> {
     const secret = decrypt(this.config.masterKey, host.secret_enc);
     const attempts = opts.retry ? 3 : 1;
     let last: AgentError | null = null;
@@ -112,7 +145,13 @@ export class AgentClient {
     throw last ?? new AgentError('unreachable', 'The host did not answer.');
   }
 
-  private async once<T>(host: HostRow, secret: string, route: string, body: Buffer, opts: { timeoutMs?: number; type?: string }): Promise<T> {
+  private async once<T>(
+    host: HostRow,
+    secret: string,
+    route: string,
+    body: Buffer,
+    opts: { timeoutMs?: number; type?: string },
+  ): Promise<T> {
     const ts = Math.floor(Date.now() / 1000);
     const nonce = randomBytes(16).toString('hex');
     const signature = signAgentRequest(secret, host.key_id, ts, nonce, route, body);
@@ -120,7 +159,15 @@ export class AgentClient {
     try {
       res = await safeRequest(agentEndpoint(host.url, route), this.policy(), {
         method: 'POST',
-        headers: { 'content-type': opts.type ?? 'application/json', 'content-length': String(body.length), 'x-wpm-key': host.key_id, 'x-wpm-time': String(ts), 'x-wpm-nonce': nonce, 'x-wpm-signature': signature, 'user-agent': 'wpm-studio/2.0' },
+        headers: {
+          'content-type': opts.type ?? 'application/json',
+          'content-length': String(body.length),
+          'x-wpm-key': host.key_id,
+          'x-wpm-time': String(ts),
+          'x-wpm-nonce': nonce,
+          'x-wpm-signature': signature,
+          'user-agent': 'wpm-studio/2.0',
+        },
         body,
         timeoutMs: opts.timeoutMs ?? 60000,
         maxBytes: 8 * 1024 * 1024,
@@ -128,11 +175,22 @@ export class AgentClient {
     } catch (error) {
       throw this.transportError(error);
     }
-    if ([502, 503, 504].includes(res.status) && !this.parse(res.body)) throw new AgentError('host_busy', `The host answered HTTP ${res.status}.`, res.status, true);
-    if (res.status >= 300 && res.status < 400) throw new AgentError('redirect', 'The host redirected the API call (not followed). Check the address: http vs https, www, trailing folder.', res.status);
+    if ([502, 503, 504].includes(res.status) && !this.parse(res.body))
+      throw new AgentError('host_busy', `The host answered HTTP ${res.status}.`, res.status, true);
+    if (res.status >= 300 && res.status < 400)
+      throw new AgentError(
+        'redirect',
+        'The host redirected the API call (not followed). Check the address: http vs https, www, trailing folder.',
+        res.status,
+      );
 
     const json = this.parse(res.body) as { ok?: boolean; data?: T; error?: { code?: string; message?: string; data?: unknown } } | null;
-    if (!json) throw new AgentError('bad_response', `The host returned something that is not JSON (HTTP ${res.status}). Is the agent address right?`, res.status);
+    if (!json)
+      throw new AgentError(
+        'bad_response',
+        `The host returned something that is not JSON (HTTP ${res.status}). Is the agent address right?`,
+        res.status,
+      );
 
     const claimed = String(res.headers['x-wpm-signature'] ?? '');
     const expected = hmacHex(secret, `${nonce}\n${sha256(res.body)}`);
@@ -140,22 +198,41 @@ export class AgentClient {
       // Errors raised before the agent knew who we are cannot be signed; they still carry a useful code.
       const code = json.error?.code ?? 'error';
       const message = json.error?.message ?? 'Agent error.';
-      if (claimed && !safeEqual(claimed, expected)) throw new AgentError('bad_response_signature', 'The reply did not carry a valid signature from the agent. Refusing to use it.', res.status);
+      if (claimed && !safeEqual(claimed, expected))
+        throw new AgentError(
+          'bad_response_signature',
+          'The reply did not carry a valid signature from the agent. Refusing to use it.',
+          res.status,
+        );
       throw new AgentError(code, message, res.status);
     }
-    if (!claimed || !safeEqual(claimed, expected)) throw new AgentError('bad_response_signature', 'The reply did not carry a valid signature from the agent. Refusing to use it.', res.status);
+    if (!claimed || !safeEqual(claimed, expected))
+      throw new AgentError(
+        'bad_response_signature',
+        'The reply did not carry a valid signature from the agent. Refusing to use it.',
+        res.status,
+      );
 
     return json.data as T;
   }
 
   /** Uploads a zip in chunks sized to the host's limits, verifies the checksum on the host, returns the upload id. */
   async upload(host: HostRow, zip: Buffer, onProgress?: (done: number, total: number) => void): Promise<string> {
-    const begin = await this.call<{ upload_id: string; chunk_bytes: number }>(host, 'upload.begin', { size: zip.length, sha256: sha256(zip) }, { retry: true });
+    const begin = await this.call<{ upload_id: string; chunk_bytes: number }>(
+      host,
+      'upload.begin',
+      { size: zip.length, sha256: sha256(zip) },
+      { retry: true },
+    );
     const size = Math.max(65536, Math.min(begin.chunk_bytes, 8 * 1024 * 1024));
     const chunks = Math.ceil(zip.length / size);
     for (let i = 0; i < chunks; i++) {
       const part = zip.subarray(i * size, (i + 1) * size);
-      await this.signed(host, `${API}upload/chunk/${begin.upload_id}/${i}`, part, { retry: true, type: 'application/octet-stream', timeoutMs: 120000 });
+      await this.signed(host, `${API}upload/chunk/${begin.upload_id}/${i}`, part, {
+        retry: true,
+        type: 'application/octet-stream',
+        timeoutMs: 120000,
+      });
       onProgress?.(i + 1, chunks);
     }
     await this.call(host, 'upload.finish', { upload_id: begin.upload_id, chunks }, { retry: false });
@@ -163,9 +240,20 @@ export class AgentClient {
     return begin.upload_id;
   }
 
-  async deploy(host: HostRow, site: string, zip: Buffer, note: string, onProgress?: (done: number, total: number) => void): Promise<Release & { previous: string | null; mode: string }> {
+  async deploy(
+    host: HostRow,
+    site: string,
+    zip: Buffer,
+    note: string,
+    onProgress?: (done: number, total: number) => void,
+  ): Promise<Release & { previous: string | null; mode: string }> {
     const uploadId = await this.upload(host, zip, onProgress);
-    const out = await this.call<{ release: Release & { previous: string | null; mode: string } }>(host, 'deploy', { site, upload_id: uploadId, note }, { timeoutMs: 300000 });
+    const out = await this.call<{ release: Release & { previous: string | null; mode: string } }>(
+      host,
+      'deploy',
+      { site, upload_id: uploadId, note },
+      { timeoutMs: 300000 },
+    );
 
     return out.release;
   }

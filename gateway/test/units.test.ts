@@ -63,7 +63,20 @@ describe('rate limiter', () => {
 });
 
 describe('SSRF guard', () => {
-  it.each(['127.0.0.1', '10.1.2.3', '172.16.0.1', '192.168.1.1', '169.254.169.254', '100.64.0.1', '0.0.0.0', '::1', 'fc00::1', 'fe80::1', '::ffff:127.0.0.1', '224.0.0.1'])('treats %s as private', (ip) => {
+  it.each([
+    '127.0.0.1',
+    '10.1.2.3',
+    '172.16.0.1',
+    '192.168.1.1',
+    '169.254.169.254',
+    '100.64.0.1',
+    '0.0.0.0',
+    '::1',
+    'fc00::1',
+    'fe80::1',
+    '::ffff:127.0.0.1',
+    '224.0.0.1',
+  ])('treats %s as private', (ip) => {
     expect(isPrivateAddress(ip)).toBe(true);
   });
   it.each(['8.8.8.8', '1.1.1.1', '93.184.216.34', '2606:4700:4700::1111'])('treats %s as public', (ip) => {
@@ -71,7 +84,17 @@ describe('SSRF guard', () => {
   });
   const strict = { allowPrivate: false, allowHttp: false };
   it('rejects bad shapes', () => {
-    for (const url of ['http://example.com', 'https://user:pw@example.com', 'https://localhost/', 'https://127.0.0.1/', 'https://[::1]/', 'https://metadata.internal/', 'ftp://example.com', 'not a url', 'https://printer.local/']) {
+    for (const url of [
+      'http://example.com',
+      'https://user:pw@example.com',
+      'https://localhost/',
+      'https://127.0.0.1/',
+      'https://[::1]/',
+      'https://metadata.internal/',
+      'ftp://example.com',
+      'not a url',
+      'https://printer.local/',
+    ]) {
       expect(() => assertUrlShape(url, strict), url).toThrow(SsrfError);
     }
     expect(() => assertUrlShape('https://example.com/x', strict)).not.toThrow();
@@ -106,8 +129,25 @@ describe('SSRF guard', () => {
 
 describe('redirect URIs', () => {
   it('accepts https, loopback http and editor schemes only', () => {
-    for (const ok of ['https://claude.ai/api/mcp/auth_callback', 'http://localhost:3118/callback', 'http://127.0.0.1:9/cb', 'cursor://anysphere.cursor-retrieval/oauth', 'vscode://x/y']) expect(redirectUriOk(ok), ok).toBe(true);
-    for (const bad of ['javascript:alert(1)', 'data:text/html,hi', 'http://evil.example/cb', 'https://u:p@evil.example/', 'https://x.example/cb#frag', 'ftp://x/y', 'file:///etc/passwd', 'https://x.example/ cb']) expect(redirectUriOk(bad), bad).toBe(false);
+    for (const ok of [
+      'https://claude.ai/api/mcp/auth_callback',
+      'http://localhost:3118/callback',
+      'http://127.0.0.1:9/cb',
+      'cursor://anysphere.cursor-retrieval/oauth',
+      'vscode://x/y',
+    ])
+      expect(redirectUriOk(ok), ok).toBe(true);
+    for (const bad of [
+      'javascript:alert(1)',
+      'data:text/html,hi',
+      'http://evil.example/cb',
+      'https://u:p@evil.example/',
+      'https://x.example/cb#frag',
+      'ftp://x/y',
+      'file:///etc/passwd',
+      'https://x.example/ cb',
+    ])
+      expect(redirectUriOk(bad), bad).toBe(false);
   });
   it('matches loopback on any port but not other hosts', () => {
     expect(redirectRegistered('http://localhost:5555/cb', ['http://localhost:3000/cb'])).toBe(true);
@@ -129,14 +169,24 @@ describe('operation spec', () => {
       expect(toolNames.has(op.tool), op.id).toBe(true);
       expect(op.id).toBe(`${op.tool}.${op.action}`);
       for (const name of op.required) expect(op.params[name], `${op.id}.${name}`).toBeDefined();
-      for (const def of Object.values(op.params)) expect(['string', 'int', 'bool', 'object', 'array', 'any', 'enum']).toContain(parseParam(def).type);
+      for (const def of Object.values(op.params))
+        expect(['string', 'int', 'bool', 'object', 'array', 'any', 'enum']).toContain(parseParam(def).type);
       if (op.escalates) expect(['draft', 'live', 'admin']).toContain(op.escalates);
       expect(op.summary.length).toBeGreaterThan(10);
     }
     for (const tool of TOOLS) expect(opsOf(tool.name).length, tool.name).toBeGreaterThan(0);
   });
   it('permanent and code-running actions need confirmation and the right level', () => {
-    for (const id of ['content.delete', 'plugins.delete', 'plugins.install_zip', 'media.import_url', 'design.theme_file_write', 'maintain.backup_restore', 'users.delete']) expect(OPS[id].confirm, id).toBeTruthy();
+    for (const id of [
+      'content.delete',
+      'plugins.delete',
+      'plugins.install_zip',
+      'media.import_url',
+      'design.theme_file_write',
+      'maintain.backup_restore',
+      'users.delete',
+    ])
+      expect(OPS[id].confirm, id).toBeTruthy();
     expect(OPS['plugins.install_zip'].level).toBe('admin');
     expect(OPS['users.list'].level).toBe('admin');
     expect(OPS['shop.orders_list'].level).toBe('admin');

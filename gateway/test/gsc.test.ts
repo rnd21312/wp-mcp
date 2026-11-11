@@ -14,9 +14,20 @@ function fakeGoogle(calls: { url: string; body?: any }[]): typeof fetch {
     const body = init.body instanceof URLSearchParams ? Object.fromEntries(init.body) : init.body ? JSON.parse(init.body) : undefined;
     calls.push({ url, body });
     const ok = (data: unknown) => new Response(JSON.stringify(data), { status: 200, headers: { 'content-type': 'application/json' } });
-    if (url.startsWith('https://oauth2.googleapis.com/token')) return ok(body.grant_type === 'refresh_token' ? { access_token: 'AT2', expires_in: 3600 } : { access_token: 'AT1', refresh_token: 'RT1', expires_in: 3600, id_token: idToken });
-    if (url.endsWith('/webmasters/v3/sites')) return ok({ siteEntry: [{ siteUrl: 'sc-domain:example.com', permissionLevel: 'siteOwner' }] });
-    if (url.includes('/searchAnalytics/query')) return ok(body.dimensions ? { rows: [{ keys: ['poker chips'], clicks: 6, impressions: 204, ctr: 0.0294, position: 7.66 }] } : { rows: [{ clicks: 68, impressions: 1400, ctr: 0.0486, position: 6.9 }] });
+    if (url.startsWith('https://oauth2.googleapis.com/token'))
+      return ok(
+        body.grant_type === 'refresh_token'
+          ? { access_token: 'AT2', expires_in: 3600 }
+          : { access_token: 'AT1', refresh_token: 'RT1', expires_in: 3600, id_token: idToken },
+      );
+    if (url.endsWith('/webmasters/v3/sites'))
+      return ok({ siteEntry: [{ siteUrl: 'sc-domain:example.com', permissionLevel: 'siteOwner' }] });
+    if (url.includes('/searchAnalytics/query'))
+      return ok(
+        body.dimensions
+          ? { rows: [{ keys: ['poker chips'], clicks: 6, impressions: 204, ctr: 0.0294, position: 7.66 }] }
+          : { rows: [{ clicks: 68, impressions: 1400, ctr: 0.0486, position: 6.9 }] },
+      );
     return new Response(JSON.stringify({ error: { message: 'not found' } }), { status: 404 });
   }) as typeof fetch;
 }
@@ -24,7 +35,9 @@ function fakeGoogle(calls: { url: string; body?: any }[]): typeof fetch {
 describe('Google Search Console', () => {
   let env: Env;
   const calls: { url: string; body?: any }[] = [];
-  beforeAll(async () => { env = await createEnv([], {}, { owner: false }); });
+  beforeAll(async () => {
+    env = await createEnv([], {}, { owner: false });
+  });
   afterAll(() => env.stop());
   afterEach(() => vi.unstubAllGlobals());
 
@@ -91,16 +104,26 @@ describe('Google Search Console', () => {
     expect(o.ok).toBe(true);
     expect(o.totals).toMatchObject({ clicks: 68 });
     expect(o.queries.data[0][0]).toBe('poker chips');
-    const w = JSON.parse((await callTool(env.app, who(), 'search_console', { action: 'opportunities', args: { min_impressions: 10 } })).content[0].text);
+    const w = JSON.parse(
+      (await callTool(env.app, who(), 'search_console', { action: 'opportunities', args: { min_impressions: 10 } })).content[0].text,
+    );
     expect(w.ok).toBe(true);
     expect(w.cols).toContain('potential_clicks');
     expect(w.data[0][w.cols.indexOf('position')]).toBe(7.7);
   });
 
   it('rejects unknown actions and bad dimensions, and is blocked for site-limited keys', async () => {
-    expect(JSON.parse((await callTool(env.app, who(), 'search_console', { action: 'delete' })).content[0].text).error.code).toBe('unknown_action');
+    expect(JSON.parse((await callTool(env.app, who(), 'search_console', { action: 'delete' })).content[0].text).error.code).toBe(
+      'unknown_action',
+    );
     vi.stubGlobal('fetch', fakeGoogle(calls));
-    expect(JSON.parse((await callTool(env.app, who(), 'search_console', { action: 'performance', args: { dimensions: ['bogus'] } })).content[0].text).error.code).toBe('bad_arguments');
-    expect(JSON.parse((await callTool(env.app, who(['alpha']), 'search_console', { action: 'status' })).content[0].text).error.code).toBe('not_allowed');
+    expect(
+      JSON.parse(
+        (await callTool(env.app, who(), 'search_console', { action: 'performance', args: { dimensions: ['bogus'] } })).content[0].text,
+      ).error.code,
+    ).toBe('bad_arguments');
+    expect(JSON.parse((await callTool(env.app, who(['alpha']), 'search_console', { action: 'status' })).content[0].text).error.code).toBe(
+      'not_allowed',
+    );
   });
 });

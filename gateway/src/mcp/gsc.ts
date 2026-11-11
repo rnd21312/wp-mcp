@@ -37,7 +37,13 @@ Dates YYYY-MM-DD, data lags ~2 days. Tables return {cols, data}. site = property
 
 const text = (body: unknown, isError = false): ToolResult => {
   let out = JSON.stringify(body);
-  if (out.length > 110_000) out = JSON.stringify({ ok: true, truncated: true, hint: 'Result too large. Lower limit or narrow with filters.', preview: out.slice(0, 109_000) });
+  if (out.length > 110_000)
+    out = JSON.stringify({
+      ok: true,
+      truncated: true,
+      hint: 'Result too large. Lower limit or narrow with filters.',
+      preview: out.slice(0, 109_000),
+    });
 
   return { content: [{ type: 'text', text: out }], ...(isError ? { isError: true } : {}) };
 };
@@ -46,11 +52,24 @@ export async function callGsc(app: App, principal: Principal, input: { action?: 
   const action = String(input.action ?? '');
   const fail = (code: string, message: string): ToolResult => text({ ok: false, error: { code, message } }, true);
   if (!GSC_ACTIONS[action]) return fail('unknown_action', `Actions: ${Object.keys(GSC_ACTIONS).join(', ')}.`);
-  if (principal.sites !== '*') return fail('not_allowed', 'This connection is limited to specific WordPress sites and cannot use Search Console.');
+  if (principal.sites !== '*')
+    return fail('not_allowed', 'This connection is limited to specific WordPress sites and cannot use Search Console.');
   const gate = app.limiter.take(`p:${principal.id}`, app.config.limits.clientPerMin, app.config.limits.clientPerMin);
   if (!gate.ok) return fail('rate_limited', `Too many requests. Wait ${gate.retryAfter}s and retry.`);
   const args = (input.args && typeof input.args === 'object' ? input.args : {}) as Record<string, unknown>;
-  const log = (status: string, summary: string): void => void app.store.log({ principal: principal.id, principal_name: principal.name, tool: 'search_console', action, site: '', level: 'read', status, summary: summary.slice(0, 300), request_id: randomBytes(6).toString('hex'), revision: 0 });
+  const log = (status: string, summary: string): void =>
+    void app.store.log({
+      principal: principal.id,
+      principal_name: principal.name,
+      tool: 'search_console',
+      action,
+      site: '',
+      level: 'read',
+      status,
+      summary: summary.slice(0, 300),
+      request_id: randomBytes(6).toString('hex'),
+      revision: 0,
+    });
 
   try {
     const out = await runGsc(app, action, args, true);

@@ -22,11 +22,19 @@ run('package-agent.mjs');
 
 const keyPath = process.env.WPM_RELEASE_KEY;
 const version = /const VERSION = '([^']+)'/.exec(readFileSync(join(root, 'agent', 'wpm-agent', 'src', 'Agent.php'), 'utf8'))[1];
-writeFileSync(join(dist, 'wpm-agent.version'), `${version}
-`);
+writeFileSync(
+  join(dist, 'wpm-agent.version'),
+  `${version}
+`,
+);
 const agentZip = readFileSync(join(dist, 'wpm-agent.zip'));
 const sums = [];
-const add = (file) => sums.push(`${createHash('sha256').update(readFileSync(join(dist, file))).digest('hex')}  ${file}`);
+const add = (file) =>
+  sums.push(
+    `${createHash('sha256')
+      .update(readFileSync(join(dist, file)))
+      .digest('hex')}  ${file}`,
+  );
 add('wpm-agent.zip');
 add('wp-mcp-bridge.zip');
 
@@ -42,12 +50,32 @@ if (keyPath && existsSync(keyPath)) {
 }
 // bridge-latest.json is what installed bridges poll (releases/latest/download/bridge-latest.json). It carries the zip's
 // checksum and an Ed25519 signature over "wpm-bridge-update\n<version>\n<sha256>"; the bridge verifies both before installing.
-const bridgeVersion = /Version:\s+(\d+\.\d+\.\d+)/.exec(readFileSync(join(root, 'plugin', 'wp-mcp-bridge', 'wp-mcp-bridge.php'), 'utf8'))[1];
-const bridgeSha = createHash('sha256').update(readFileSync(join(dist, 'wp-mcp-bridge.zip'))).digest('hex');
+const bridgeVersion = /Version:\s+(\d+\.\d+\.\d+)/.exec(
+  readFileSync(join(root, 'plugin', 'wp-mcp-bridge', 'wp-mcp-bridge.php'), 'utf8'),
+)[1];
+const bridgeSha = createHash('sha256')
+  .update(readFileSync(join(dist, 'wp-mcp-bridge.zip')))
+  .digest('hex');
 if (keyPath && existsSync(keyPath)) {
   const repo = process.env.WPM_RELEASE_REPO || 'rnd21312/wp-mcp';
-  const signature = sign(null, Buffer.from(`wpm-bridge-update\n${bridgeVersion}\n${bridgeSha}`), createPrivateKey(readFileSync(keyPath))).toString('base64');
-  writeFileSync(join(dist, 'bridge-latest.json'), JSON.stringify({ version: bridgeVersion, package: `https://github.com/${repo}/releases/download/v${bridgeVersion}/wp-mcp-bridge.zip`, sha256: bridgeSha, signature }, null, 2) + '\n');
+  const signature = sign(
+    null,
+    Buffer.from(`wpm-bridge-update\n${bridgeVersion}\n${bridgeSha}`),
+    createPrivateKey(readFileSync(keyPath)),
+  ).toString('base64');
+  writeFileSync(
+    join(dist, 'bridge-latest.json'),
+    JSON.stringify(
+      {
+        version: bridgeVersion,
+        package: `https://github.com/${repo}/releases/download/v${bridgeVersion}/wp-mcp-bridge.zip`,
+        sha256: bridgeSha,
+        signature,
+      },
+      null,
+      2,
+    ) + '\n',
+  );
   add('bridge-latest.json');
   console.log(`Bridge ${bridgeVersion} signed (bridge-latest.json).`);
 } else {

@@ -24,7 +24,14 @@ export interface Config {
   accessTtl: number;
   refreshTtl: number;
   refreshGrace: number;
-  limits: { clientPerMin: number; writePerMin: number; sitePerMin: number; tokenPerMin: number; registerPerHour: number; loginPer10Min: number };
+  limits: {
+    clientPerMin: number;
+    writePerMin: number;
+    sitePerMin: number;
+    tokenPerMin: number;
+    registerPerHour: number;
+    loginPer10Min: number;
+  };
   adminPassword?: string;
 }
 
