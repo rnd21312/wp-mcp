@@ -4,6 +4,7 @@ import type { App } from '../core/context.ts';
 import { canonical, seal, sha256, unseal } from '../core/crypto.ts';
 import { AgentError, type Release } from '../studio/agentclient.ts';
 import { hostView, needHost } from '../studio/hosts.ts';
+import { deriveSiteUrl, listDbProfiles, loadDbProfile, createWordPress, saveInstallCredentials } from '../studio/wordpress.ts';
 import { atLeast, type Level } from '../core/levels.ts';
 import {
   projectFramework,
@@ -22,9 +23,11 @@ import type { ToolDef, ToolResult } from './tools.ts';
 
 /**
  * The "studio" tool: lets an AI client create plain static projects, edit their files and publish them to the owner's hosts.
- * Deliberately not exposed: running builds (a build runs project scripts on the owner's computer), Node projects, WordPress
- * provisioning, database credentials, environment variables and the host's own administration. Publishing and rolling back
- * always take the two-step confirmation, so a person agrees to exactly that action.
+ * Deliberately not exposed: running builds (a build runs project scripts on the owner's computer), Node projects, database
+ * credentials, environment variables and the host's own administration. WordPress installation is offered only with a database
+ * profile the owner saved on this computer (credentials in a call are refused, the new administrator password is written to a
+ * file, not returned). Publishing, rolling back and installing always take the two-step confirmation, so a person agrees to
+ * exactly that action.
  */
 
 interface Action {
@@ -47,6 +50,18 @@ const ACTIONS: Record<string, Action> = {
   },
   write_file: { level: 'draft', summary: 'Create or replace a text file inside a project.', args: 'project*, path*, content*' },
   delete_file: { level: 'draft', summary: 'Delete a file of a project.', args: 'project*, path*' },
+  db_profiles: {
+    level: 'admin',
+    summary: 'Names of the database profiles the owner saved for new WordPress sites (never their contents).',
+    args: '',
+  },
+  wordpress_install: {
+    level: 'admin',
+    confirm: true,
+    summary:
+      "Install a new WordPress site on a host and connect it here. The database comes from an owner-made profile (db_profile), never from you; the administrator password is saved on the owner's computer, not shown.",
+    args: 'host*, title*, admin_email*, db_profile*, name, folder, url, locale, search_engines',
+  },
   deploy: {
     level: 'live',
     confirm: true,
@@ -72,7 +87,7 @@ export function studioTool(principal: Principal): ToolDef | null {
   return {
     name: 'studio',
     title: 'Build and publish websites',
-    description: `Create static websites in projects on the owner's computer and publish them to the owner's hosts.\nCall with {action, args, confirm_token}.\nActions (* = required):\n${open.map(([name, a]) => `${name}(${a.args}) - ${a.summary} [${a.level}${a.confirm ? ',confirm' : ''}]`).join('\n')}${locked.length ? `\nNeeds a higher level than yours (${principal.level}): ${locked.map(([n]) => n).join(', ')}.` : ''}\nPlain HTML/CSS/JS only; builds, Node apps, WordPress and server settings are done by the owner in the Studio panel.`,
+    description: `Create static websites in projects on the owner's computer and publish them to the owner's hosts.\nCall with {action, args, confirm_token}.\nActions (* = required):\n${open.map(([name, a]) => `${name}(${a.args}) - ${a.summary} [${a.level}${a.confirm ? ',confirm' : ''}]`).join('\n')}${locked.length ? `\nNeeds a higher level than yours (${principal.level}): ${locked.map(([n]) => n).join(', ')}.` : ''}\nPlain HTML/CSS/JS only; builds, Node apps and server settings are done by the owner in the Studio panel. New WordPress sites: wordpress_install with a database profile the owner made.`,
     inputSchema: {
       type: 'object',
       properties: {
@@ -234,6 +249,13 @@ export async function callStudio(
         deleteFile(app, s('project'), s('path'));
         log('ok', `${s('project')}/${s('path')} deleted`);
         return text({ ok: true });
+      case 'db_profiles':
+        return text({
+          ok: true,
+          profiles: listDbProfiles(app),
+          hint: 'Pass one as db_profile to wordpress_install. Their contents are secret and are never shown.',
+        });
+      case 'wordpress_install':
       case 'deploy':
       case 'rollback':
         return await confirmed(app, principal, name, args, input.confirm_token, requestId, log, s, staticProject);
@@ -262,6 +284,15 @@ async function confirmed(
 ): Promise<ToolResult> {
   if (name === 'deploy') staticProject(s('project'));
   const host = needHost(app, s('host'));
+  if (name === 'wordpress_install') {
+    for (const k of ['db', 'admin_password', 'db_pass', 'password'])
+      if (k in args)
+        return fail(
+          'not_allowed',
+          "Credentials are not accepted here. The owner saves database settings as a profile; pass db_profile. The administrator password is generated and kept on the owner's computer.",
+        );
+    loadDbProfile(app, s('db_profile')); // fails early when the profile is missing
+  }
   const hash = sha256(canonical(args));
   const token = typeof given === 'string' ? given : '';
   const claim = token ? unseal<{ p: string; o: string; h: string }>(app.config.masterKey, token) : null;
@@ -273,7 +304,22 @@ async function confirmed(
 
   if (!claim) {
     let preview: Record<string, unknown>;
-    if (name === 'deploy') {
+    if (name === 'wordpress_install') {
+      const caps = JSON.parse(host.caps || '{}') as { script_dir?: string };
+      const site = (s('name') || '(derived from the host address)').toLowerCase();
+      const folder = args.folder === undefined ? site : s('folder');
+      preview = {
+        host: host.name,
+        site,
+        folder,
+        url: s('url') || deriveSiteUrl(host.url, caps.script_dir ?? '', folder),
+        title: s('title'),
+        admin_email: s('admin_email'),
+        database: { profile: s('db_profile'), method: loadDbProfile(app, s('db_profile')).method },
+        effect:
+          'Downloads and installs WordPress with the bridge plugin on the host, creates the database tables and an administrator, and connects the site here. If a step fails the new folder is removed.',
+      };
+    } else if (name === 'deploy') {
       const row = app.store.project(s('project'))!;
       const z = zipDirectory(publishDir(app, row));
       preview = {
@@ -305,6 +351,35 @@ async function confirmed(
     });
   }
 
+  if (name === 'wordpress_install') {
+    const r = await createWordPress(app, {
+      host: host.name,
+      name: s('name') || undefined,
+      folder: args.folder === undefined ? undefined : s('folder'),
+      url: s('url') || undefined,
+      title: s('title'),
+      adminEmail: s('admin_email'),
+      searchEngines: args.search_engines !== false,
+      locale: s('locale') || undefined,
+      db: loadDbProfile(app, s('db_profile')),
+    });
+    const file = saveInstallCredentials(app, r.site.name, {
+      site: r.url,
+      admin_user: r.admin_user,
+      admin_password: r.admin_password,
+      admin_email: s('admin_email'),
+    });
+    log('ok', `WordPress ${r.wp_version} installed as ${r.site.name} on ${host.name}`, r.site.name);
+    return text({
+      ok: true,
+      site: r.site.name,
+      url: r.url,
+      wordpress: r.wp_version,
+      admin_user: r.admin_user,
+      credentials_saved_to: file,
+      next: "The site is connected: site.overview {site}. Then site.build or design.theme_scaffold. The administrator password is in the file above on the owner's computer; it is deliberately not shown here.",
+    });
+  }
   if (name === 'deploy') {
     const done = await deployProject(app, {
       project: s('project'),

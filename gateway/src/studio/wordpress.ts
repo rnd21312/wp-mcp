@@ -1,5 +1,5 @@
 import { randomBytes } from 'node:crypto';
-import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { join, relative, resolve, sep } from 'node:path';
 import { ROOT } from '../core/paths.ts';
 import { AgentError } from './agentclient.ts';
@@ -187,4 +187,87 @@ export async function createWordPress(app: App, input: WordPressInput): Promise<
   });
 
   return { site, url, admin_user: adminUser, admin_password: adminPassword, wp_version: installed.wp_version };
+}
+
+/* ------------------------------------------------- database profiles (owner side) */
+
+const PROFILE = /^[a-z0-9][a-z0-9_-]{0,39}$/;
+
+/** Folder of the owner's database profiles: one JSON file per profile, written by the owner, never by an AI. */
+export const profileDir = (app: App): string => join(app.config.dataDir, 'db-profiles');
+
+/** Names of the database profiles the owner saved (the contents are never shown). */
+export function listDbProfiles(app: App): { name: string; method: string }[] {
+  const dir = profileDir(app);
+  if (!existsSync(dir)) return [];
+  const out: { name: string; method: string }[] = [];
+  for (const file of readdirSync(dir).sort()) {
+    const name = file.replace(/\.json$/, '');
+    if (!file.endsWith('.json') || !PROFILE.test(name)) continue;
+    try {
+      out.push({ name, method: String((JSON.parse(readFileSync(join(dir, file), 'utf8')) as { method?: string }).method ?? '') });
+    } catch {
+      /* an unreadable profile is simply not offered */
+    }
+  }
+  return out;
+}
+
+/** The database settings of a profile. Only the two methods that need no hosting-panel token are accepted. */
+export function parseDbProfile(raw: unknown): DbSpec {
+  const p = raw as Record<string, unknown> | null;
+  const str = (k: string, max = 200): string => {
+    const v = p?.[k];
+    if (typeof v !== 'string' || !v || v.length > max)
+      throw new AgentError('bad_db_profile', `The database profile needs "${k}" (text, up to ${max} characters).`);
+    return v;
+  };
+  const host = typeof p?.host === 'string' && p.host ? p.host.slice(0, 200) : undefined;
+  if (p?.method === 'manual') return { method: 'manual', host, name: str('name', 64), user: str('user', 64), pass: str('pass') };
+  if (p?.method === 'mysql_root')
+    return {
+      method: 'mysql_root',
+      host,
+      root_user: typeof p.root_user === 'string' ? p.root_user : undefined,
+      root_pass: str('root_pass'),
+    };
+  throw new AgentError(
+    'bad_db_profile',
+    'A database profile has method "manual" (host, name, user, pass) or "mysql_root" (host, root_user, root_pass).',
+  );
+}
+
+export function loadDbProfile(app: App, name: string): DbSpec {
+  if (!PROFILE.test(name)) throw new AgentError('bad_db_profile', 'Database profile names are lowercase letters, digits, - and _.');
+  const file = join(profileDir(app), `${name}.json`);
+  if (!existsSync(file))
+    throw new AgentError(
+      'no_db_profile',
+      `There is no database profile "${name}". Profiles: ${
+        listDbProfiles(app)
+          .map((p) => p.name)
+          .join(', ') || '(none)'
+      }. The owner creates one as a JSON file in ${profileDir(app)} (see docs).`,
+    );
+  try {
+    return parseDbProfile(JSON.parse(readFileSync(file, 'utf8')));
+  } catch (error) {
+    if (error instanceof AgentError) throw error;
+    throw new AgentError('bad_db_profile', `The database profile "${name}" is not valid JSON.`);
+  }
+}
+
+/** Keeps the new administrator's password on this computer instead of showing it to an AI. */
+export function saveInstallCredentials(app: App, siteName: string, lines: Record<string, string>): string {
+  const dir = join(app.config.dataDir, 'wp-installs');
+  mkdirSync(dir, { recursive: true });
+  const file = join(dir, `${siteName}.txt`);
+  writeFileSync(
+    file,
+    Object.entries(lines)
+      .map(([k, v]) => `${k}: ${v}`)
+      .join('\n') + '\n',
+    { mode: 0o600 },
+  );
+  return file;
 }
