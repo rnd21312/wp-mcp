@@ -61,6 +61,8 @@ jobs:
           wp --path="$WP_DIR" config create --dbname=wp --dbuser=root --dbpass=root --dbhost=127.0.0.1 --skip-check
           wp --path="$WP_DIR" core install --url="$WP_URL" --title=CI --admin_user=admin --admin_password=ci-password-123 --admin_email=ci@example.com --skip-email
           cp -r plugin/wp-mcp-bridge "$WP_DIR/wp-content/plugins/"
+          # the bridge pairs over plain http only on a local environment
+          wp --path="$WP_DIR" config set WP_ENVIRONMENT_TYPE local --type=constant
           wp --path="$WP_DIR" plugin activate wp-mcp-bridge
           echo "WPMCP_LIVE_WP_CODE=$(wp --path="$WP_DIR" eval 'echo WPMCP\Bridge\Connections::create_pairing( 1, "admin" );')" >> "$GITHUB_ENV"
       - name: Start WordPress
