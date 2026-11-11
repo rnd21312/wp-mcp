@@ -12,6 +12,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { useI18n } from '@/lib/i18n';
 import { useAction, useSite } from '@/lib/site';
+import type { ContentList, ContentRow } from '@/lib/wp';
 import { MediaLibrary } from '@/pages/Media';
 
 const STATUSES = ['any', 'publish', 'draft', 'pending', 'private', 'future', 'trash'];
@@ -28,7 +29,7 @@ export function ContentList({ query, go }: { query: URLSearchParams; go: (h: str
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [q, setQ] = useState('');
-  const { data, loading, error, reload } = useAction<any>('content', 'list', {
+  const { data, loading, error, reload } = useAction<ContentList>('content', 'list', {
     post_type: type,
     status,
     search: q,
@@ -36,7 +37,7 @@ export function ContentList({ query, go }: { query: URLSearchParams; go: (h: str
     per_page: 20,
     orderby: 'modified',
   });
-  const items: any[] = data?.items ?? [];
+  const items: ContentRow[] = data?.items ?? [];
 
   useEffect(() => setPage(1), [type, status, q]);
 

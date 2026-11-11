@@ -11,6 +11,7 @@ import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { useI18n } from '@/lib/i18n';
 import { useAction, useSite } from '@/lib/site';
+import type { AuditIssue, ContentList, ContentRow, RedirectRow } from '@/lib/wp';
 
 const scoreColor = (s: number): string =>
   s >= 80 ? 'text-emerald-600 dark:text-emerald-400' : s >= 55 ? 'text-amber-600 dark:text-amber-400' : 'text-rose-600 dark:text-rose-400';
@@ -18,8 +19,8 @@ const scoreColor = (s: number): string =>
 export function Seo() {
   const { t } = useI18n();
   const { run, overview } = useSite();
-  const pages = useAction<any>('content', 'list', { post_type: 'page', per_page: 50, orderby: 'modified' });
-  const posts = useAction<any>('content', 'list', { post_type: 'post', per_page: 30, orderby: 'modified' });
+  const pages = useAction<ContentList>('content', 'list', { post_type: 'page', per_page: 50, orderby: 'modified' });
+  const posts = useAction<ContentList>('content', 'list', { post_type: 'post', per_page: 30, orderby: 'modified' });
   const siteSeo = useAction<any>('seo', 'site_get');
   const redirects = useAction<any>('seo', 'redirects_list', { per_page: 100 });
   const [edit, setEdit] = useState<any>(null);
@@ -28,15 +29,15 @@ export function Seo() {
   const [auditing, setAuditing] = useState('');
   const [robots, setRobots] = useState<string | null>(null);
   const [rd, setRd] = useState({ from: '', to: '', code: '301' });
-  const items: any[] = [...(pages.data?.items ?? []), ...(posts.data?.items ?? [])].filter((x) => x.status === 'publish');
+  const items: ContentRow[] = [...(pages.data?.items ?? []), ...(posts.data?.items ?? [])].filter((x) => x.status === 'publish');
 
-  const open = async (p: any): Promise<void> => {
+  const open = async (p: ContentRow): Promise<void> => {
     setEdit(p);
     setFields({});
     const r = await run<any>('seo', 'get', { id: p.id });
     if (r.ok) setFields(r.data.seo);
   };
-  const doAudit = async (p: any): Promise<void> => {
+  const doAudit = async (p: ContentRow): Promise<void> => {
     setAuditing(String(p.id));
     const r = await run<any>('seo', 'audit', { path: pathOf(p.url) }, { silent: false });
     setAuditing('');
@@ -170,7 +171,7 @@ export function Seo() {
                 </div>
               </div>
               <div className="divide-y rounded-lg border text-xs">
-                {(redirects.data?.redirects ?? []).map((r: any) => (
+                {(redirects.data?.redirects ?? []).map((r: RedirectRow) => (
                   <div key={r.from} dir="ltr" className="flex items-center justify-between gap-2 px-3 py-2">
                     <span className="truncate">
                       {r.from} → {r.to || r.code}
@@ -255,7 +256,7 @@ export function Seo() {
             {(audit?.issues ?? []).length === 0 && (
               <p className="py-6 text-center text-sm text-muted-foreground">{t('No problems found.', 'مشکلی پیدا نشد.')}</p>
             )}
-            {(audit?.issues ?? []).map((i: any, n: number) => (
+            {(audit?.issues ?? []).map((i: AuditIssue, n: number) => (
               <div key={n} className="rounded-lg border p-3 text-sm">
                 <div className="flex items-center gap-2">
                   <Badge

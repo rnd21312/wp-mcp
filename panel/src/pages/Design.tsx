@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { PlusIcon, SaveIcon, Trash2Icon } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
@@ -11,13 +12,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { useI18n } from '@/lib/i18n';
 import { useAction, useSite } from '@/lib/site';
+import type { ContentList, CssData, MenuItem, MenuRef, MenusData, MenuTree, TemplatesData, TextData, TokensData } from '@/lib/wp';
 
 const DEFAULT_COLORS = ['primary', 'secondary', 'accent', 'background', 'foreground'];
 
 function Tokens() {
   const { t } = useI18n();
   const { run } = useSite();
-  const { data, loading, reload } = useAction<any>('design', 'tokens_get');
+  const { data, loading, reload } = useAction<TokensData>('design', 'tokens_get');
   const [colors, setColors] = useState<Record<string, string>>({});
   const [fonts, setFonts] = useState<Record<string, string>>({});
   const [radius, setRadius] = useState('');
@@ -118,7 +120,7 @@ function Tokens() {
 function Css() {
   const { t } = useI18n();
   const { run } = useSite();
-  const { data, loading, reload } = useAction<any>('design', 'css_get');
+  const { data, loading, reload } = useAction<CssData>('design', 'css_get');
   const [name, setName] = useState('main');
   const [css, setCss] = useState('');
   const sections: Record<string, string> = data?.sections ?? {};
@@ -206,17 +208,17 @@ function Css() {
 function Menus() {
   const { t } = useI18n();
   const { run, overview } = useSite();
-  const menus = useAction<any>('design', 'menus_list');
-  const pages = useAction<any>('content', 'list', { post_type: 'page', per_page: 100, orderby: 'menu_order' });
+  const menus = useAction<MenusData>('design', 'menus_list');
+  const pages = useAction<ContentList>('content', 'list', { post_type: 'page', per_page: 100, orderby: 'menu_order' });
   const [sel, setSel] = useState('');
-  const tree = useAction<any>('design', 'menu_get', { menu: sel }, !!sel);
+  const tree = useAction<MenuTree>('design', 'menu_get', { menu: sel }, !!sel);
   const [name, setName] = useState('');
   const [picked, setPicked] = useState<number[]>([]);
   const [loc, setLoc] = useState('');
   const locations: string[] = overview?.menu_locations ?? Object.keys(menus.data?.locations ?? {});
-  const list: any[] = menus.data?.menus ?? [];
+  const list: MenuRef[] = menus.data?.menus ?? [];
 
-  const draw = (items: any[], depth = 0): any =>
+  const draw = (items: MenuItem[], depth = 0): ReactNode =>
     items.map((i) => (
       <div key={i.id}>
         <div className="flex items-center gap-2 py-1 text-sm" style={{ paddingInlineStart: depth * 20 }}>
@@ -285,8 +287,8 @@ function Menus() {
           </Field>
           <div className="max-h-56 space-y-1 overflow-auto rounded-lg border p-2">
             {(pages.data?.items ?? [])
-              .filter((p: any) => p.status === 'publish')
-              .map((p: any) => (
+              .filter((p) => p.status === 'publish')
+              .map((p) => (
                 <label key={p.id} className="flex cursor-pointer items-center gap-2 rounded px-2 py-1 text-sm hover:bg-muted">
                   <input
                     type="checkbox"
@@ -319,7 +321,7 @@ function Menus() {
                   await run('design', 'menu_save', {
                     name,
                     items: picked.map((id) => ({
-                      title: pages.data.items.find((p: any) => p.id === id)?.title ?? '',
+                      title: pages.data?.items?.find((p) => p.id === id)?.title ?? '',
                       object: 'page',
                       object_id: id,
                     })),
@@ -344,14 +346,14 @@ function Menus() {
 function Templates() {
   const { t } = useI18n();
   const { run } = useSite();
-  const list = useAction<any>('design', 'templates_list');
+  const list = useAction<TemplatesData>('design', 'templates_list');
   const [cur, setCur] = useState<{ slug: string; kind: string } | null>(null);
   const [html, setHtml] = useState('');
   const open = async (slug: string, kind: string): Promise<void> => {
-    const r = await run<any>('design', 'template_get', { slug, kind });
+    const r = await run<TextData>('design', 'template_get', { slug, kind });
     if (r.ok) {
       setCur({ slug, kind });
-      setHtml(r.data.content);
+      setHtml(r.data?.content ?? '');
     }
   };
   if (list.loading && !list.data) return <Loading />;
@@ -372,7 +374,7 @@ function Templates() {
     <div className="grid gap-6 lg:grid-cols-[18rem_minmax(0,1fr)]">
       <Card>
         <CardContent className="max-h-[32rem] space-y-1 overflow-auto p-2">
-          {(list.data?.templates ?? []).map((x: any) => (
+          {(list.data?.templates ?? []).map((x) => (
             <button
               key={`${x.kind}-${x.slug}`}
               onClick={() => open(x.slug, x.kind)}

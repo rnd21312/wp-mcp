@@ -44,6 +44,7 @@
 - Fixed: `content.save` failed on a page whose stored page template no longer exists (WordPress re-validates it on every save, even with `template: ""`). `""` now means the default template and a stale template is reset with a note; an unknown template is refused with the list of real ones.
 
 ### Project
+- Panel: typed bridge responses (`panel/src/lib/wp.ts`) in the Care, Dev, Design, Seo and Content pages; `any` warnings in the panel went from 169 to about 110 (all ESLint warnings of the repo: 247 to 194).
 - The three largest bridge handlers are split into traits by topic (Maintain: backups, ops, database, config; Design: templates, menus, themes; Files: edit, tree, remote); no method changed, all under 360 lines.
 - One PHP safety net (`PhpGuard`, `Util::write_atomic`) for files.write, theme files, wp-config and snippets: syntax check, front page probe before and after, revert when the site breaks. The three private copies are gone.
 - ESLint and Prettier, gateway sources grouped into folders, one tracked `ops.json`.

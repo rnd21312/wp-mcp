@@ -11,12 +11,25 @@ import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useI18n } from '@/lib/i18n';
 import { useAction, useSite } from '@/lib/site';
+import type {
+  BackupList,
+  CacheFlush,
+  DbInfo,
+  HealthData,
+  HealthProblem,
+  LogEntry,
+  LogsData,
+  PendingUpdate,
+  PluginList,
+  PluginRow,
+  UpdatesData,
+} from '@/lib/wp';
 
 function Health() {
   const { t } = useI18n();
   const { run } = useSite();
-  const h = useAction<any>('maintain', 'health');
-  const u = useAction<any>('maintain', 'updates_check');
+  const h = useAction<HealthData>('maintain', 'health');
+  const u = useAction<UpdatesData>('maintain', 'updates_check');
   const [busy, setBusy] = useState('');
   const update = async (type: string, slug?: string): Promise<void> => {
     setBusy(`${type}${slug}`);
@@ -30,9 +43,15 @@ function Health() {
   const d = h.data;
   const pending = u.data
     ? [
-        ...(u.data.core ?? []).map((c: any) => ({ type: 'core', name: 'WordPress', from: u.data.current_wordpress, to: c.version })),
-        ...(u.data.plugins ?? []).map((p: any) => ({ type: 'plugin', slug: p.plugin, name: p.name, from: p.from, to: p.to })),
-        ...(u.data.themes ?? []).map((p: any) => ({ type: 'theme', slug: p.theme, name: p.name, from: p.from, to: p.to })),
+        ...(u.data.core ?? []).map((c: PendingUpdate) => ({
+          type: 'core',
+          slug: undefined as string | undefined,
+          name: 'WordPress',
+          from: u.data?.current_wordpress,
+          to: c.version,
+        })),
+        ...(u.data.plugins ?? []).map((p: PendingUpdate) => ({ type: 'plugin', slug: p.plugin, name: p.name, from: p.from, to: p.to })),
+        ...(u.data.themes ?? []).map((p: PendingUpdate) => ({ type: 'theme', slug: p.theme, name: p.name, from: p.from, to: p.to })),
       ]
     : [];
 
@@ -58,7 +77,7 @@ function Health() {
                     {t('All checks pass', 'همه‌ی بررسی‌ها موفق')}
                   </Badge>
                 ) : (
-                  d.problems.map((p: any, i: number) => (
+                  d.problems.map((p: HealthProblem, i: number) => (
                     <div key={i} className="rounded-lg border p-3">
                       <div className="flex items-center gap-2">
                         <Badge
@@ -71,9 +90,9 @@ function Health() {
                         >
                           {p.status}
                         </Badge>
-                        <b>{plain(p.test)}</b>
+                        <b>{plain(p.test ?? '')}</b>
                       </div>
-                      <p className="mt-1 text-muted-foreground">{plain(p.detail)}</p>
+                      <p className="mt-1 text-muted-foreground">{plain(p.detail ?? '')}</p>
                     </div>
                   ))
                 )}
@@ -141,7 +160,7 @@ function Health() {
 function Backups() {
   const { t } = useI18n();
   const { run } = useSite();
-  const b = useAction<any>('maintain', 'backup_list');
+  const b = useAction<BackupList>('maintain', 'backup_list');
   const [busy, setBusy] = useState(false);
 
   return (
@@ -174,7 +193,7 @@ function Backups() {
         ) : (b.data?.backups ?? []).length === 0 ? (
           <Empty>{t('No backups yet.', 'هنوز بکاپی نیست.')}</Empty>
         ) : (
-          (b.data.backups as any[]).map((x) => (
+          (b.data?.backups ?? []).map((x) => (
             <div key={x.id} className="flex items-center gap-3 rounded-lg border px-3 py-2 text-sm">
               <div className="min-w-0 flex-1">
                 <div className="truncate">{x.label}</div>
@@ -217,7 +236,7 @@ function Tools() {
   const { run, overview } = useSite();
   const [mode, setMode] = useState<boolean | null>(null);
   const [msg, setMsg] = useState('');
-  const db = useAction<any>('maintain', 'db_info');
+  const db = useAction<DbInfo>('maintain', 'db_info');
   const on = mode ?? !!overview?.maintenance_mode;
 
   return (
@@ -231,8 +250,8 @@ function Tools() {
             variant="outline"
             className="w-full justify-start"
             onClick={async () => {
-              const r = await run<any>('maintain', 'cache_flush', {}, { quiet: true });
-              if (r.ok) toast.success(`${t('Cleared', 'پاک شد')}: ${r.data.flushed.join('، ')}`);
+              const r = await run<CacheFlush>('maintain', 'cache_flush', {}, { quiet: true });
+              if (r.ok) toast.success(`${t('Cleared', 'پاک شد')}: ${(r.data?.flushed ?? []).join('، ')}`);
             }}
           >
             <WrenchIcon /> {t('Clear all caches', 'پاک‌کردن همه‌ی کش‌ها')}
@@ -294,7 +313,7 @@ function Tools() {
                   </div>
                 ))}
                 <div className="pt-2 text-xs text-muted-foreground">
-                  {(db.data.tables as any[])
+                  {(db.data.tables ?? [])
                     .slice(0, 5)
                     .map((x) => `${x.table} (${x.size})`)
                     .join(' · ')}
@@ -312,7 +331,7 @@ function Logs() {
   const { t } = useI18n();
   const [filter, setFilter] = useState('');
   const [q, setQ] = useState('');
-  const logs = useAction<any>('maintain', 'logs', { lines: 100, contains: q });
+  const logs = useAction<LogsData>('maintain', 'logs', { lines: 100, contains: q });
 
   return (
     <Card>
@@ -341,10 +360,10 @@ function Logs() {
           <Empty>{logs.data.note}</Empty>
         ) : (
           <div dir="ltr" className="max-h-[28rem] divide-y overflow-auto rounded-lg border font-mono text-xs">
-            {(logs.data?.entries ?? []).map((e: any, i: number) => (
+            {(logs.data?.entries ?? []).map((e: LogEntry, i: number) => (
               <div key={i} className="px-3 py-2">
                 <span className="text-muted-foreground">{e.last}</span>
-                {e.count > 1 && (
+                {(e.count ?? 0) > 1 && (
                   <Badge className="mx-2" variant="secondary">
                     ×{e.count}
                   </Badge>
@@ -395,10 +414,10 @@ export function Maintenance() {
 export function Plugins() {
   const { t } = useI18n();
   const { run } = useSite();
-  const list = useAction<any>('plugins', 'list');
+  const list = useAction<PluginList>('plugins', 'list');
   const [q, setQ] = useState('');
-  const [results, setResults] = useState<any[] | null>(null);
-  const items: any[] = list.data?.plugins ?? [];
+  const [results, setResults] = useState<PluginRow[] | null>(null);
+  const items: PluginRow[] = list.data?.plugins ?? [];
 
   return (
     <>
@@ -470,8 +489,8 @@ export function Plugins() {
             className="flex gap-2"
             onSubmit={async (e) => {
               e.preventDefault();
-              const r = await run<any>('plugins', 'search', { query: q, per_page: 8 }, { quiet: true });
-              if (r.ok) setResults(r.data.results);
+              const r = await run<PluginList>('plugins', 'search', { query: q, per_page: 8 }, { quiet: true });
+              if (r.ok) setResults(r.data?.results ?? []);
             }}
           >
             <Input

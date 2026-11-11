@@ -12,25 +12,26 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { useI18n } from '@/lib/i18n';
 import { useAction, useSite } from '@/lib/site';
+import type { Obj, RestRoutes, TextData, ThemeFile, ThemeFiles, TransferResult, TransferTotal } from '@/lib/wp';
 
 /** Theme files through the design tools (available in every bridge version). */
 function ThemeFiles() {
   const { t } = useI18n();
   const { run, overview } = useSite();
-  const files = useAction<any>('design', 'theme_files');
+  const files = useAction<ThemeFiles>('design', 'theme_files');
   const [path, setPath] = useState('');
   const [text, setText] = useState('');
   const [orig, setOrig] = useState('');
   const [filter, setFilter] = useState('');
   const open = async (p: string): Promise<void> => {
-    const r = await run<any>('design', 'theme_file_read', { path: p }, { quiet: true });
+    const r = await run<TextData>('design', 'theme_file_read', { path: p }, { quiet: true });
     if (r.ok) {
       setPath(p);
-      setText(r.data.content);
-      setOrig(r.data.content);
+      setText(r.data?.content ?? '');
+      setOrig(r.data?.content ?? '');
     }
   };
-  const list: any[] = (files.data?.files ?? []).filter((f: any) => f.path.includes(filter));
+  const list: ThemeFile[] = (files.data?.files ?? []).filter((f) => f.path.includes(filter));
 
   return (
     <div className="grid gap-4 lg:grid-cols-[18rem_minmax(0,1fr)]">
@@ -101,11 +102,11 @@ function RestExplorer() {
   const { t } = useI18n();
   const { run } = useSite();
   const [ns, setNs] = useState('');
-  const routes = useAction<any>('rest', 'routes', { namespace: ns });
+  const routes = useAction<RestRoutes>('rest', 'routes', { namespace: ns });
   const [method, setMethod] = useState('GET');
   const [path, setPath] = useState('/wp/v2/posts');
   const [body, setBody] = useState('');
-  const [out, setOut] = useState<any>(null);
+  const [out, setOut] = useState<Obj | null>(null);
 
   return (
     <div className="grid gap-4 lg:grid-cols-2">
@@ -134,7 +135,7 @@ function RestExplorer() {
             {routes.loading && !routes.data ? (
               <Loading />
             ) : (
-              (routes.data?.routes ?? []).map((r: any) => (
+              (routes.data?.routes ?? []).map((r) => (
                 <button
                   key={r.route}
                   onClick={() => {
@@ -245,8 +246,8 @@ export function Transfer() {
   const [postType, setPostType] = useState('page');
   const [overwrite, setOverwrite] = useState(false);
   const [publish, setPublish] = useState(false);
-  const [report, setReport] = useState<any>(null);
-  const [counts, setCounts] = useState<any>(null);
+  const [report, setReport] = useState<TransferTotal | null>(null);
+  const [counts, setCounts] = useState<Record<string, number> | null>(null);
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState(0);
   useEffect(() => {
@@ -257,30 +258,26 @@ export function Transfer() {
   const base = { from, to, kinds, post_type: postType, overwrite, publish };
 
   const preview = async (): Promise<void> => {
-    const r = await run<any>('site', 'transfer', base, { dry: true, level: 'admin', site: undefined });
+    const r = await run<TransferResult>('site', 'transfer', base, { dry: true, level: 'admin', site: undefined });
     if (r.ok) setCounts(r.data?.would_copy ?? null);
   };
   const start = async (): Promise<void> => {
     setBusy(true);
     setReport(null);
     let page = 1;
-    let id_map: any = undefined;
-    const total: any = { created: 0, skipped: 0, failed: [] as any[] };
+    let id_map: Obj | undefined = undefined;
+    const total: TransferTotal = { created: 0, skipped: 0, failed: [] };
     for (let guard = 0; guard < 200; guard++) {
-      const r = await run<any>(
-        'site',
-        'transfer',
-        { ...base, page, pages: 2, ...(id_map ? { id_map } : {}) },
-        { level: 'admin', quiet: true },
-      );
+      const step: Obj = { ...base, page, pages: 2, ...(id_map ? { id_map } : {}) };
+      const r = await run<TransferResult>('site', 'transfer', step, { level: 'admin', quiet: true });
       if (!r.ok) break;
-      for (const k of Object.values<any>(r.data.report ?? {})) {
+      for (const k of Object.values(r.data?.report ?? {})) {
         total.created += k.created;
         total.skipped += k.skipped;
         total.failed.push(...k.failed);
       }
-      id_map = r.data.id_map;
-      if (!r.data.next) {
+      id_map = r.data?.id_map;
+      if (!r.data?.next) {
         setProgress(100);
         break;
       }
@@ -365,7 +362,7 @@ export function Transfer() {
           </div>
           {counts && (
             <div className="rounded-lg border bg-muted/30 p-3 text-sm">
-              {Object.entries<any>(counts).map(([k, v]) => (
+              {Object.entries(counts).map(([k, v]) => (
                 <span key={k} className="me-4">
                   <b>{v}</b> {k}
                 </span>
@@ -385,7 +382,7 @@ export function Transfer() {
             <div className="rounded-lg border p-4 text-sm">
               <b>{t('Finished', 'تمام شد')}:</b> {report.created} {t('created', 'ساخته شد')}, {report.skipped}{' '}
               {t('skipped (already there)', 'رد شد (از قبل بود)')}, {report.failed.length} {t('failed', 'ناموفق')}
-              {report.failed.slice(0, 5).map((f: any, i: number) => (
+              {report.failed.slice(0, 5).map((f, i) => (
                 <div key={i} className="text-xs text-destructive">
                   {f.slug ?? f.old_id}: {f.error}
                 </div>
