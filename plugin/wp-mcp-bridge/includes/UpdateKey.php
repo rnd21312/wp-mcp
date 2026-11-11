@@ -10,4 +10,4 @@ declare(strict_types=1);
 
 defined( 'ABSPATH' ) || exit;
 
-return '2/wiPb7/Hk0eGRLM1WQs6nf4O8wzJi2q403FtDDpJNo=';
+return 'UQ3MtArzKhlVB6NaSKcJJRIFcSceCLzDs0xcU07E030=';
